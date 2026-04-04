@@ -1,9 +1,9 @@
 # tangnano20k_dev
 
-Tang Nano 20K 向けの FPGA 開発リポジトリです。
-現在は `uart_log_cli` を Tang Nano 20K 実機へ組み込み、
-ESP WiFi UART-TCP bridge 経由でホストからログ受信できる
-構成を含んでいます。
+FPGA development repository for the Tang Nano 20K.
+The current tree includes a working `uart_log_cli` integration for
+real hardware, with host-side log reception over an ESP WiFi
+UART-to-TCP bridge.
 
 ## Overview
 
@@ -15,8 +15,8 @@ ESP WiFi UART-TCP bridge 経由でホストからログ受信できる
 - Current debug path:
   `FPGA uart_log_cli -> UART -> ESP bridge -> TCP 192.168.10.40:2323`
 
-このリポジトリでは、FPGA 内部イベントを UART ログフレームへ
-変換し、ホスト側 `debug_log` ツールでデコード表示できます。
+This repository can generate internal FPGA events, serialize them into
+UART log frames, and decode them on the host with the `debug_log` tool.
 
 ## Directory Layout
 
@@ -30,9 +30,9 @@ ESP WiFi UART-TCP bridge 経由でホストからログ受信できる
 
 ## UART Log Bring-Up Status
 
-現在の Tang Nano 20K トップ実装は
-[tangnano20k_top.sv](./01_src/tangnano20k_top.sv) にて
-`uart_log_cli` を有効化しています。
+The current Tang Nano 20K top-level implementation enables
+`uart_log_cli` in
+[tangnano20k_top.sv](./01_src/tangnano20k_top.sv).
 
 - UART clock: `24 MHz`
 - UART baud: `115200`
@@ -43,27 +43,27 @@ ESP WiFi UART-TCP bridge 経由でホストからログ受信できる
 - Host transport: `tcp`
 - Default endpoint: `192.168.10.40:2323`
 
-実機確認では、TCP 経由で heartbeat の連続受信と CRC 正常を
-確認済みです。
+Hardware verification has already confirmed continuous heartbeat
+reception over TCP with valid CRCs.
 
 ## Host Tool
 
-ユーザー向け起動入口は
-[11_app/debug_log_cli](./11_app/debug_log_cli) です。
+The user-facing launcher is
+[11_app/debug_log_cli](./11_app/debug_log_cli).
 
-主な機能:
+Main features:
 
-- TCP 接続で UART ログ受信
-- UART log frame parser / CRC check
-- YAML decode rule によるイベント表示
-- TUI 上のログフィルタ
-- TCP 受信統計表示
+- Receive UART log frames over TCP
+- UART log frame parsing and CRC checking
+- Event decoding through YAML decode rules
+- Log filtering in the TUI
+- TCP receive statistics
   - packet count
   - byte count
   - sequence loss
   - CRC error count
 
-起動例:
+Launch example:
 
 ```powershell
 python .\11_app\debug_log_cli\uart_log_tool.py `
@@ -77,7 +77,7 @@ python .\11_app\debug_log_cli\uart_log_tool.py `
 Gowin project:
 [05_impl/tangnano20k.gprj](./05_impl/tangnano20k.gprj)
 
-Windows PowerShell での `run all` 例:
+Example `run all` command on Windows PowerShell:
 
 ```powershell
 $tcl = "C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\run_all.tcl"
@@ -89,7 +89,7 @@ Set-Content -Path $tcl -Value @(
 & "C:\Gowin\Gowin_V1.9.12_x64\IDE\bin\gw_sh.exe" $tcl
 ```
 
-主な出力:
+Main outputs:
 
 - Bitstream:
   [05_impl/impl/pnr/tangnano20k.fs](./05_impl/impl/pnr/tangnano20k.fs)
@@ -98,17 +98,16 @@ Set-Content -Path $tcl -Value @(
 
 ## Timing Constraints
 
-SDC は
-[05_impl/src/tangnano20k.sdc](./05_impl/src/tangnano20k.sdc)
-にあります。
+The SDC file is located at
+[05_impl/src/tangnano20k.sdc](./05_impl/src/tangnano20k.sdc).
 
-現在の制約:
+Current constraints:
 
 - `create_clock` for `PIN04_IOL07A_LPLL1` at `27 MHz`
 - `create_generated_clock` for PLL output
   `u0_gowin_pll/rpll_inst/CLKOUT` at `24 MHz`
 
-直近の PnR 結果:
+Latest PnR results:
 
 - Setup violated endpoints: `0`
 - Hold violated endpoints: `0`
@@ -116,28 +115,27 @@ SDC は
 
 ## Simulation
 
-UART log smoke test は
-[03_sim/01_uart_log_cli_smoke](./03_sim/01_uart_log_cli_smoke)
-にあります。
+The UART log smoke test is located in
+[03_sim/01_uart_log_cli_smoke](./03_sim/01_uart_log_cli_smoke).
 
-Windows 実行例:
+Example run on Windows:
 
 ```powershell
 cd .\03_sim
 python sim.py 01_uart_log_cli_smoke\testbench.sv
 ```
 
-この smoke test では以下を確認します。
+This smoke test checks:
 
-- heartbeat frame 出力
+- heartbeat frame generation
 - `src_id = 0x01`
 - `event_id = 0x11`
-- CRC 正常
-- help / reset 系の基本動作
+- valid CRC
+- basic help / reset behavior
 
 ## Programming
 
-Windows での SRAM 書き込み例:
+Example SRAM programming command on Windows:
 
 ```powershell
 & "C:\Gowin\Gowin_V1.9.12_x64\Programmer\bin\programmer_cli.exe" `
@@ -148,13 +146,13 @@ Windows での SRAM 書き込み例:
 
 ## Known Notes
 
-- TCP bridge 越しの heartbeat 受信は確認済みです。
-- `Ctrl+R` 相当の soft reset byte (`0x12`) は、
-  現在の ESP bridge 経路で実機確認未完了です。
-  FPGA 実装側には reset 処理を入れていますが、
-  bridge 側で制御コードが透過していない可能性があります。
-- Gowin PnR では `PR1014` 警告が出ますが、
-  現状 timing は満足しています。
+- Heartbeat reception over the TCP bridge has been verified.
+- The soft-reset byte for `Ctrl+R` (`0x12`) has not yet been fully
+  verified on the current ESP bridge path.
+  The FPGA-side reset handling is implemented, but the bridge may not
+  be forwarding this control code transparently.
+- Gowin PnR reports warning `PR1014`, but current timing still meets
+  the design requirements.
 
 ## Related Files
 
