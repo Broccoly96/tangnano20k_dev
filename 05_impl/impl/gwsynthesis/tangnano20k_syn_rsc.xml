@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module name="tangnano20k_top" Register="26" Lut="54" T_Register="1111(26)" T_Alu="53(0)" T_Lut="1390(54)" T_Bsram="15(0)">
+ <SubModule name="u0_gowin_pll"/>
+ <SubModule name="u0_reset_mng" Register="2" Lut="2" T_Register="2(2)" T_Lut="2(2)"/>
+ <SubModule name="u_uart_log_testsrc1" Register="94" Alu="31" Lut="43" T_Register="94(94)" T_Alu="31(31)" T_Lut="43(43)"/>
+ <SubModule name="u_uart_log_cli" Register="680" Alu="22" Lut="966" T_Register="989(680)" T_Alu="22(22)" T_Lut="1291(966)" T_Bsram="15(0)">
+  <SubModule name="u_uart_rx" Register="39" Lut="66" T_Register="39(39)" T_Lut="66(66)"/>
+  <SubModule name="u_uart_tx" Register="33" Lut="64" T_Register="33(33)" T_Lut="64(64)"/>
+  <SubModule name="g_log_tap[0].u_tap" Register="203" Lut="114" T_Register="203(203)" T_Lut="114(114)"/>
+  <SubModule name="u_evt_fifo" T_Register="34(0)" T_Lut="81(0)" T_Bsram="15(0)">
+   <SubModule name="u_sim_fifo" Register="34" Lut="81" Bsram="15" T_Register="34(34)" T_Lut="81(81)" T_Bsram="15(15)"/>
+  </SubModule>
+ </SubModule>
+</Module>

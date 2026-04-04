@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE gowin-synthesis-project>
+<Project>
+    <Version>beta</Version>
+    <Device id="GW2AR-18C" package="QFN88" speed="8" partNumber="GW2AR-LV18QN88C8/I7"/>
+    <FileList>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\gowin_pll\gowin_pll.v" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\reset_mng.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\sync_fifo_ae_af.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_lite\uart_rx_stream.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_lite\uart_tx_stream.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli_pkg.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tap.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_testsrc1.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv" type="verilog"/>
+    </FileList>
+    <OptionList>
+        <Option type="disable_insert_pad" value="0"/>
+        <Option type="global_freq" value="100.000"/>
+        <Option type="looplimit" value="2000"/>
+        <Option type="output_file" value="C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\impl\gwsynthesis\tangnano20k.vg"/>
+        <Option type="print_all_synthesis_warning" value="1"/>
+        <Option type="ram_rw_check" value="1"/>
+        <Option type="top_module" value="tangnano20k_top"/>
+        <Option type="vcc" value="1.0"/>
+        <Option type="verilog_language" value="sysv-2017"/>
+        <Option type="vhdl_language" value="vhdl-1993"/>
+    </OptionList>
+</Project>

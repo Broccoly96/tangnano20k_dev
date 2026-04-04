@@ -1,0 +1,304 @@
+#
+
+## 0) Design Specification Writing Rule
+
+When drafting design specifications, write at **Detail Level +1**.
+This means increasing **information content** (not word count) so a reviewer can implement and verify the design without guessing.
+
+#### Constraints
+- Do **not** inflate text by rephrasing the same point. Add only **new, decision-relevant information** (conditions, states, rules, examples, numbers).
+- Avoid ambiguous terms ("as needed", "preferably", "sufficient"). Use explicit, testable conditions.
+- Add a line break for every 70-80 characters, or after a period.
+- Use bullet lists when needed (enumeration, specification lineup, etc.). But do **not** overuse them.
+
+
+## 1) Directory Layout & Roles
+- `00_ip`      : Third-party/vendor IP sources (read-only). **Do not modify.**
+- `01_src`    : User RTL sources (design).
+- `02_tb`     : Common testbench utilities: packages, interfaces, BFMs, helpers, assertions, tasks/functions.
+- `03_sim`    : Simulation projects. Each testbench has its own subfolder containing TB top, testcases, and sim scripts.
+- `04_simlib` : Precompiled simulation libraries (Questa/ModelSim, Xilinx/Intel libs, etc.).
+
+
+## 2) Source Code Categorization Rules
+- RTL code **shall** be stored in `01_src/`.
+- Testbench common code **shall** be stored in `02_tb/`.
+- Testbench tops (wrappers) **shall** reside under `03_sim/<tb_name>/`.
+- Testcase code **shall** be stored under `03_sim/<tb_name>/` alongside the testbench top.
+- Testcase files **shall** contain a **single `initial` block** describing scenarios.
+  - Helper tasks/functions **shall be excluded** from testcase files and placed in separate files under `02_tb/`.
+
+**Recommended file naming:**
+- TB top: `testbench.sv`
+- Testcase: `testcase_<scenario>.svh`
+
+**Compile order:**
+1. Packages → 2. Interfaces/typedefs → 3. Common TB utils → 4. DUT RTL → 5. TB top → 6. Testcases
+
+
+## 3) Commenting & Naming Rules
+
+### Source file naming
+- Add suffix `_pkg` for `package` type modules.
+- Add suffix `_if` for `interface` type modules.
+- Add protocol prefix: `uart_`, `wishbone_`, `axi4st_`, etc.
+- Add suffix `_driver`/`_monitor`/`_receiver` for testbench protocol components.
+
+### Module Ports
+- All Upper case.
+
+### Signal types
+- All Lower case.
+- Prefix: `s_` (wire), `r_` (reg), `l_` (logic).
+
+### Buffer Flip-flop
+- Incoming signal buffer: `r_signal` → `r_signal_q` → `r_signal_qq`.
+
+### State Machine
+- Prefix: `st_` (e.g., `st_state`, `st_nextstate`).
+- State names: all upper case (e.g., `IDLE`, `BOOT`, `END_SEQ`).
+
+### Others
+- Header comment: purpose, behavior, usage (+ minimal example).
+- Every major `always`/`function`/`task` block needs verbose description.
+- FSM: document state purposes, actions, transition flow, **transition conditions**.
+
+
+## 4) Coding Rules (SystemVerilog)
+
+### 4.1) Always-block structure
+- **Do not** implement functionality as a single monolithic block.
+- **Decompose** into multiple small blocks, each with **single responsibility**.
+- Keep sensitivity type correct (`always_ff` vs `always_comb`).
+- Add brief comment at top describing purpose, behavior, and key invariants.
+- When an `always_ff` block grows to hold multiple register categories
+  (ex. state, counters, CDC synchronizers, debug/trace, handshake outputs),
+  split it into separate `always_ff` blocks by responsibility.
+- A register shall be assigned in exactly one `always_ff` block.
+- Group registers together only when they share the same update event and the
+  same verification intent.
+- Prefer separate blocks for:
+  - FSM/state-holding registers
+  - Handshake/request-valid registers
+  - Counters/statistics
+  - CDC synchronizers
+  - Debug/trace capture registers
+- Also split blocks when:
+  - Reset values or reset release conditions differ between register groups
+  - Update enable conditions differ significantly between register groups
+  - One-cycle pulse generation is mixed with sticky/state-holding registers
+  - External interface boundary registers are mixed with internal control state
+  - Nested conditional depth grows enough that side effects are hard to trace
+  - The block requires long comments to explain independent behaviors
+
+### 4.2) When to split into multiple files/modules
+Split when:
+- Distinct interface or protocol (AXI, SPI, I2C, UART, etc.)
+- Independent FSM that can be verified on its own
+- Algorithmic datapath (pipeline, CRC/ECC, filtering)
+- Register/CSR handling grows large → dedicated `*_regs.sv`
+
+**Size triggers (heuristics):**
+- Module: ~300-500 lines → consider split
+- File: ~800-1200 lines → prefer split
+- Port list: ~40-60 signals → consider split (or group via `interface`/`struct`)
+
+### 4.3) FSM coding rules
+
+**4.3.1) State enum**
+```systemverilog
+typedef enum logic [2:0] {IDLE, START, DATA, STOP} state_t;
+state_t st_state, st_nextstate;
+```
+
+**4.3.2) State register** - dedicated `always_ff` block, reset to default state.
+
+**4.3.3) Next-state logic** - dedicated `always_comb` block with safe default:
+```systemverilog
+st_nextstate = st_state;  // hold unless condition met
+case (st_state) ... endcase
+```
+
+**4.3.4) Separate FSM from datapath** - move counters, edge generators, output registers to separate blocks.
+
+**4.3.5) Reset helper logic** - explicitly reset in default/idle state.
+
+**4.3.6) Comment every FSM block** - include default state and transition conditions.
+
+
+## 5) Simulation
+
+### Linux (Questa) - highest priority
+```bash
+cd /home/kenji/git/tangmega60k_dev
+source /home/kenji/tools/questa_fse/use_questa_fse.sh
+cd 03_sim
+python3 sim_questa_linux.py 01_uart/testbench.sv recompile
+```
+- Use `/` in TB path arguments.
+- Log: `03_sim/sim.log`, `03_sim/compile.log`
+
+### Windows (ModelSim)
+```bash
+cd 03_sim
+python sim.py 01_uart\testbench.sv recompile
+```
+Options: `recompile`, `openwave`, `log LEVEL`, `vsimpath PATH`, `+PLUSARGS`
+
+
+## 6) Synthesis with GOWIN EDA
+
+### 6.1) gowin_syn.sh wrapper (recommended) (Linux only)
+```bash
+cd /home/kenji/git/tangmega60k_dev
+./11_app/gowin_syn.sh syn       # synthesis only
+./11_app/gowin_syn.sh pnr       # place & route (requires prior syn)
+./11_app/gowin_syn.sh all       # synthesis + PnR
+./11_app/gowin_syn.sh -v all     # with verbose output
+```
+- Success: `GowinSynthesis finish`, `Placement and routing completed`
+
+### 6.2) Direct gw_sh invocation (manual only) (Linux only)
+```bash
+export GOWIN_EDA_HOME=/home/kenji/tools/gowin/eda-current/IDE
+export QT_QPA_PLATFORM=offscreen
+export LD_PRELOAD=/lib/x86_64-linux-gnu/libfreetype.so.6
+${GOWIN_EDA_HOME}/bin/gw_sh /tmp/gw_run_syn_only.tcl
+```
+
+### 6.3) Common issues
+- **Linux License**: check `IDE/bin/gwlicense.ini`, verify network to
+  `gowinlic.sipeed.com:10559`
+- **Linux Qt errors**: use `QT_QPA_PLATFORM=offscreen`
+- **Linux font symbols**: use
+  `LD_PRELOAD=/lib/x86_64-linux-gnu/libfreetype.so.6`
+- **Windows path separator**: both `/` and `\` are accepted by Gowin Tcl,
+  but use `/` in Tcl scripts to avoid backslash escape mistakes.
+- **Windows gw_sh help**: `gw_sh.exe -h` opens the interactive Tcl console.
+  For repeatable CLI operation, always execute a Tcl script file.
+- **Windows PnR prerequisite**: `run pnr` requires
+  `impl\gwsynthesis\<project>.vg`.
+  On a clean project, run `run syn` first or use `run all`.
+
+### 6.4) Synthesis (Windows)
+Use the project file as the single entry point.
+
+- Gowin EDA executable:
+  `C:\Gowin\Gowin_V1.9.12_x64\IDE\bin\gw_sh.exe`
+- Project file:
+  `C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\tangnano20k.gprj`
+
+#### Synthesis only: `run syn`
+```powershell
+$tcl = "C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\run_syn.tcl"
+Set-Content -Path $tcl -Value @(
+  "open_project C:/Electronics/GitHubProjects/tangnano20k_dev/05_impl/tangnano20k.gprj"
+  "run syn"
+  "exit"
+)
+& "C:\Gowin\Gowin_V1.9.12_x64\IDE\bin\gw_sh.exe" `
+  $tcl
+```
+- Success message: `GowinSynthesis finish`
+- Main outputs:
+  `05_impl\impl\gwsynthesis\tangnano20k.vg`
+  `05_impl\impl\gwsynthesis\tangnano20k_syn.rpt.html`
+  `05_impl\impl\gwsynthesis\tangnano20k.log`
+
+### 6.5) Plan & Route (Windows)
+Use `run pnr` only after synthesis output already exists.
+For a clean rebuild from synthesis through bitstream generation,
+prefer `run all`.
+
+#### Place & Route only: `run pnr`
+```powershell
+$tcl = "C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\run_pnr.tcl"
+Set-Content -Path $tcl -Value @(
+  "open_project C:/Electronics/GitHubProjects/tangnano20k_dev/05_impl/tangnano20k.gprj"
+  "run pnr"
+  "exit"
+)
+& "C:\Gowin\Gowin_V1.9.12_x64\IDE\bin\gw_sh.exe" `
+  $tcl
+```
+- Prerequisite:
+  `05_impl\impl\gwsynthesis\tangnano20k.vg`
+- Success messages:
+  `Placement and routing completed`
+  `Bitstream generation completed`
+- Main outputs:
+  `05_impl\impl\pnr\tangnano20k.fs`
+  `05_impl\impl\pnr\tangnano20k.rpt.txt`
+  `05_impl\impl\pnr\tangnano20k.log`
+
+#### Full flow: `run all` (recommended for first run)
+```powershell
+$tcl = "C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\run_all.tcl"
+Set-Content -Path $tcl -Value @(
+  "open_project C:/Electronics/GitHubProjects/tangnano20k_dev/05_impl/tangnano20k.gprj"
+  "run all"
+  "exit"
+)
+& "C:\Gowin\Gowin_V1.9.12_x64\IDE\bin\gw_sh.exe" `
+  $tcl
+```
+- `run all` executes synthesis and then Place & Route in one invocation.
+- Use this flow when `impl\gwsynthesis` does not exist yet or when a full
+  bitstream refresh is required.
+- Verified on this repository on `2026-04-04`:
+  `run all` completed successfully and generated
+  `05_impl\impl\pnr\tangnano20k.fs`.
+
+
+## 7) Programming
+
+### 7.1) Start sudo session (Linux only)
+```bash
+cd /home/kenji/git/tangmega60k_dev
+./11_app/sudo_session/sudo_session_start.sh
+```
+
+### 7.2) Program FPGA (SRAM, temporary)
+
+#### Linux
+```bash
+cd /home/kenji/git/tangmega60k_dev
+./11_app/sudo_session/sudo_run.sh \
+  /home/kenji/tools/gowin/programmer-current/bin/programmer_cli \
+  --device GW5AT-60B --run 2 \
+  --fsFile /home/kenji/git/tangmega60k_dev/impl/pnr/tangmega60k_top.fs \
+  --cable-index 1 --channel 0
+```
+- Success: `Programming...: [#########################] 100%`, `Finished.`, `Status Code is: 0x70026020`
+
+#### Windows (Powershell)
+- Optional device scan before programming:
+```shell
+  C:\Gowin\Gowin_V1.9.12_x64\Programmer\bin\programmer_cli.exe `
+  --device GW2AR-18C `
+  --scan
+```
+- Expected scan result:
+  `1 device(s) found!`
+  `Name: GW2A-18C GW2AR-18C GW2ANR-18C`
+```shell
+  C:\Gowin\Gowin_V1.9.12_x64\Programmer\bin\programmer_cli.exe `
+  --device GW2AR-18C `
+  --run 2 `
+  --fsFile C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\impl\pnr\tangnano20k.fs
+```
+- Success:
+  `Programming...: [#########################] 100%`
+  `User Code is: 0x0000C102`
+  `Status Code is: 0x00006020`
+  `Finished.`
+
+### 7.3) Stop session (Linux only)
+```bash
+cd /home/kenji/git/tangmega60k_dev
+./11_app/sudo_session/sudo_session_stop.sh
+```
+
+### 7.4) Notes
+- `sudo_run.sh` uses `sudo -n` (non-interactive).
+- If session missing/expired: exit code 90, re-run `sudo_session_start.sh`.

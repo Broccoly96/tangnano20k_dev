@@ -1,0 +1,41 @@
+version: 1
+default:
+  level: INFO
+  title: LOG
+  message: "src=0x{src_id:02X} evt=0x{event_id:02X} ts={timestamp} arg0=0x{arg0_hex} arg1=0x{arg1_hex} arg2=0x{arg2_hex}"
+
+"0x01:0x11":
+  level: INFO
+  title: HEARTBEAT
+  message: "HEARTBEAT time={timestamp} count={arg0_u32}"
+
+"0x02:0x06":
+  level: INFO
+  title: PCIE_RX_ACTIVITY0
+  message: "PCIe RX activity beats={arg0_u32} sop={arg1_u32} eop={arg2_u32}"
+
+"0x02:0x07":
+  level: INFO
+  title: PCIE_RX_ACTIVITY1
+  message: "PCIe RX activity valid_nonzero={arg0_u32} bardec_nonzero={arg1_u32} rx_err_sticky=0x{arg2_hex}"
+
+"0x02:0x08":
+  level: INFO
+  title: PCIE_TX_ACTIVITY0
+  message: "PCIe TX activity beats={arg0_u32} sop={arg1_u32} eop={arg2_u32}"
+
+"0x02:0x09":
+  level: INFO
+  title: PCIE_TX_ACTIVITY1
+  message: "PCIe TX activity valid_nonzero={arg0_u32} fifo_full_drop={arg1_u32} tlp_overrun_drop={arg2_u32}"
+
+"0x03:0x01":
+  level: INFO
+  title: PCIE_EP_STATUS
+  decode: pcie_ep_status
+  message: "PCIe sts ltssm={ltssm_curr_name} linkup={linkup_curr} rst_n={rst_pcie_100m_n_curr} rst_seen={rst_pcie_100m_asserted_curr} rx_err=0x{rx_err_curr_hex} sticky=0x{rx_err_sticky_hex} req_key=0x{req_key_hex} tx_wait={tx_wait_curr} mmio=0x{arg2_b1:02X} tx=0x{arg2_b2:02X} rx=0x{arg2_b3:02X}"
+
+"0x03:0x02":
+  level: INFO
+  title: PCIE_EP_BRIDGE
+  message: "PCIe bridge rx_len={arg0_b0} rx_avail={arg0_b1} tx_fifo={arg0_b2} irq=0x{arg0_b3:02X} last_bar0_addr=0x{arg1_u32:08X} last_bar0_access=0x{arg2_u32:08X}"

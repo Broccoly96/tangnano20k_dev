@@ -1,0 +1,88 @@
+[
+ {
+  "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+  "InstLine" : 6,
+  "InstName" : "tangnano20k_top",
+  "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+  "ModuleLine" : 6,
+  "ModuleName" : "tangnano20k_top",
+  "SubInsts" : [
+   {
+    "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+    "InstLine" : 119,
+    "InstName" : "u0_gowin_pll",
+    "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_pll/gowin_pll.v",
+    "ModuleLine" : 10,
+    "ModuleName" : "gowin_pll"
+   },
+   {
+    "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+    "InstLine" : 131,
+    "InstName" : "u0_reset_mng",
+    "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/reset_mng.sv",
+    "ModuleLine" : 7,
+    "ModuleName" : "reset_mng"
+   },
+   {
+    "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+    "InstLine" : 193,
+    "InstName" : "u_uart_log_testsrc1",
+    "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_testsrc1.sv",
+    "ModuleLine" : 15,
+    "ModuleName" : "uart_log_testsrc1"
+   },
+   {
+    "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+    "InstLine" : 212,
+    "InstName" : "u_uart_log_cli",
+    "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
+    "ModuleLine" : 18,
+    "ModuleName" : "uart_log_cli",
+    "SubInsts" : [
+     {
+      "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
+      "InstLine" : 248,
+      "InstName" : "u_uart_rx",
+      "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_lite/uart_rx_stream.sv",
+      "ModuleLine" : 6,
+      "ModuleName" : "uart_rx_stream"
+     },
+     {
+      "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
+      "InstLine" : 258,
+      "InstName" : "u_uart_tx",
+      "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_lite/uart_tx_stream.sv",
+      "ModuleLine" : 6,
+      "ModuleName" : "uart_tx_stream"
+     },
+     {
+      "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
+      "InstLine" : 329,
+      "InstName" : "g_log_tap[0].u_tap",
+      "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_tap.sv",
+      "ModuleLine" : 18,
+      "ModuleName" : "uart_log_tap"
+     },
+     {
+      "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
+      "InstLine" : 348,
+      "InstName" : "u_evt_fifo",
+      "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_evt_fifo.sv",
+      "ModuleLine" : 17,
+      "ModuleName" : "uart_log_cli_evt_fifo",
+      "SubInsts" : [
+       {
+        "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_evt_fifo.sv",
+        "InstLine" : 46,
+        "InstName" : "u_sim_fifo",
+        "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/sync_fifo_ae_af.sv",
+        "ModuleLine" : 8,
+        "ModuleName" : "sync_fifo_ae_af"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

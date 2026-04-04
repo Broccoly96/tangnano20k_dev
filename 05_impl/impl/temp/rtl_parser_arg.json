@@ -1,0 +1,57 @@
+{
+ "Device" : "GW2AR-18C",
+ "Files" : [
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_pll/gowin_pll.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/reset_mng.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/sync_fifo_ae_af.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_lite/uart_rx_stream.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_lite/uart_tx_stream.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_pkg.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_tap.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_evt_fifo.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_testsrc1.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+   "Type" : "verilog"
+  }
+ ],
+ "IncludePath" : [
+
+ ],
+ "LoopLimit" : 2000,
+ "ResultFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/05_impl/impl/temp/rtl_parser.result",
+ "Top" : "tangnano20k_top",
+ "VerilogStd" : "sysv",
+ "VhdlStd" : "vhdl_93"
+}

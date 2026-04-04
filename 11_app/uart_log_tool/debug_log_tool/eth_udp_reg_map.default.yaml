@@ -1,0 +1,1174 @@
+version: 3
+registers:
+  - address: 0x00000000
+    name: DEVICE_ID
+    access: RO
+    reset_value: 0x45544831
+    description: Fixed device identifier
+    screen: fpga
+    group: identity
+    format: hex
+    poll_default: true
+  - address: 0x00000004
+    name: VERSION
+    access: RO
+    reset_value: 0x00020000
+    description: Ethernet register protocol version
+    screen: fpga
+    group: identity
+    format: hex
+    poll_default: true
+  - address: 0x00000008
+    name: SCRATCH
+    access: RW
+    reset_value: 0x00000000
+    description: Scratch register for read and write test
+    screen: fpga
+    group: control
+  - address: 0x0000000C
+    name: CONF_INDEX
+    access: RW
+    reset_value: 0x00000000
+    description: Indirect register window index
+    screen: fpga
+    group: conf
+  - address: 0x00000010
+    name: CONF_DATA
+    access: RW
+    reset_value: 0x00000000
+    description: Indirect register window data
+    screen: fpga
+    group: conf
+  - address: 0x00000014
+    name: LED_CONTROL
+    access: RW
+    reset_value: 0x00000000
+    description: Debug LED control
+    screen: fpga
+    group: control
+  - address: 0x00000018
+    name: RX_PACKET_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Received Ethernet frame count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x0000001C
+    name: TX_PACKET_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Transmitted Ethernet frame count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x00000020
+    name: ARP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: ARP reply count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x00000024
+    name: UDP_COMMAND_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted UDP command count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x00000028
+    name: PROTO_ERROR_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Register access protocol error count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x0000002C
+    name: RX_DROP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: RX drop count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x00000030
+    name: TX_DROP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: TX drop count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x000000CC
+    name: IPV4_DROP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: IPv4 parser drop count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x000000D0
+    name: UDP_DROP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: UDP parser drop count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x000000D4
+    name: RX_MALFORMED_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Ethernet RX malformed frame count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x00000034
+    name: LAST_ETHER_TYPE
+    access: RO
+    reset_value: 0x00000000
+    description: Last received EtherType
+    screen: eth
+    group: debug
+  - address: 0x00000038
+    name: LAST_SRC_MAC_HI
+    access: RO
+    reset_value: 0x00000000
+    description: Last source MAC upper 16 bits
+    screen: eth
+    group: debug
+  - address: 0x0000003C
+    name: LAST_SRC_MAC_LO
+    access: RO
+    reset_value: 0x00000000
+    description: Last source MAC lower 32 bits
+    screen: eth
+    group: debug
+  - address: 0x00000040
+    name: LAST_SRC_IP
+    access: RO
+    reset_value: 0x00000000
+    description: Last source IPv4 address
+    screen: eth
+    group: debug
+    format: ipv4
+  - address: 0x00000044
+    name: LAST_DST_UDP_PORT
+    access: RO
+    reset_value: 0x00000000
+    description: Last destination UDP port
+    screen: eth
+    group: debug
+    format: port
+  - address: 0x00000048
+    name: LAST_CMD_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: Last command and status summary
+    screen: eth
+    group: debug
+  - address: 0x0000004C
+    name: PHY_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: Legacy PHY status mirror
+    screen: eth
+    group: status
+    poll_default: true
+  - address: 0x00000050
+    name: NET_CFG_CONTROL
+    access: RW
+    reset_value: 0x00000000
+    description: Shadow to active network apply control
+    screen: eth
+    group: config
+  - address: 0x00000054
+    name: NET_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: Active config and negotiated mode status
+    screen: eth
+    group: status
+    poll_default: true
+  - address: 0x00000058
+    name: NET_SHADOW_FPGA_IP_ADDR
+    access: RW
+    reset_value: 0xC0A86402
+    description: Shadow FPGA IPv4 address
+    screen: eth
+    group: config
+    format: ipv4
+  - address: 0x0000005C
+    name: NET_SHADOW_UDP_CTRL_PORT
+    access: RW
+    reset_value: 0x0000C350
+    description: Shadow control UDP port
+    screen: eth
+    group: config
+    format: port
+  - address: 0x00000060
+    name: NET_SHADOW_UDP_LOG_SRC_PORT
+    access: RW
+    reset_value: 0x0000C351
+    description: Shadow log source UDP port
+    screen: eth
+    group: config
+    format: port
+  - address: 0x00000064
+    name: NET_SHADOW_LOG_DST_IP
+    access: RW
+    reset_value: 0xC0A86401
+    description: Shadow log destination IPv4 address
+    screen: eth
+    group: config
+    format: ipv4
+  - address: 0x00000068
+    name: NET_SHADOW_LOG_DST_PORT
+    access: RW
+    reset_value: 0x0000C351
+    description: Shadow log destination UDP port
+    screen: eth
+    group: config
+    format: port
+  - address: 0x0000006C
+    name: NET_ACTIVE_FPGA_IP_ADDR
+    access: RO
+    reset_value: 0xC0A86402
+    description: Active FPGA IPv4 address
+    screen: eth
+    group: active
+    format: ipv4
+    poll_default: true
+  - address: 0x00000070
+    name: NET_ACTIVE_UDP_CTRL_PORT
+    access: RO
+    reset_value: 0x0000C350
+    description: Active control UDP port
+    screen: eth
+    group: active
+    format: port
+    poll_default: true
+  - address: 0x00000074
+    name: NET_ACTIVE_UDP_LOG_SRC_PORT
+    access: RO
+    reset_value: 0x0000C351
+    description: Active log source UDP port
+    screen: eth
+    group: active
+    format: port
+    poll_default: true
+  - address: 0x00000078
+    name: NET_ACTIVE_LOG_DST_IP
+    access: RO
+    reset_value: 0xC0A86401
+    description: Active log destination IPv4 address
+    screen: eth
+    group: active
+    format: ipv4
+    poll_default: true
+  - address: 0x0000007C
+    name: NET_ACTIVE_LOG_DST_PORT
+    access: RO
+    reset_value: 0x0000C351
+    description: Active log destination UDP port
+    screen: eth
+    group: active
+    format: port
+    poll_default: true
+  - address: 0x00000080
+    name: LINK_CONTROL
+    access: RW
+    reset_value: 0x00000000
+    description: Auto and manual link mode control
+    screen: eth
+    group: control
+  - address: 0x00000084
+    name: LINK_STATUS_EXT
+    access: RO
+    reset_value: 0x00000000
+    description: Extended link status
+    screen: eth
+    group: status
+    poll_default: true
+  - address: 0x00000088
+    name: LOG_STREAM_CONTROL
+    access: RW
+    reset_value: 0x00000000
+    description: UDP log stream enable and clear
+    screen: eth
+    group: control
+  - address: 0x0000008C
+    name: LOG_STREAM_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: UDP log stream status flags
+    screen: eth
+    group: status
+    poll_default: true
+  - address: 0x00000090
+    name: LOG_STREAM_PACKET_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: UDP log packet count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x00000094
+    name: LOG_STREAM_DROP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: UDP log drop count
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x00000098
+    name: LOG_STREAM_LAST_SEQ
+    access: RO
+    reset_value: 0x00000000
+    description: Last emitted UDP log sequence
+    screen: eth
+    group: counters
+    poll_default: true
+  - address: 0x0000009C
+    name: FPGA_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: FPGA reset, PHY reset, and snapshot summary
+    screen: fpga
+    group: status
+    poll_default: true
+  - address: 0x000000A0
+    name: FPGA_UPTIME_LO
+    access: RO
+    reset_value: 0x00000000
+    description: FPGA uptime counter lower 32 bits
+    screen: fpga
+    group: status
+    poll_default: true
+  - address: 0x000000A4
+    name: FPGA_UPTIME_HI
+    access: RO
+    reset_value: 0x00000000
+    description: FPGA uptime counter upper 32 bits
+    screen: fpga
+    group: status
+    poll_default: true
+  - address: 0x000000A8
+    name: FPGA_SNAPSHOT_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of snapshot requests observed by the FPGA
+    screen: fpga
+    group: status
+    poll_default: true
+  - address: 0x000000AC
+    name: PCIE_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe summary status mirror without LINKUP and LTSSM
+    screen: pcie
+    group: summary
+    poll_default: true
+  - address: 0x000000B0
+    name: PCIE_TLP_UNSUPPORTED_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Unsupported TLP count mirror
+    screen: pcie
+    group: counters
+    poll_default: true
+  - address: 0x000000B4
+    name: PCIE_RX_FRAME_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe RX frame count mirror
+    screen: pcie
+    group: counters
+    poll_default: true
+  - address: 0x000000B8
+    name: PCIE_RX_DROP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe RX drop count mirror
+    screen: pcie
+    group: counters
+    poll_default: true
+  - address: 0x000000BC
+    name: PCIE_TX_FRAME_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe TX frame count mirror
+    screen: pcie
+    group: counters
+    poll_default: true
+  - address: 0x000000C0
+    name: PCIE_TX_DROP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe TX drop count mirror
+    screen: pcie
+    group: counters
+    poll_default: true
+  - address: 0x000000C4
+    name: PCIE_LOG_CONTROL
+    access: RW
+    reset_value: 0x00000000
+    description: PCIe log snapshot periodic enable bits
+    screen: pcie
+    group: control
+    poll_default: true
+  - address: 0x000000C8
+    name: PCIE_LOG_TRIGGER
+    access: WO
+    reset_value: 0x00000000
+    description: Write-one trigger bits for PCIe log snapshots
+    screen: pcie
+    group: control
+    poll_default: false
+  - address: 0x000000D8
+    name: PCIE_LINKUP_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe link-up state mirror
+    screen: pcie
+    group: summary
+    poll_default: true
+  - address: 0x000000DC
+    name: PCIE_LTSSM
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe LTSSM state mirror
+    screen: pcie
+    group: summary
+    poll_default: true
+    decoder:
+      kind: enum
+      field_name: ltssm
+      lsb: 0
+      width: 5
+      values:
+        0x00: detect.quiet
+        0x01: detect.active
+        0x02: polling.active
+        0x03: polling.compliance
+        0x04: polling.configuration
+        0x05: config.linkwidthstart
+        0x06: config.linkwidthaccept
+        0x07: config.lanenumwait
+        0x08: config.lanenumaccept
+        0x09: config.complete
+        0x0A: config.idle
+        0x0B: recovery.receiverlock
+        0x0C: recovery.equalization
+        0x0D: recovery.speed
+        0x0E: recovery.receiverconfig
+        0x0F: recovery.idle
+        0x10: L0
+        0x11: L0s
+        0x12: L1.entry
+        0x13: L1.idle
+        0x14: L2.idle_or_l2.transmitwake
+        0x15: reserved
+        0x16: disable
+        0x17: loopback.entry
+        0x18: loopback.active
+        0x19: loopback.exit
+        0x1A: hotreset
+  - address: 0x000000E0
+    name: PCIE_LAST_RX_ERROR
+    access: RO
+    reset_value: 0x00000000
+    description: Last non-zero PCIe RX error code observed from the IP
+    screen: pcie
+    group: debug
+    poll_default: true
+    decoder:
+      kind: bitset
+      fields:
+        - bit: 0
+          name: ecrc_error
+        - bit: 1
+          name: invalid_tlp
+        - bit: 2
+          name: rx_buffer_read_error
+        - bit: 3
+          name: rx_config_data_packet
+        - bit: 4
+          name: unsupported_tlp_format
+        - bit: 5
+          name: acs_violation
+  - address: 0x000000E4
+    name: PCIE_MMIO_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: DMA-less PCIe bridge status summary mirror
+    screen: pcie
+    group: summary
+    poll_default: true
+  - address: 0x000000E8
+    name: PCIE_RX_AVAIL_CNT
+    access: RO
+    reset_value: 0x00000000
+    description: Buffered RX frame count mirror
+    screen: pcie
+    group: summary
+    poll_default: true
+  - address: 0x000000EC
+    name: PCIE_RX_CUR_LEN
+    access: RO
+    reset_value: 0x00000000
+    description: Current RX frame length mirror
+    screen: pcie
+    group: summary
+    poll_default: true
+  - address: 0x000000F0
+    name: PCIE_RX_CUR_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: Current RX frame status mirror
+    screen: pcie
+    group: summary
+    poll_default: true
+  - address: 0x000000F4
+    name: PCIE_TX_STATUS_MIRROR
+    access: RO
+    reset_value: 0x00000000
+    description: DMA-less TX status mirror
+    screen: pcie
+    group: summary
+    poll_default: true
+  - address: 0x000000F8
+    name: PCIE_TX_FIFO_LEVEL
+    access: RO
+    reset_value: 0x00000000
+    description: DMA-less TX committed level mirror
+    screen: pcie
+    group: summary
+    poll_default: true
+  - address: 0x000000FC
+    name: PCIE_IRQ_STATUS_MIRROR
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe BAR0 IRQ status mirror
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000100
+    name: PCIE_LAST_BAR0_ADDR
+    access: RO
+    reset_value: 0x00000000
+    description: Last BAR0 address touched by the host
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000104
+    name: PCIE_LAST_BAR0_ACCESS
+    access: RO
+    reset_value: 0x00000000
+    description: Last BAR0 access summary bits
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000108
+    name: PCIE_TLP_RX_VALID_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of cycles where PCIe TL RX VALID from the IP was non-zero
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000010C
+    name: PCIE_DRP_RD_VALID_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of PCIe DRP read-valid pulses observed from the IP
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000110
+    name: PCIE_DRP_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: PCIe DRP live and sticky status bits from the IP
+    screen: pcie
+    group: debug
+    poll_default: true
+    decoder:
+      kind: bitset
+      fields:
+        - bit: 0
+          name: ready_live
+        - bit: 1
+          name: rd_valid_live
+        - bit: 2
+          name: ready_seen
+        - bit: 3
+          name: rd_valid_seen
+  - address: 0x00000114
+    name: PCIE_LAST_RX_RAW_DW0
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe RX DWORD0 from the most recent traced beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000118
+    name: PCIE_LAST_RX_RAW_DW1
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe RX DWORD1 from the most recent traced beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000011C
+    name: PCIE_LAST_RX_RAW_DW2
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe RX DWORD2 from the most recent traced beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000120
+    name: PCIE_LAST_RX_RAW_DW3
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe RX DWORD3 from the most recent traced beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000124
+    name: PCIE_LAST_RX_RAW_DW4
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe RX DWORD4 from the most recent traced beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000128
+    name: PCIE_LAST_RX_RAW_DW5
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe RX DWORD5 from the most recent traced beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000012C
+    name: PCIE_LAST_RX_RAW_DW6
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe RX DWORD6 from the most recent traced beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000130
+    name: PCIE_LAST_RX_RAW_DW7
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe RX DWORD7 from the most recent traced beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000134
+    name: PCIE_LAST_TX_VALID
+    access: RO
+    reset_value: 0x00000000
+    description: Last BAR0 completion TX valid mask snapshot
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000138
+    name: PCIE_TX_CPL_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of BAR0 completions issued to the PCIe TX path
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000013C
+    name: PCIE_LAST_TX_RAW_DW4
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe TX DWORD4 from the most recent completion beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000140
+    name: PCIE_LAST_TX_RAW_DW5
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe TX DWORD5 from the most recent completion beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000144
+    name: PCIE_LAST_TX_RAW_DW6
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe TX DWORD6 from the most recent completion beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000148
+    name: PCIE_LAST_TX_RAW_DW7
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe TX DWORD7 from the most recent completion beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000014C
+    name: PCIE_REQ_FIFO_RD_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of BAR0 request FIFO dequeue events into the 50MHz core
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000150
+    name: PCIE_RSP_FIFO_WR_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of BAR0 response FIFO enqueue events from the 50MHz core
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000154
+    name: PCIE_LAST_CORE_REQ_ADDR
+    access: RO
+    reset_value: 0x00000000
+    description: Last BAR0 request address observed after the request FIFO dequeue
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000158
+    name: PCIE_LAST_CORE_REQ_META
+    access: RO
+    reset_value: 0x00000000
+    description: Last BAR0 request meta after FIFO dequeue
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000015C
+    name: PCIE_LAST_TX_RAW_DW0
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe TX DWORD0 from the most recent completion beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000160
+    name: PCIE_LAST_TX_RAW_DW1
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe TX DWORD1 from the most recent completion beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000164
+    name: PCIE_LAST_TX_RAW_DW2
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe TX DWORD2 from the most recent completion beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000168
+    name: PCIE_LAST_TX_RAW_DW3
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe TX DWORD3 from the most recent completion beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000016C
+    name: PCIE_TX_PATH_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: BAR0 completion TX path live status bits
+    screen: pcie
+    group: debug
+    poll_default: true
+    decoder:
+      kind: bitset
+      fields:
+        - bit: 0
+          name: tx_wait_live
+        - bit: 1
+          name: tx_pending
+        - bit: 2
+          name: rsp_fifo_empty
+        - bit: 3
+          name: rsp_fifo_rd_pending
+  - address: 0x00000170
+    name: PCIE_RSP_FIFO_RD_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of BAR0 response FIFO dequeue events into the TX path
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000174
+    name: PCIE_REQ_TLP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of accepted 50MHz-domain request TLPs seen from SOP to EOP
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000178
+    name: PCIE_REQ_TLP_BARDEC
+    access: RO
+    reset_value: 0x00000000
+    description: BAR decode snapshot latched on the accepted request TLP SOP beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000017C
+    name: PCIE_REQ_TLP_DW0
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted request TLP first-beat DWORD0 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000180
+    name: PCIE_REQ_TLP_DW1
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted request TLP first-beat DWORD1 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000184
+    name: PCIE_REQ_TLP_DW2
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted request TLP first-beat DWORD2 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000188
+    name: PCIE_REQ_TLP_DW3
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted request TLP first-beat DWORD3 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000018C
+    name: PCIE_REQ_TLP_DW4
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted request TLP first-beat DWORD4 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000190
+    name: PCIE_REQ_TLP_DW5
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted request TLP first-beat DWORD5 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000194
+    name: PCIE_REQ_TLP_DW6
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted request TLP first-beat DWORD6 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000198
+    name: PCIE_REQ_TLP_DW7
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted request TLP first-beat DWORD7 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x0000019C
+    name: PCIE_RESP_TLP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of accepted 50MHz-domain response TLPs seen from SOP to EOP
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001A0
+    name: PCIE_RESP_TLP_DW0
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted response TLP first-beat DWORD0 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001A4
+    name: PCIE_RESP_TLP_DW1
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted response TLP first-beat DWORD1 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001A8
+    name: PCIE_RESP_TLP_DW2
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted response TLP first-beat DWORD2 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001AC
+    name: PCIE_RESP_TLP_DW3
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted response TLP first-beat DWORD3 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001B0
+    name: PCIE_RESP_TLP_DW4
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted response TLP first-beat DWORD4 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001B4
+    name: PCIE_RESP_TLP_DW5
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted response TLP first-beat DWORD5 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001B8
+    name: PCIE_RESP_TLP_DW6
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted response TLP first-beat DWORD6 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001BC
+    name: PCIE_RESP_TLP_DW7
+    access: RO
+    reset_value: 0x00000000
+    description: Accepted response TLP first-beat DWORD7 latched at SOP in the 50MHz domain
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001C0
+    name: PCIE_RXCDC_FIFO_WR_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of RX CDC FIFO write events observed in the 50MHz-domain receiver
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001C4
+    name: PCIE_RXCDC_FIFO_RD_EN_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of RX CDC FIFO read-enable pulses issued in the 50MHz-domain receiver
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001C8
+    name: PCIE_RXCDC_OUT_VALID_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Number of RX CDC beats promoted from FIFO hold into the downstream output register
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001CC
+    name: PCIE_RXCDC_LAST_Q_AT_RDEN_DW0
+    access: RO
+    reset_value: 0x00000000
+    description: Latest RX CDC FIFO DW0 sampled on the same 50MHz clock edge that asserted RdEn
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001D0
+    name: PCIE_RXCDC_LAST_Q_AT_RDEN_META
+    access: RO
+    reset_value: 0x00000000
+    description: Latest RX CDC FIFO metadata sampled on the same 50MHz clock edge that asserted RdEn
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001D4
+    name: PCIE_RXCDC_LAST_Q_AFTER1_DW0
+    access: RO
+    reset_value: 0x00000000
+    description: Latest RX CDC FIFO DW0 sampled one 50MHz clock after the RdEn pulse
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001D8
+    name: PCIE_RXCDC_LAST_Q_AFTER1_META
+    access: RO
+    reset_value: 0x00000000
+    description: Latest RX CDC FIFO metadata sampled one 50MHz clock after the RdEn pulse
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001DC
+    name: PCIE_IP_RX_BEAT_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of raw PCIe IP RX beats with non-zero VALID at the 100MHz IP boundary
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001E0
+    name: PCIE_IP_RX_SOP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of raw PCIe IP RX beats that asserted SOP with non-zero VALID
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001E4
+    name: PCIE_IP_RX_EOP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of raw PCIe IP RX beats that asserted EOP with non-zero VALID
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001E8
+    name: PCIE_IP_RX_OBS_STATUS
+    access: RO
+    reset_value: 0x00000000
+    description: Sticky and live observation bits sampled from the raw PCIe IP RX boundary
+    screen: pcie
+    group: debug
+    poll_default: true
+    decoder:
+      kind: bitset
+      fields:
+        - bit: 0
+          name: valid_live
+        - bit: 1
+          name: sop_live
+        - bit: 2
+          name: eop_live
+        - bit: 3
+          name: bardec_live
+        - bit: 4
+          name: err_live
+        - bit: 8
+          name: valid_seen
+        - bit: 9
+          name: sop_seen
+        - bit: 10
+          name: eop_seen
+        - bit: 11
+          name: bardec_seen
+        - bit: 12
+          name: err_seen
+  - address: 0x000001EC
+    name: PCIE_IP_RX_OBS_DW0
+    access: RO
+    reset_value: 0x00000000
+    description: Last raw PCIe IP RX DWORD0 captured when VALID was non-zero
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001F0
+    name: PCIE_IP_RX_OBS_META
+    access: RO
+    reset_value: 0x00000000
+    description: Packed raw PCIe IP RX metadata from the most recent observed beat
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001F4
+    name: PCIE_IP_RX_ERR_LAST
+    access: RO
+    reset_value: 0x00000000
+    description: Last non-zero PCIe IP RX error byte observed at the raw IP boundary
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001F8
+    name: PCIE_TXIP_VALID_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of 100MHz PCIe TX user-interface cycles where VALID was non-zero
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x000001FC
+    name: PCIE_TXIP_SOP_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of 100MHz PCIe TX user-interface cycles where VALID was non-zero and SOP was asserted
+    screen: pcie
+    group: debug
+    poll_default: true
+  - address: 0x00000200
+    name: PCIE_TXIP_WAIT_COUNT
+    access: RO
+    reset_value: 0x00000000
+    description: Count of 100MHz PCIe TX user-interface cycles where VALID was non-zero while WAIT was asserted
+    screen: pcie
+    group: debug
+    poll_default: true
+conf_blocks:
+  - block: 0x00
+    name: top
+    screen: fpga
+    group: conf_top
+    registers:
+      - address: 0x00
+        name: TOP_SIGNATURE
+        access: RO
+        reset_value: 0x434F4E46
+        description: Top CONF signature
+      - address: 0x01
+        name: TOP_SCRATCH
+        access: RW
+        reset_value: 0x00000000
+        description: Top CONF scratch register
+      - address: 0x02
+        name: TOP_WRITE_COUNT
+        access: RO
+        reset_value: 0x00000000
+        description: Top CONF write count
+      - address: 0x03
+        name: TOP_LAST_DATA
+        access: RO
+        reset_value: 0x00000000
+        description: Top CONF last write data
+      - address: 0x04
+        name: TOP_SNAPSHOT_REQ
+        access: RW
+        reset_value: 0x00000000
+        description: Trigger Ethernet status snapshot
+      - address: 0x05
+        name: TOP_STATUS
+        access: RO
+        reset_value: 0x00000000
+        description: Top CONF status mirror
+      - address: 0x06
+        name: TOP_UPTIME_LO
+        access: RO
+        reset_value: 0x00000000
+        description: Top CONF uptime lower 32 bits
+      - address: 0x07
+        name: TOP_UPTIME_HI
+        access: RO
+        reset_value: 0x00000000
+        description: Top CONF uptime upper 32 bits
+      - address: 0x08
+        name: TOP_SNAPSHOT_COUNT
+        access: RO
+        reset_value: 0x00000000
+        description: Top CONF snapshot count

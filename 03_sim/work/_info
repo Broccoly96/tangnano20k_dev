@@ -1,0 +1,287 @@
+m255
+K4
+z2
+!s11f vlog 2023.3 2023.07, Jul 18 2023
+13
+!s112 1.1
+!i10d 8192
+!i10e 25
+!i10f 100
+cModel Technology
+Z0 dC:/Electronics/GitHubProjects/tangnano20k_dev/03_sim
+vsync_fifo_ae_af
+Z1 2C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke\testbench.sv
+Z2 DXx6 sv_std 3 std 0 22 VYECXdT12H8WgbUP_5Y6:3
+Z3 !s110 1775305475
+!i10b 1
+!s100 F4UNYko<4eURXXLPb1XYB1
+IPE:LI4Dfl3n3LQCkXVCb^0
+S1
+R0
+w1775304871
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/sync_fifo_ae_af.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/sync_fifo_ae_af.sv
+!i122 16
+L0 8 72
+Z4 VDg1SIo80bB@j0V0VzS_@n1
+Z5 OT;L;2023.3;77
+r1
+!s85 0
+31
+Z6 !s108 1775305475.000000
+!s107 C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/testcase_smoke.svh|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_testsrc1.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_tap.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli_pkg.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/sync_fifo_ae_af.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_lite/uart_tx_stream.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_lite/uart_rx_stream.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke\testbench.sv|
+Z7 !s90 -sv|+define+SIM|-work|work|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke\testbench.sv|
+!s101 -O0
+!i113 1
+Z8 o-sv -work work -O0
+Z9 !s92 -sv +define+SIM -work work -O0
+Z10 tCvgOpt 0
+vtestbench
+R1
+R2
+DXx4 work 19 uart_log_cli_tb_pkg 0 22 jY8SkKHK0:f>6b`3TH4n;1
+R3
+!i10b 1
+!s100 bK3i73l@gYJ0KYR48J3@>2
+IgBSleojnH3f]bhc8G>1iZ3
+S1
+R0
+Z11 w1775305471
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke\testbench.sv
+Z12 FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke\testbench.sv
+Z13 8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv
+Z14 FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/testcase_smoke.svh
+!i122 16
+L0 13 220
+R4
+R5
+r1
+!s85 0
+31
+R6
+Z15 !s107 C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/testcase_smoke.svh|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_testsrc1.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_tap.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli_pkg.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/sync_fifo_ae_af.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_lite/uart_tx_stream.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_lite/uart_rx_stream.sv|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke\testbench.sv|
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
+vuart_log_cli
+R1
+R2
+DXx4 work 16 uart_log_cli_pkg 0 22 6B[Se_hX?6LzzhBj@U^lm0
+R3
+!i10b 1
+!s100 0J3DXzF@PRkN^65leWCZz0
+I6h7odfA3i^4D?_JX<ZUCO1
+S1
+R0
+Z16 w1775217605
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli.sv
+!i122 16
+L0 18 655
+R4
+R5
+r1
+!s85 0
+31
+R6
+R15
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
+vuart_log_cli_evt_fifo
+R1
+R2
+!s125 LATTICE_CONN
+R3
+!i10b 1
+!s100 Bc7@_33?_X]4nleVhI1Df2
+I?7Wh<BP9]YU4YNIR;02g`0
+S1
+R0
+w1775304886
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv
+!i122 16
+L0 17 43
+R4
+R5
+r1
+!s85 0
+31
+R6
+R15
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
+Xuart_log_cli_pkg
+R1
+R2
+R3
+!i10b 1
+!s100 2MLWCa12@<P^>m4N^<nAn3
+I6B[Se_hX?6LzzhBj@U^lm0
+S1
+R0
+R16
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli_pkg.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_cli_pkg.sv
+!i122 16
+L0 17 0
+V6B[Se_hX?6LzzhBj@U^lm0
+R5
+r1
+!s85 0
+31
+R6
+R15
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
+Xuart_log_cli_tb_pkg
+R1
+R2
+R3
+!i10b 1
+!s100 6UI`PRFXW;n[VHLka`ikm1
+IjY8SkKHK0:f>6b`3TH4n;1
+S1
+R0
+w1775305327
+R13
+R14
+!i122 16
+L0 7 0
+VjY8SkKHK0:f>6b`3TH4n;1
+R5
+r1
+!s85 0
+31
+R6
+R15
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
+vuart_log_tap
+R1
+R2
+R3
+!i10b 1
+!s100 b2>W4e5li@ghDUI`[g6;^1
+ITI7^ITo8XCKM>iHf7kVk11
+S1
+R0
+w1771665726
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_tap.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_tap.sv
+!i122 16
+L0 18 80
+R4
+R5
+r1
+!s85 0
+31
+R6
+R15
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
+vuart_log_testsrc1
+R1
+R2
+R3
+!i10b 1
+!s100 ;JoTFm=ZhIDVzRK<i_eIX3
+Ih1IHU_]4d:jneoD]<U48S2
+S1
+R0
+w1775304547
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_testsrc1.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_log_cli/uart_log_testsrc1.sv
+!i122 16
+L0 15 60
+R4
+R5
+r1
+!s85 0
+31
+R6
+R15
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
+vuart_rx_stream
+R1
+R2
+R3
+!i10b 1
+!s100 b;F>hQcKbk5E=c`lYH_g;2
+IBaj;Dm6<bnWbITWPiPZ]C2
+S1
+R0
+R11
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_lite/uart_rx_stream.sv
+R12
+!i122 16
+L0 6 161
+R4
+R5
+r1
+!s85 0
+31
+R6
+R15
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
+vuart_tx_stream
+R1
+R2
+R3
+!i10b 1
+!s100 O_n^@l^7MOM^ijEGme=HN3
+I?EiIFfTY6aU4g?;Ch@IlC2
+S1
+R0
+R11
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\01_uart_log_cli_smoke/../../01_src/uart_lite/uart_tx_stream.sv
+R12
+!i122 16
+L0 6 149
+R4
+R5
+r1
+!s85 0
+31
+R6
+R15
+R7
+!s101 -O0
+!i113 1
+R8
+R9
+R10
