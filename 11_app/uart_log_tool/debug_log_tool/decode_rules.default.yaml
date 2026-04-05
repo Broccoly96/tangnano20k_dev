@@ -39,3 +39,38 @@ default:
   level: INFO
   title: PCIE_EP_BRIDGE
   message: "PCIe bridge rx_len={arg0_b0} rx_avail={arg0_b1} tx_fifo={arg0_b2} irq=0x{arg0_b3:02X} last_bar0_addr=0x{arg1_u32:08X} last_bar0_access=0x{arg2_u32:08X}"
+
+"0x02:0x20":
+  level: INFO
+  title: SDRAM_INIT_DONE
+  message: "embedded SDRAM init done"
+
+"0x02:0x21":
+  level: INFO
+  title: SDRAM_TEST_START
+  message: "embedded SDRAM self-test start words={arg0_u32} bursts={arg1_u32} data_len={arg2_u32}"
+
+"0x02:0x22":
+  level: INFO
+  title: SDRAM_TEST_PASS
+  message: "embedded SDRAM self-test pass words={arg0_u32}"
+
+"0x02:0x23":
+  level: ERROR
+  title: SDRAM_TEST_FAIL
+  message: "embedded SDRAM self-test fail idx={arg0_u32} expected=0x{arg1_hex} actual=0x{arg2_hex}"
+
+"0x03:0x30":
+  level: INFO
+  title: SDRAM_HOST_WRITE_ACK
+  message: "embedded SDRAM host write ack addr=0x{arg0_hex} data=0x{arg1_hex} status=0x{arg2_hex}"
+
+"0x03:0x31":
+  level: INFO
+  title: SDRAM_HOST_READ_RSP
+  message: "embedded SDRAM host read response addr=0x{arg0_hex} data=0x{arg1_hex} status=0x{arg2_hex}"
+
+"0x03:0x3E":
+  level: ERROR
+  title: SDRAM_HOST_CMD_ERR
+  message: "embedded SDRAM host command error reason=0x{arg0_hex} cmd=0x{arg1_hex} detail=0x{arg2_hex}"

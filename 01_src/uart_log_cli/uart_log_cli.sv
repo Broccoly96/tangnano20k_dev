@@ -86,6 +86,7 @@ module uart_log_cli #(
   logic       r_reset_ack_pending;
   logic [3:0] r_help_pending_count;
   logic [1:0] r_help_line_cursor;
+  logic       r_cli_literal_pending;
 
   // System-event queue (payload-only queue, still used to prioritize/serialize
   // command-generated system events before shared FIFO producer arbitration).
@@ -489,6 +490,7 @@ module uart_log_cli #(
       O_CLI_RX_DATA        <= 8'h00;
       O_MIRROR_VALID       <= 1'b0;
       O_MIRROR_DATA        <= 8'h00;
+      r_cli_literal_pending <= 1'b0;
     end else begin
       // Default one-cycle pulses.
       r_uart_tx_start    <= 1'b0;
@@ -509,49 +511,57 @@ module uart_log_cli #(
 
       // CLI command decode.
       if (s_uart_rx_valid) begin
-        O_CLI_RX_VALID <= 1'b1;
-        O_CLI_RX_DATA  <= s_uart_rx_data;
-        case (s_uart_rx_data)
-          CMD_HELP: begin
-            if (r_help_pending_count >= 4'd12) begin
-              r_help_pending_count <= 4'd15;
-            end else begin
-              r_help_pending_count <= r_help_pending_count + 4'd4;
+        if (r_cli_literal_pending) begin
+          O_CLI_RX_VALID        <= 1'b1;
+          O_CLI_RX_DATA         <= s_uart_rx_data;
+          r_cli_literal_pending <= 1'b0;
+        end else if (s_uart_rx_data == uart_log_cli_pkg::CMD_LITERAL_NEXT) begin
+          r_cli_literal_pending <= 1'b1;
+        end else begin
+          O_CLI_RX_VALID <= 1'b1;
+          O_CLI_RX_DATA  <= s_uart_rx_data;
+          case (s_uart_rx_data)
+            CMD_HELP: begin
+              if (r_help_pending_count >= 4'd12) begin
+                r_help_pending_count <= 4'd15;
+              end else begin
+                r_help_pending_count <= r_help_pending_count + 4'd4;
+              end
             end
-          end
 
-          CMD_SOFT_RESET: begin
-            r_reset_ack_pending <= 1'b1;
-            O_SOFT_RESET_REQ    <= 1'b1;
-          end
-
-          CMD_NEXT_SRC: begin
-            if (r_sel_pending_valid) begin
-              r_sel_pending <= sel_next(r_sel_pending, NUM_SRC);
-            end else begin
-              r_sel_pending <= sel_next(r_log_src_sel, NUM_SRC);
+            CMD_SOFT_RESET: begin
+              r_reset_ack_pending <= 1'b1;
+              O_SOFT_RESET_REQ    <= 1'b1;
             end
-            r_sel_pending_valid <= 1'b1;
-          end
 
-          CMD_PREV_SRC: begin
-            if (r_sel_pending_valid) begin
-              r_sel_pending <= sel_prev(r_sel_pending, NUM_SRC);
-            end else begin
-              r_sel_pending <= sel_prev(r_log_src_sel, NUM_SRC);
+            CMD_NEXT_SRC: begin
+              if (r_sel_pending_valid) begin
+                r_sel_pending <= sel_next(r_sel_pending, NUM_SRC);
+              end else begin
+                r_sel_pending <= sel_next(r_log_src_sel, NUM_SRC);
+              end
+              r_sel_pending_valid <= 1'b1;
             end
-            r_sel_pending_valid <= 1'b1;
-          end
 
-          CMD_STATUS_REQ: begin
-            O_STATUS_REQ_VALID <= 1'b1;
-            O_STATUS_REQ_KEY   <= CMD_STATUS_REQ;
-          end
+            CMD_PREV_SRC: begin
+              if (r_sel_pending_valid) begin
+                r_sel_pending <= sel_prev(r_sel_pending, NUM_SRC);
+              end else begin
+                r_sel_pending <= sel_prev(r_log_src_sel, NUM_SRC);
+              end
+              r_sel_pending_valid <= 1'b1;
+            end
 
-          default: begin
-            // Unknown command is ignored.
-          end
-        endcase
+            CMD_STATUS_REQ: begin
+              O_STATUS_REQ_VALID <= 1'b1;
+              O_STATUS_REQ_KEY   <= CMD_STATUS_REQ;
+            end
+
+            default: begin
+              // Unknown command is ignored.
+            end
+          endcase
+        end
       end
 
       // Apply source change only after shared backlog is fully drained.
@@ -587,13 +597,15 @@ module uart_log_cli #(
       endcase
 
       // Pending flags update after system-queue arbitration.
-      if ((s_uart_rx_valid) && (s_uart_rx_data == CMD_SOFT_RESET)) begin
+      if ((s_uart_rx_valid) && !r_cli_literal_pending &&
+          (s_uart_rx_data == CMD_SOFT_RESET)) begin
         r_reset_ack_pending <= 1'b1;
       end else if (s_reset_clear) begin
         r_reset_ack_pending <= 1'b0;
       end
 
-      if (!((s_uart_rx_valid) && (s_uart_rx_data == CMD_HELP))) begin
+      if (!((s_uart_rx_valid) && !r_cli_literal_pending &&
+             (s_uart_rx_data == CMD_HELP))) begin
         if (s_help_line_step) begin
           if (r_help_pending_count != 0) begin
             r_help_pending_count <= r_help_pending_count - 1'b1;

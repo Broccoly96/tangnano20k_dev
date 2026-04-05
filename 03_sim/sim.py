@@ -308,11 +308,12 @@ def launch_simulation(
     command: List[str] = ["vsim"] + vsim_mode + [
         f"work.{tb_top}",
         "-voptargs=+acc",
-        "-L",
-        "gw1n",
-        "-L",
-        "gw2a",
     ]
+
+    simlib_root = script_dir.parent / "04_simlib"
+    for library_name in ("gw1n", "gw2a"):
+      if (simlib_root / library_name).exists():
+        command.extend(["-L", library_name])
     command.extend(vsim_plusargs)
     command.extend(["-do", do_cmds, "-l", "sim.log"])
 

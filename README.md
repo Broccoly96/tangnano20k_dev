@@ -36,7 +36,10 @@ The current Tang Nano 20K top-level implementation enables
 
 - UART clock: `24 MHz`
 - UART baud: `115200`
-- Active source: `uart_log_testsrc1`
+- Active sources:
+  - `0x01` heartbeat (`uart_log_testsrc1`)
+  - `0x02` embedded SDRAM self-test
+  - `0x03` embedded SDRAM host interface
 - Heartbeat source id: `0x01`
 - Heartbeat event id: `0x11`
 - Heartbeat period: `10 s`
@@ -45,6 +48,14 @@ The current Tang Nano 20K top-level implementation enables
 
 Hardware verification has already confirmed continuous heartbeat
 reception over TCP with valid CRCs.
+
+Embedded SDRAM host interface bring-up has reached simulation on the
+integrated top-side path:
+
+- self-test PASS can be observed on source `0x02`
+- host write ack uses event `0x30`
+- host read response uses event `0x31`
+- host command error uses event `0x3E`
 
 ## Host Tool
 
@@ -71,6 +82,39 @@ python .\11_app\debug_log_cli\uart_log_tool.py `
   --tcp-host 192.168.10.40 `
   --tcp-port 2323
 ```
+
+### Embedded SDRAM Host Command Sender
+
+The repository now includes a minimal sender tool for the SDRAM host
+interface:
+
+[11_app/debug_log_cli/sdram_hostif_tool.py](./11_app/debug_log_cli/sdram_hostif_tool.py)
+
+Example flow:
+
+```powershell
+python .\11_app\debug_log_cli\sdram_hostif_tool.py `
+  --transport tcp `
+  select-host
+
+python .\11_app\debug_log_cli\sdram_hostif_tool.py `
+  --transport tcp `
+  write 0x100308 0x89ABCDEF
+
+python .\11_app\debug_log_cli\sdram_hostif_tool.py `
+  --transport tcp `
+  read 0x100308
+```
+
+The intended host-side monitoring flow is:
+
+1. Keep `uart_log_tool.py` running in decode mode.
+2. Use `sdram_hostif_tool.py select-host` to move `uart_log_cli` to source `0x03`.
+3. Send `write` / `read` commands.
+4. Confirm decoded events:
+   - `SDRAM_HOST_WRITE_ACK`
+   - `SDRAM_HOST_READ_RSP`
+   - `SDRAM_HOST_CMD_ERR` when applicable
 
 ## FPGA Build
 

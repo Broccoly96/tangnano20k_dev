@@ -1,10 +1,13 @@
-"""Textual TUI for UART log monitor, replay, filtering, and reset control."""
+"""Textual TUI for UART log viewing plus SDRAM map inspection."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import argparse
+import os
+import time
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -15,6 +18,23 @@ from uart_log_protocol import Event, Frame, FrameParser
 from uart_log_replay import ReplayRecord, load_replay_records
 from uart_log_serial import UARTSerialClient
 from uart_log_tcp import UARTTCPClient
+
+
+HOST_SRC_INDEX = 2
+UART_LOG_NUM_SRC = 3
+SYS_SRC_ID = 0x00
+EV_MODE_CHANGE = 0x01
+HOST_SRC_ID = 0x03
+HOST_EVT_WRITE_ACK = 0x30
+HOST_EVT_READ_RSP = 0x31
+HOST_EVT_CMD_ERR = 0x3E
+CMD_NEXT_SRC = 0x06
+CMD_LITERAL_NEXT = 0x10
+CMD_WRITE = 0x57
+CMD_READ = 0x52
+MAP_BYTE_COUNT = 256
+MAP_WORD_COUNT = MAP_BYTE_COUNT // 4
+MAP_RESPONSE_TIMEOUT_S = 1.0
 
 
 @dataclass(frozen=True)
@@ -41,65 +61,112 @@ class LogRow:
     search_text: str
 
 
-class UARTLogApp(App[None]):
-    """Terminal GUI for UART log monitoring over serial or TCP."""
+def parse_u21(text: str) -> int:
+    value = int(text, 0)
+    if value < 0 or value > 0x1F_FFFF:
+        raise ValueError(f"out of range u21 addr: {text}")
+    return value
 
+
+def escape_cli_payload(payload: bytes) -> bytes:
+    reserved = {0x04, 0x06, 0x10, 0x12, 0x14, 0x3F}
+    escaped = bytearray()
+    for byte_value in payload:
+        if byte_value in reserved:
+            escaped.append(CMD_LITERAL_NEXT)
+        escaped.append(byte_value)
+    return bytes(escaped)
+
+
+def make_read_packet(addr: int) -> bytes:
+    return escape_cli_payload(
+        bytes([CMD_READ, (addr >> 16) & 0x1F, (addr >> 8) & 0xFF, addr & 0xFF])
+    )
+
+
+def make_write_packet(addr: int, data: int) -> bytes:
+    return escape_cli_payload(
+        bytes(
+            [
+                CMD_WRITE,
+                (addr >> 16) & 0x1F,
+                (addr >> 8) & 0xFF,
+                addr & 0xFF,
+                (data >> 24) & 0xFF,
+                (data >> 16) & 0xFF,
+                (data >> 8) & 0xFF,
+                data & 0xFF,
+            ]
+        )
+    )
+
+
+def next_src_steps(current_idx: int, target_idx: int, num_src: int = UART_LOG_NUM_SRC) -> int:
+    return (target_idx - current_idx) % num_src
+
+
+def format_sdram_map_text(base_addr: int, map_bytes: bytes) -> str:
+    if len(map_bytes) < MAP_BYTE_COUNT:
+        padded = bytearray(MAP_BYTE_COUNT)
+        padded[: len(map_bytes)] = map_bytes
+        map_bytes = bytes(padded)
+
+    lines = [f"Base: 0x{base_addr:05X}  Mode: 4-byte little-endian words"]
+    lines.append("      00        04        08        0C")
+    for row in range(16):
+        row_base = row * 16
+        cells = []
+        for col in range(0, 16, 4):
+            idx = row_base + col
+            word = int.from_bytes(map_bytes[idx : idx + 4], "little", signed=False)
+            cells.append(f"{word:08X}")
+        lines.append(f"{row:01X}0 | " + "  ".join(cells))
+    return "\n".join(lines)
+
+
+class UARTLogApp(App[None]):
     CSS = """
-    #top_bar {
-      height: 3;
-      layout: horizontal;
-      margin: 0 1;
-    }
-    #main_row {
-      layout: horizontal;
-      height: 1fr;
-      margin: 0 1;
-    }
-    #port_select {
-      width: 32;
-      margin-right: 1;
-    }
-    #baud_input {
-      width: 10;
-      margin-right: 1;
-    }
-    #filter_input {
-      width: 32;
-      margin-right: 1;
-    }
-    #btn_rescan {
-      width: 12;
-      margin-right: 1;
-    }
-    #btn_connect {
-      width: 14;
-      margin-right: 1;
-    }
-    #btn_reset {
-      width: 12;
-      margin-right: 1;
-    }
-    #status_line {
-      width: 1fr;
-      content-align: left middle;
-    }
-    #log_table {
-      width: 1fr;
-      height: 1fr;
-    }
-    #stats_panel {
-      width: 38;
-      padding: 0 1;
-      border: round;
-    }
-    #help_line {
-      height: 2;
-      margin: 0 1 1 1;
-      content-align: left middle;
-    }
+    #top_bar { height: 3; layout: horizontal; margin: 0 1; }
+    #main_layout { layout: horizontal; height: 1fr; margin: 0 1; }
+    #nav { width: 18; border: round; padding: 0 1; margin-right: 1; }
+    #nav Button { width: 100%; margin-bottom: 1; }
+    #screen_host { width: 1fr; height: 1fr; }
+    .screen { width: 1fr; height: 1fr; }
+    .hidden { display: none; }
+    .toolbar { height: 3; layout: horizontal; margin-bottom: 1; }
+    .toolbar Input, .toolbar Select, .toolbar Button { margin-right: 1; }
+    #port_select { width: 32; margin-right: 1; }
+    #baud_input { width: 10; margin-right: 1; }
+    #filter_input { width: 32; margin-right: 1; }
+    #btn_rescan { width: 12; margin-right: 1; }
+    #btn_connect { width: 14; margin-right: 1; }
+    #btn_reset { width: 12; margin-right: 1; }
+    #status_line { width: 1fr; content-align: left middle; }
+    #log_main_row { layout: horizontal; height: 1fr; }
+    #log_table { width: 1fr; height: 1fr; }
+    #stats_panel { width: 38; padding: 0 1; border: round; }
+    #map_summary { height: 5; border: round; padding: 0 1; margin-bottom: 1; }
+    #map_view { height: 1fr; border: round; padding: 0 1; overflow: auto; }
+    .panel { border: round; padding: 0 1; margin-bottom: 1; }
+    .rw_panel { height: auto; }
+    #rw_grid { width: 1fr; height: 1fr; }
+    #rw_grid .toolbar { margin-bottom: 0; }
+    #map_base_input { width: 18; }
+    #btn_map_refresh { width: 12; }
+    #single_read_addr_input { width: 18; }
+    #single_read_result { width: 28; content-align: left middle; }
+    #single_write_addr_input { width: 18; }
+    #single_write_data_input { width: 18; }
+    #file_read_path_input { width: 1fr; }
+    #file_write_addr_input { width: 18; }
+    #file_write_path_input { width: 1fr; }
+    #help_line { height: 2; margin: 0 1 1 1; content-align: left middle; }
     """
 
     BINDINGS = [
+        ("1", "show_log", "Log"),
+        ("2", "show_map", "SDRAM Map"),
+        ("3", "show_rw", "SDRAM RW"),
         ("p", "rescan", "Rescan Ports"),
         ("c", "toggle_connect", "Connect/Disconnect"),
         ("m", "toggle_mode", "Raw/Decode"),
@@ -108,22 +175,11 @@ class UARTLogApp(App[None]):
         ("x", "clear_logs", "Clear Logs"),
         ("r", "send_reset", "Send Ctrl+R"),
         ("f", "focus_filter", "Focus Filter"),
+        ("g", "refresh_map", "Refresh Map"),
         ("q", "quit", "Quit"),
     ]
 
-    def __init__(
-        self,
-        *,
-        transport: str,
-        initial_port: str | None,
-        baud: int,
-        tcp_host: str,
-        tcp_port: int,
-        mode: str,
-        decoder_path: str,
-        log_file: str | None,
-        replay_file: str | None,
-    ) -> None:
+    def __init__(self, *, transport: str, initial_port: str | None, baud: int, tcp_host: str, tcp_port: int, mode: str, decoder_path: str, log_file: str | None, replay_file: str | None) -> None:
         super().__init__()
         self._transport = transport.lower()
         self._initial_port = initial_port
@@ -132,42 +188,62 @@ class UARTLogApp(App[None]):
         self._tcp_port = int(tcp_port)
         self._mode = mode.lower()
         self._filter_text = ""
-
+        self._active_screen = "log"
         self._decoder_path = decoder_path
         self._decoder_path_obj = Path(decoder_path)
         self._decoder = UARTLogDecoder()
         self._decoder_mtime_ns: int | None = None
-
         self._serial = UARTSerialClient()
         self._tcp = UARTTCPClient()
         self._parser = FrameParser()
-
         self._rx_frames = 0
         self._crc_seen = 0
         self._lost_seen = 0
         self._tcp_packets = 0
         self._tcp_bytes = 0
         self._tcp_last_frame = "-"
-
+        self._selected_src_idx = 0
         self._rows: list[StoredEvent] = []
-
         self._log_enabled = bool(log_file)
         self._log_file_path = Path(log_file) if log_file else None
         self._log_fp = None
-
         self._replay_file_path = Path(replay_file) if replay_file else None
         self._replay_records: list[ReplayRecord] = []
         self._replay_idx = 0
         self._replay_finished = False
         self._replay_load_error: str | None = None
-
+        self._map_base_addr = 0
+        self._map_bytes = bytearray(MAP_BYTE_COUNT)
+        self._map_refresh_active = False
+        self._map_restore_src_idx: int | None = None
+        self._map_select_deadline = 0.0
+        self._map_rsp_deadline = 0.0
+        self._map_pending_queue: list[int] = []
+        self._map_inflight_addr: int | None = None
+        self._map_received_words: dict[int, int] = {}
+        self._map_summary_text = "idle"
+        self._rw_summary_text = "idle"
+        self._rw_single_read_result = "-"
+        self._rw_single_write_result = "-"
+        self._rw_file_write_result = "-"
+        self._rw_file_read_result = "-"
+        self._rw_task_active = False
+        self._rw_task_kind = ""
+        self._rw_task_restore_src_idx: int | None = None
+        self._rw_task_select_deadline = 0.0
+        self._rw_task_rsp_deadline = 0.0
+        self._rw_task_pending: list[tuple[str, int, int]] = []
+        self._rw_task_inflight: tuple[str, int, int] | None = None
+        self._rw_task_expected_reads = 0
+        self._rw_task_read_results: dict[int, int] = {}
+        self._rw_task_output_path: Path | None = None
+        self._rw_task_output_len = 0
         if self._replay_file_path is not None:
             try:
                 self._replay_records = load_replay_records(self._replay_file_path)
             except Exception as exc:
                 self._replay_load_error = str(exc)
                 self._replay_records = []
-
         self._table: DataTable | None = None
         self._stats: Static | None = None
         self._status: Static | None = None
@@ -177,6 +253,20 @@ class UARTLogApp(App[None]):
         self._connect_button: Button | None = None
         self._rescan_button: Button | None = None
         self._reset_button: Button | None = None
+        self._map_summary: Static | None = None
+        self._map_view: Static | None = None
+        self._map_base_input: Input | None = None
+        self._rw_summary: Static | None = None
+        self._single_read_addr_input: Input | None = None
+        self._single_read_result: Static | None = None
+        self._single_write_addr_input: Input | None = None
+        self._single_write_data_input: Input | None = None
+        self._single_write_result: Static | None = None
+        self._file_write_addr_input: Input | None = None
+        self._file_write_path_input: Input | None = None
+        self._file_write_result: Static | None = None
+        self._file_read_path_input: Input | None = None
+        self._file_read_result: Static | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -189,13 +279,52 @@ class UARTLogApp(App[None]):
                 yield Button("Connect (c)", id="btn_connect")
                 yield Button("Soft Reset (r)", id="btn_reset")
                 yield Static("disconnected", id="status_line")
-            with Horizontal(id="main_row"):
-                yield DataTable(id="log_table")
-                yield Static("", id="stats_panel")
-            yield Static(
-                "keys: p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter q=quit",
-                id="help_line",
-            )
+            with Horizontal(id="main_layout"):
+                with Vertical(id="nav"):
+                    yield Button("1 Log", id="nav_log")
+                    yield Button("2 SDRAM Map", id="nav_map")
+                    yield Button("3 SDRAM RW", id="nav_rw")
+                with Vertical(id="screen_host"):
+                    with Vertical(id="log_screen", classes="screen"):
+                        with Horizontal(id="log_main_row"):
+                            yield DataTable(id="log_table")
+                            yield Static("", id="stats_panel")
+                    with Vertical(id="map_screen", classes="screen hidden"):
+                        with Horizontal(classes="toolbar"):
+                            yield Input(value="0x00000", id="map_base_input", placeholder="base addr")
+                            yield Button("Refresh", id="btn_map_refresh")
+                        yield Static("", id="map_summary")
+                        yield Static("", id="map_view")
+                    with Vertical(id="rw_screen", classes="screen hidden"):
+                        yield Static("", id="rw_summary", classes="panel")
+                        with Vertical(id="rw_grid"):
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("Single Address Read")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Read", id="btn_single_read")
+                                    yield Input(value="0x00000", id="single_read_addr_input", placeholder="addr")
+                                    yield Static("-", id="single_read_result")
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("Single Address Write")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Write", id="btn_single_write")
+                                    yield Input(value="0x00000", id="single_write_addr_input", placeholder="addr")
+                                    yield Input(value="0x00000000", id="single_write_data_input", placeholder="data")
+                                yield Static("-", id="single_write_result")
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("File Select Read")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Read", id="btn_file_read_save")
+                                    yield Input(value="", id="file_read_path_input", placeholder="output path")
+                                yield Static("-", id="file_read_result")
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("File Select Write")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Write", id="btn_file_write")
+                                    yield Input(value="0x00000", id="file_write_addr_input", placeholder="base addr")
+                                    yield Input(value="", id="file_write_path_input", placeholder="file path")
+                                yield Static("-", id="file_write_result")
+            yield Static("keys: 1=log 2=map 3=rw p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -208,24 +337,26 @@ class UARTLogApp(App[None]):
         self._connect_button = self.query_one("#btn_connect", Button)
         self._rescan_button = self.query_one("#btn_rescan", Button)
         self._reset_button = self.query_one("#btn_reset", Button)
-
+        self._map_summary = self.query_one("#map_summary", Static)
+        self._map_view = self.query_one("#map_view", Static)
+        self._map_base_input = self.query_one("#map_base_input", Input)
+        self._rw_summary = self.query_one("#rw_summary", Static)
+        self._single_read_addr_input = self.query_one("#single_read_addr_input", Input)
+        self._single_read_result = self.query_one("#single_read_result", Static)
+        self._single_write_addr_input = self.query_one("#single_write_addr_input", Input)
+        self._single_write_data_input = self.query_one("#single_write_data_input", Input)
+        self._single_write_result = self.query_one("#single_write_result", Static)
+        self._file_write_addr_input = self.query_one("#file_write_addr_input", Input)
+        self._file_write_path_input = self.query_one("#file_write_path_input", Input)
+        self._file_write_result = self.query_one("#file_write_result", Static)
+        self._file_read_path_input = self.query_one("#file_read_path_input", Input)
+        self._file_read_result = self.query_one("#file_read_result", Static)
         self._table.cursor_type = "row"
-        self._table.add_columns(
-            "Time",
-            "SEQ",
-            "SRC",
-            "EVT",
-            "TS",
-            "ARG0",
-            "ARG1",
-            "ARG2",
-            "CRC",
-            "Mode",
-            "Text",
-        )
-
+        self._table.add_columns("Time", "SEQ", "SRC", "EVT", "TS", "ARG0", "ARG1", "ARG2", "CRC", "Mode", "Text")
         self._reload_decoder(force=True, manual=False)
-
+        self._refresh_map_view()
+        self._refresh_rw_view()
+        self._show_screen("log")
         if self._replay_file_path is not None:
             if self._port_select is not None:
                 self._port_select.disabled = True
@@ -239,14 +370,10 @@ class UARTLogApp(App[None]):
             if self._reset_button is not None:
                 self._reset_button.disabled = True
             if self._replay_load_error is None:
-                self._set_status(
-                    f"replay loaded: {self._replay_file_path} ({len(self._replay_records)} events)"
-                )
+                self._set_status(f"replay loaded: {self._replay_file_path} ({len(self._replay_records)} events)")
                 self.set_interval(0.05, self._poll_replay)
             else:
-                self._set_status(
-                    f"replay load failed: {self._replay_file_path} ({self._replay_load_error})"
-                )
+                self._set_status(f"replay load failed: {self._replay_file_path} ({self._replay_load_error})")
         else:
             if self._transport == "tcp":
                 self._prepare_tcp_mode()
@@ -256,12 +383,12 @@ class UARTLogApp(App[None]):
                 self._refresh_ports()
                 self._set_status("ready")
                 self.set_interval(0.05, self._poll_serial)
-
         if self._log_enabled:
             self._open_log_if_needed()
             if self._log_fp is not None:
                 self._log_meta("logging started")
-
+        self.set_interval(0.05, self._poll_map_refresh)
+        self.set_interval(0.05, self._poll_rw_task)
         self.set_interval(0.5, self._watch_decoder)
         self._update_stats()
 
@@ -281,13 +408,37 @@ class UARTLogApp(App[None]):
             self.action_toggle_connect()
         elif button_id == "btn_reset":
             self.action_send_reset()
+        elif button_id == "nav_log":
+            self.action_show_log()
+        elif button_id == "nav_map":
+            self.action_show_map()
+        elif button_id == "nav_rw":
+            self.action_show_rw()
+        elif button_id == "btn_map_refresh":
+            self.action_refresh_map()
+        elif button_id == "btn_single_read":
+            self._start_single_read()
+        elif button_id == "btn_single_write":
+            self._start_single_write()
+        elif button_id == "btn_file_write":
+            self._start_file_write()
+        elif button_id == "btn_file_read_save":
+            self._start_file_read_save()
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id != "filter_input":
-            return
-        self._filter_text = event.value.strip().lower()
-        self._render_table()
-        self._update_stats()
+        if event.input.id == "filter_input":
+            self._filter_text = event.value.strip().lower()
+            self._render_table()
+            self._update_stats()
+
+    def action_show_log(self) -> None:
+        self._show_screen("log")
+
+    def action_show_map(self) -> None:
+        self._show_screen("map")
+
+    def action_show_rw(self) -> None:
+        self._show_screen("rw")
 
     def action_focus_filter(self) -> None:
         if self._filter_input is not None:
@@ -344,6 +495,18 @@ class UARTLogApp(App[None]):
     def action_send_reset(self) -> None:
         self._send_reset()
 
+    def action_refresh_map(self) -> None:
+        self._start_map_refresh()
+
+    def _show_screen(self, screen_name: str) -> None:
+        self._active_screen = screen_name
+        log_screen = self.query_one("#log_screen", Vertical)
+        map_screen = self.query_one("#map_screen", Vertical)
+        rw_screen = self.query_one("#rw_screen", Vertical)
+        log_screen.set_class(screen_name != "log", "hidden")
+        map_screen.set_class(screen_name != "map", "hidden")
+        rw_screen.set_class(screen_name != "rw", "hidden")
+
     def _watch_decoder(self) -> None:
         self._reload_decoder(force=False, manual=False)
 
@@ -352,44 +515,29 @@ class UARTLogApp(App[None]):
             if manual:
                 self._set_status(f"decoder not found: {self._decoder_path_obj}")
             return
-
         mtime_ns = self._decoder_path_obj.stat().st_mtime_ns
         if not force and self._decoder_mtime_ns == mtime_ns:
             return
-
         try:
-            loaded = UARTLogDecoder.from_yaml(self._decoder_path_obj)
+            self._decoder = UARTLogDecoder.from_yaml(self._decoder_path_obj)
         except Exception as exc:
             if manual:
                 self._set_status(f"decoder reload failed: {exc}")
             self._log_meta(f"decoder reload failed: {exc}")
             return
-
-        self._decoder = loaded
         self._decoder_mtime_ns = mtime_ns
         self._render_table()
-
         if manual:
             self._set_status("decoder reloaded")
 
     def _refresh_ports(self) -> None:
         if self._port_select is None:
             return
-
         ports = self._serial.list_ports()
         if ports:
-            options = [
-                (
-                    f"{p.device:<8} | {p.description if p.description else p.hwid}",
-                    p.device,
-                )
-                for p in ports
-            ]
+            options = [(f"{p.device:<8} | {p.description if p.description else p.hwid}", p.device) for p in ports]
             self._port_select.set_options(options)
-            if self._initial_port and any(p.device == self._initial_port for p in ports):
-                self._port_select.value = self._initial_port
-            else:
-                self._port_select.value = ports[0].device
+            self._port_select.value = self._initial_port if self._initial_port and any(p.device == self._initial_port for p in ports) else ports[0].device
         else:
             self._port_select.set_options([("(no serial ports)", "")])
             self._port_select.value = ""
@@ -407,9 +555,7 @@ class UARTLogApp(App[None]):
             self._rescan_button.disabled = True
 
     def _active_connected(self) -> bool:
-        if self._transport == "tcp":
-            return self._tcp.is_connected
-        return self._serial.is_connected
+        return self._tcp.is_connected if self._transport == "tcp" else self._serial.is_connected
 
     def _connect_active(self) -> None:
         if self._transport == "tcp":
@@ -427,9 +573,7 @@ class UARTLogApp(App[None]):
         if self._port_select is None:
             return ""
         value = self._port_select.value
-        if value is None or value == Select.BLANK:
-            return ""
-        return str(value)
+        return "" if value is None or value == Select.BLANK else str(value)
 
     def _reset_stream_stats(self) -> None:
         self._parser.reset()
@@ -439,29 +583,20 @@ class UARTLogApp(App[None]):
         self._tcp_packets = 0
         self._tcp_bytes = 0
         self._tcp_last_frame = "-"
+        self._selected_src_idx = 0
 
     def _connect_serial(self) -> None:
         port = self._selected_port()
-        if not port:
-            self._set_status("no port selected")
+        if not port or self._baud_input is None:
+            self._set_status("invalid serial setup")
             return
-        if self._baud_input is None:
-            self._set_status("baud input unavailable")
-            return
-
         try:
             baud = int(self._baud_input.value.strip())
-        except ValueError:
-            self._set_status("invalid baud")
-            return
-
-        try:
             self._serial.connect(port, baud)
         except Exception as exc:
             self._set_status(f"connect failed: {exc}")
-            self._log_meta(f"connect failed port={port} baud={baud} err={exc}")
+            self._log_meta(f"connect failed port={port} err={exc}")
             return
-
         self._reset_stream_stats()
         if self._connect_button is not None:
             self._connect_button.label = "Disconnect (c)"
@@ -474,11 +609,8 @@ class UARTLogApp(App[None]):
             self._tcp.connect(self._tcp_host, self._tcp_port)
         except Exception as exc:
             self._set_status(f"tcp connect failed: {exc}")
-            self._log_meta(
-                f"tcp connect failed host={self._tcp_host} port={self._tcp_port} err={exc}"
-            )
+            self._log_meta(f"tcp connect failed host={self._tcp_host} port={self._tcp_port} err={exc}")
             return
-
         self._reset_stream_stats()
         if self._connect_button is not None:
             self._connect_button.label = "Disconnect (c)"
@@ -508,7 +640,6 @@ class UARTLogApp(App[None]):
         if self._replay_file_path is not None:
             self._set_status("replay mode: TX disabled")
             return
-
         if self._transport == "tcp":
             if not self._tcp.is_connected:
                 self._set_status("not connected")
@@ -519,25 +650,160 @@ class UARTLogApp(App[None]):
                 self._set_status("not connected")
                 return
             written = self._serial.send_cli_command("reset")
-
         if written > 0:
             self._set_status("sent reset")
             self._log_meta("tx cmd=reset")
         else:
             self._set_status("send failed (reset)")
 
+    def _send_bytes(self, payload: bytes) -> int:
+        if self._replay_file_path is not None:
+            return 0
+        if self._transport == "tcp":
+            return 0 if not self._tcp.is_connected else self._tcp.write_bytes(payload)
+        return 0 if not self._serial.is_connected else self._serial.write_bytes(payload)
+
+    def _send_next_src_steps(self, steps: int) -> bool:
+        for _ in range(steps):
+            if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                return False
+        return True
+
+    def _host_task_busy(self) -> bool:
+        return self._map_refresh_active or self._rw_task_active
+
+    def _refresh_rw_view(self) -> None:
+        if self._rw_summary is not None:
+            self._rw_summary.update(
+                "\n".join(
+                    [
+                        "[SDRAM RW]",
+                        f"state  : {'busy' if self._rw_task_active else 'idle'}",
+                        f"task   : {self._rw_task_kind or '-'}",
+                        f"detail : {self._rw_summary_text}",
+                    ]
+                )
+            )
+        if self._single_read_result is not None:
+            self._single_read_result.update(self._rw_single_read_result)
+        if self._single_write_result is not None:
+            self._single_write_result.update(self._rw_single_write_result)
+        if self._file_write_result is not None:
+            self._file_write_result.update(self._rw_file_write_result)
+        if self._file_read_result is not None:
+            self._file_read_result.update(self._rw_file_read_result)
+
+    def _start_rw_task(self, *, kind: str, commands: list[tuple[str, int, int]], expected_reads: int = 0, output_path: Path | None = None, output_len: int = 0) -> bool:
+        if self._replay_file_path is not None:
+            self._set_status("replay mode: SDRAM RW disabled")
+            return False
+        if not self._active_connected():
+            self._set_status("not connected")
+            return False
+        if self._host_task_busy():
+            self._set_status("host task busy")
+            return False
+        self._rw_task_active = True
+        self._rw_task_kind = kind
+        self._rw_task_pending = list(commands)
+        self._rw_task_inflight = None
+        self._rw_task_expected_reads = expected_reads
+        self._rw_task_read_results = {}
+        self._rw_task_output_path = output_path
+        self._rw_task_output_len = output_len
+        self._rw_task_restore_src_idx = None
+        self._rw_task_select_deadline = time.monotonic()
+        self._rw_task_rsp_deadline = 0.0
+        self._rw_summary_text = f"started {kind}"
+        self._refresh_rw_view()
+        self._set_status(self._rw_summary_text)
+        return True
+
+    def _finish_rw_task(self, detail: str) -> None:
+        self._rw_task_active = False
+        self._rw_summary_text = detail
+        self._rw_task_restore_src_idx = None
+        self._rw_task_kind = ""
+        self._rw_task_pending = []
+        self._rw_task_inflight = None
+        self._rw_task_expected_reads = 0
+        self._rw_task_rsp_deadline = 0.0
+        self._refresh_rw_view()
+        self._set_status(detail)
+
+    def _start_single_read(self) -> None:
+        if self._single_read_addr_input is None:
+            return
+        try:
+            addr = parse_u21(self._single_read_addr_input.value.strip())
+        except Exception as exc:
+            self._rw_single_read_result = f"invalid addr: {exc}"
+            self._refresh_rw_view()
+            return
+        if self._start_rw_task(kind="single_read", commands=[("read", addr, 0)], expected_reads=1):
+            self._rw_single_read_result = f"reading 0x{addr:05X}..."
+            self._refresh_rw_view()
+
+    def _start_single_write(self) -> None:
+        if self._single_write_addr_input is None or self._single_write_data_input is None:
+            return
+        try:
+            addr = parse_u21(self._single_write_addr_input.value.strip())
+            data = int(self._single_write_data_input.value.strip(), 0) & 0xFFFF_FFFF
+        except Exception as exc:
+            self._rw_single_write_result = f"invalid input: {exc}"
+            self._refresh_rw_view()
+            return
+        if self._start_rw_task(kind="single_write", commands=[("write", addr, data)]):
+            self._rw_single_write_result = f"writing 0x{data:08X} -> 0x{addr:05X}"
+            self._refresh_rw_view()
+
+    def _start_file_write(self) -> None:
+        if self._file_write_addr_input is None or self._file_write_path_input is None:
+            return
+        try:
+            base_addr = parse_u21(self._file_write_addr_input.value.strip())
+            path = Path(self._file_write_path_input.value.strip())
+            payload = path.read_bytes()
+        except Exception as exc:
+            self._rw_file_write_result = f"file write setup failed: {exc}"
+            self._refresh_rw_view()
+            return
+        commands: list[tuple[str, int, int]] = []
+        for word_idx in range((len(payload) + 3) // 4):
+            chunk = payload[word_idx * 4 : word_idx * 4 + 4]
+            chunk = chunk + bytes(4 - len(chunk))
+            commands.append(("write", base_addr + word_idx, int.from_bytes(chunk, "little", signed=False)))
+        if self._start_rw_task(kind="file_write", commands=commands):
+            self._rw_file_write_result = f"writing {len(payload)} bytes from {path} to 0x{base_addr:05X}"
+            self._refresh_rw_view()
+
+    def _start_file_read_save(self) -> None:
+        if self._file_read_path_input is None:
+            return
+        try:
+            path = Path(self._file_read_path_input.value.strip())
+        except Exception as exc:
+            self._rw_file_read_result = f"file read setup failed: {exc}"
+            self._refresh_rw_view()
+            return
+        base_addr = self._map_base_addr
+        length = MAP_BYTE_COUNT
+        commands = [("read", base_addr + word_idx, 0) for word_idx in range((length + 3) // 4)]
+        if self._start_rw_task(kind="file_read_save", commands=commands, expected_reads=len(commands), output_path=path, output_len=length):
+            self._rw_file_read_result = f"reading {length} bytes from 0x{base_addr:05X} to {path}"
+            self._refresh_rw_view()
+
     def _poll_serial(self) -> None:
         if not self._serial.is_connected:
             return
         data = self._serial.read_bytes()
-        if not data:
-            return
-        self._handle_stream_data(data, count_tcp=False)
+        if data:
+            self._handle_stream_data(data, count_tcp=False)
 
     def _poll_tcp(self) -> None:
         if not self._tcp.is_connected:
             return
-
         data = self._tcp.read_bytes()
         if not data:
             if not self._tcp.is_connected:
@@ -547,38 +813,31 @@ class UARTLogApp(App[None]):
                 self._log_meta("tcp disconnected by peer")
                 self._update_stats()
             return
-
         self._tcp_packets += 1
         self._tcp_bytes += len(data)
         self._handle_stream_data(data, count_tcp=True)
 
     def _handle_stream_data(self, data: bytes, *, count_tcp: bool) -> None:
         frames = self._parser.feed(data)
-
         if self._parser.crc_error_count > self._crc_seen:
             delta = self._parser.crc_error_count - self._crc_seen
             self._crc_seen = self._parser.crc_error_count
             self._log_meta(f"crc_error +{delta}")
-
         for frame in frames:
             self._append_live_frame(frame)
-
         if count_tcp and frames:
             self._tcp_last_frame = f"0x{frames[-1].seq:02X}"
-
         self._update_stats()
 
     def _poll_replay(self) -> None:
         if self._replay_finished:
             return
-
         if self._replay_idx >= len(self._replay_records):
             self._replay_finished = True
             self._set_status("replay finished")
             self._log_meta("replay finished")
             self._update_stats()
             return
-
         record = self._replay_records[self._replay_idx]
         self._replay_idx += 1
         self._append_event(record.seq, record.event, record.lost_count, host_time=record.host_time)
@@ -589,89 +848,89 @@ class UARTLogApp(App[None]):
 
     def _build_row_from_stored(self, stored: StoredEvent) -> LogRow:
         ts_host = stored.host_time or datetime.now().strftime("%H:%M:%S.%f")[:-3]
-
         if self._mode == "decode":
             decoded = self._decoder.decode(stored.event)
             text = f"[{decoded.level}] {decoded.title}: {decoded.message}"
         else:
-            text = (
-                f"src={stored.event.src_id} evt={stored.event.event_id} ts={stored.event.timestamp} "
-                f"arg0={stored.event.arg0} arg1={stored.event.arg1} arg2={stored.event.arg2}"
-            )
+            text = f"src={stored.event.src_id} evt={stored.event.event_id} ts={stored.event.timestamp} arg0={stored.event.arg0} arg1={stored.event.arg1} arg2={stored.event.arg2}"
+        search_text = " ".join([ts_host, f"0x{stored.seq:02X}", f"0x{stored.event.src_id:02X}", f"0x{stored.event.event_id:02X}", str(stored.event.timestamp), f"0x{stored.event.arg0:08X}", f"0x{stored.event.arg1:08X}", f"0x{stored.event.arg2:08X}", text, f"lost={stored.lost_count}"]).lower()
+        return LogRow(ts_host, f"0x{stored.seq:02X}", f"0x{stored.event.src_id:02X}", f"0x{stored.event.event_id:02X}", str(stored.event.timestamp), f"0x{stored.event.arg0:08X}", f"0x{stored.event.arg1:08X}", f"0x{stored.event.arg2:08X}", "OK", self._mode.upper(), text, search_text)
 
-        search_text = " ".join(
-            [
-                ts_host,
-                f"0x{stored.seq:02X}",
-                f"0x{stored.event.src_id:02X}",
-                f"0x{stored.event.event_id:02X}",
-                str(stored.event.timestamp),
-                f"0x{stored.event.arg0:08X}",
-                f"0x{stored.event.arg1:08X}",
-                f"0x{stored.event.arg2:08X}",
-                text,
-                f"lost={stored.lost_count}",
-            ]
-        ).lower()
-
-        return LogRow(
-            host_time=ts_host,
-            seq_text=f"0x{stored.seq:02X}",
-            src_text=f"0x{stored.event.src_id:02X}",
-            evt_text=f"0x{stored.event.event_id:02X}",
-            timestamp_text=str(stored.event.timestamp),
-            arg0_text=f"0x{stored.event.arg0:08X}",
-            arg1_text=f"0x{stored.event.arg1:08X}",
-            arg2_text=f"0x{stored.event.arg2:08X}",
-            crc_text="OK",
-            mode_text=self._mode.upper(),
-            text=text,
-            search_text=search_text,
-        )
-
-    def _append_event(
-        self,
-        seq: int,
-        event: Event,
-        lost_count: int,
-        *,
-        host_time: str | None,
-    ) -> None:
+    def _append_event(self, seq: int, event: Event, lost_count: int, *, host_time: str | None) -> None:
+        self._handle_special_event(event)
         stored = StoredEvent(host_time=host_time, seq=seq, event=event, lost_count=lost_count)
         row = self._build_row_from_stored(stored)
         self._rows.append(stored)
         self._rx_frames += 1
-
         if lost_count > 0:
             self._lost_seen += lost_count
             self._log_meta(f"seq_loss +{lost_count} at seq=0x{seq:02X}")
-
         if self._row_matches_filter(row):
             self._append_row_to_table(row)
-
         self._log_event(seq, event, lost_count, row.text)
 
+    def _handle_special_event(self, event: Event) -> None:
+        if event.src_id == SYS_SRC_ID and event.event_id == EV_MODE_CHANGE:
+            self._selected_src_idx = event.arg1 & 0xFF
+        if not self._map_refresh_active or event.src_id != HOST_SRC_ID:
+            pass
+        else:
+            if event.event_id == HOST_EVT_READ_RSP and self._map_inflight_addr is not None and event.arg0 == self._map_inflight_addr:
+                self._map_received_words[event.arg0] = event.arg1
+                word_index = event.arg0 - self._map_base_addr
+                if 0 <= word_index < MAP_WORD_COUNT:
+                    offset = word_index * 4
+                    self._map_bytes[offset : offset + 4] = event.arg1.to_bytes(4, "little")
+                self._map_inflight_addr = None
+                self._map_rsp_deadline = 0.0
+                self._refresh_map_view()
+                if not self._map_pending_queue:
+                    self._finish_map_refresh("refresh complete")
+            elif event.event_id == HOST_EVT_CMD_ERR and self._map_inflight_addr is not None:
+                self._map_refresh_active = False
+                self._map_summary_text = f"refresh failed at 0x{self._map_inflight_addr:05X}: cmd_err"
+                self._map_inflight_addr = None
+                self._refresh_map_view()
+                self._set_status(self._map_summary_text)
+
+        if not self._rw_task_active or event.src_id != HOST_SRC_ID:
+            return
+        if self._rw_task_inflight is None:
+            return
+        op_kind, inflight_addr, inflight_data = self._rw_task_inflight
+        if event.event_id == HOST_EVT_READ_RSP and op_kind == "read" and event.arg0 == inflight_addr:
+            self._rw_task_read_results[inflight_addr] = event.arg1
+            self._rw_task_inflight = None
+            self._rw_task_rsp_deadline = 0.0
+            if self._rw_task_kind == "single_read":
+                self._rw_single_read_result = f"0x{inflight_addr:05X} -> 0x{event.arg1:08X}"
+            self._refresh_rw_view()
+        elif event.event_id == HOST_EVT_WRITE_ACK and op_kind == "write" and event.arg0 == inflight_addr:
+            self._rw_task_inflight = None
+            self._rw_task_rsp_deadline = 0.0
+            if self._rw_task_kind == "single_write":
+                self._rw_single_write_result = f"0x{inflight_data:08X} -> 0x{inflight_addr:05X} OK"
+            self._refresh_rw_view()
+        elif event.event_id == HOST_EVT_CMD_ERR:
+            self._rw_task_inflight = None
+            self._rw_task_rsp_deadline = 0.0
+            if self._rw_task_kind == "single_read":
+                self._rw_single_read_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+            elif self._rw_task_kind == "single_write":
+                self._rw_single_write_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+            elif self._rw_task_kind == "file_write":
+                self._rw_file_write_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+            elif self._rw_task_kind == "file_read_save":
+                self._rw_file_read_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+            self._finish_rw_task("rw task failed: cmd_err")
+
     def _row_matches_filter(self, row: LogRow) -> bool:
-        if not self._filter_text:
-            return True
-        return self._filter_text in row.search_text
+        return True if not self._filter_text else self._filter_text in row.search_text
 
     def _append_row_to_table(self, row: LogRow) -> None:
         if self._table is None:
             return
-        self._table.add_row(
-            row.host_time,
-            row.seq_text,
-            row.src_text,
-            row.evt_text,
-            row.timestamp_text,
-            row.arg0_text,
-            row.arg1_text,
-            row.arg2_text,
-            row.crc_text,
-            row.mode_text,
-            row.text,
-        )
+        self._table.add_row(row.host_time, row.seq_text, row.src_text, row.evt_text, row.timestamp_text, row.arg0_text, row.arg1_text, row.arg2_text, row.crc_text, row.mode_text, row.text)
         try:
             self._table.scroll_end(animate=False)
         except Exception:
@@ -689,20 +948,159 @@ class UARTLogApp(App[None]):
             if self._row_matches_filter(row):
                 self._append_row_to_table(row)
 
+    def _refresh_map_view(self) -> None:
+        if self._map_summary is not None:
+            self._map_summary.update("\n".join(["[SDRAM Map]", f"base       : 0x{self._map_base_addr:05X}", "mode       : 4-byte words", f"state      : {'refreshing' if self._map_refresh_active else 'idle'}", f"detail     : {self._map_summary_text}"]))
+        if self._map_view is not None:
+            self._map_view.update(format_sdram_map_text(self._map_base_addr, self._map_bytes))
+
+    def _start_map_refresh(self) -> None:
+        if self._replay_file_path is not None:
+            self._set_status("replay mode: map refresh disabled")
+            return
+        if not self._active_connected():
+            self._set_status("not connected")
+            return
+        if self._map_base_input is None:
+            self._set_status("map input unavailable")
+            return
+        try:
+            base_addr = parse_u21(self._map_base_input.value.strip())
+        except Exception as exc:
+            self._set_status(f"invalid base addr: {exc}")
+            return
+        self._map_base_addr = base_addr
+        self._map_bytes = bytearray(MAP_BYTE_COUNT)
+        self._map_received_words.clear()
+        self._map_pending_queue = [base_addr + idx for idx in range(MAP_WORD_COUNT)]
+        self._map_inflight_addr = None
+        self._map_refresh_active = True
+        self._map_summary_text = "selecting host source"
+        self._map_restore_src_idx = None
+        self._map_select_deadline = time.monotonic()
+        self._map_rsp_deadline = 0.0
+        self._refresh_map_view()
+        self._set_status(f"map refresh started at 0x{base_addr:05X}")
+
+    def _poll_map_refresh(self) -> None:
+        if not self._map_refresh_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._map_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._map_refresh_active = False
+                    self._map_summary_text = "failed to select host source"
+                    self._refresh_map_view()
+                    self._set_status(self._map_summary_text)
+                    return
+                self._map_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._map_select_deadline = now + 0.35
+                self._refresh_map_view()
+            return
+        if self._map_inflight_addr is not None and now > self._map_rsp_deadline:
+            failed_addr = self._map_inflight_addr
+            self._map_refresh_active = False
+            self._map_summary_text = f"timeout waiting for 0x{failed_addr:05X}"
+            self._map_inflight_addr = None
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+        if self._map_inflight_addr is not None or now < self._map_select_deadline or not self._map_pending_queue:
+            return
+        next_addr = self._map_pending_queue.pop(0)
+        if self._send_bytes(make_read_packet(next_addr)) != 4:
+            self._map_refresh_active = False
+            self._map_summary_text = f"short write for 0x{next_addr:05X}"
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+        self._map_inflight_addr = next_addr
+        self._map_rsp_deadline = now + MAP_RESPONSE_TIMEOUT_S
+        self._map_summary_text = f"reading 0x{next_addr:05X} ({len(self._map_received_words)+1}/{MAP_WORD_COUNT})"
+        self._refresh_map_view()
+
+    def _poll_rw_task(self) -> None:
+        if not self._rw_task_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._rw_task_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_rw_task("failed to select host source")
+                    return
+                self._rw_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._rw_task_select_deadline = now + 0.35
+                self._refresh_rw_view()
+            return
+        if self._rw_task_inflight is not None and now > self._rw_task_rsp_deadline:
+            op_kind, inflight_addr, _ = self._rw_task_inflight
+            if self._rw_task_kind == "single_read":
+                self._rw_single_read_result = f"timeout at 0x{inflight_addr:05X}"
+            elif self._rw_task_kind == "single_write":
+                self._rw_single_write_result = f"timeout at 0x{inflight_addr:05X}"
+            elif self._rw_task_kind == "file_write":
+                self._rw_file_write_result = f"timeout at 0x{inflight_addr:05X}"
+            elif self._rw_task_kind == "file_read_save":
+                self._rw_file_read_result = f"timeout at 0x{inflight_addr:05X}"
+            self._rw_task_inflight = None
+            self._finish_rw_task(f"{op_kind} timeout at 0x{inflight_addr:05X}")
+            return
+        if self._rw_task_inflight is not None or now < self._rw_task_select_deadline:
+            return
+        if not self._rw_task_pending:
+            if self._rw_task_kind == "file_write":
+                self._rw_file_write_result = "file write complete"
+            elif self._rw_task_kind == "file_read_save":
+                self._complete_file_read_save()
+            else:
+                self._finish_rw_task(f"{self._rw_task_kind} complete")
+            self._refresh_rw_view()
+            return
+        op_kind, addr, data = self._rw_task_pending.pop(0)
+        payload = make_read_packet(addr) if op_kind == "read" else make_write_packet(addr, data)
+        expected = len(payload)
+        if self._send_bytes(payload) != expected:
+            self._finish_rw_task(f"{op_kind} short write at 0x{addr:05X}")
+            return
+        self._rw_task_inflight = (op_kind, addr, data)
+        self._rw_task_rsp_deadline = now + MAP_RESPONSE_TIMEOUT_S
+        self._rw_summary_text = f"{op_kind} 0x{addr:05X}"
+        self._refresh_rw_view()
+
+    def _complete_file_read_save(self) -> None:
+        if self._rw_task_output_path is None:
+            self._finish_rw_task("file read complete")
+            return
+        ordered_addrs = sorted(self._rw_task_read_results.keys())
+        blob = bytearray()
+        for addr in ordered_addrs:
+            blob.extend(self._rw_task_read_results[addr].to_bytes(4, "little"))
+        try:
+            self._rw_task_output_path.parent.mkdir(parents=True, exist_ok=True)
+            self._rw_task_output_path.write_bytes(bytes(blob[: self._rw_task_output_len]))
+            self._rw_file_read_result = f"saved {self._rw_task_output_len} bytes to {self._rw_task_output_path}"
+            self._finish_rw_task("file read save complete")
+        except Exception as exc:
+            self._rw_file_read_result = f"save failed: {exc}"
+            self._finish_rw_task("file read save failed")
+
+    def _finish_map_refresh(self, detail: str) -> None:
+        self._map_refresh_active = False
+        self._map_summary_text = detail
+        self._map_restore_src_idx = None
+        self._refresh_map_view()
+        self._set_status(detail)
+
     def _set_status(self, message: str) -> None:
         if self._status is None:
             return
-
-        if self._replay_file_path is not None:
-            conn = "replay"
-        else:
-            conn = "connected" if self._active_connected() else "disconnected"
+        conn = "replay" if self._replay_file_path is not None else ("connected" if self._active_connected() else "disconnected")
         self._status.update(f"{conn} | {message}")
 
     def _update_stats(self) -> None:
         if self._stats is None:
             return
-
         if self._replay_file_path is not None:
             conn = "replay"
             port = "-"
@@ -711,52 +1109,21 @@ class UARTLogApp(App[None]):
         else:
             conn = "connected" if self._active_connected() else "disconnected"
             transport = self._transport
-            if self._transport == "tcp":
-                port = f"{self._tcp_host}:{self._tcp_port}"
-            else:
-                port = self._selected_port() or "-"
+            port = f"{self._tcp_host}:{self._tcp_port}" if self._transport == "tcp" else (self._selected_port() or "-")
             replay_state = "-"
-
-        filtered_rows = sum(
-            1 for stored in self._rows if self._row_matches_filter(self._build_row_from_stored(stored))
-        )
+        filtered_rows = sum(1 for stored in self._rows if self._row_matches_filter(self._build_row_from_stored(stored)))
         log_state = "ON" if self._log_enabled else "OFF"
-
-        self._stats.update(
-            "\n".join(
-                [
-                    "[Stats]",
-                    f"transport  : {transport}",
-                    f"port       : {port}",
-                    f"connection : {conn}",
-                    f"mode       : {self._mode}",
-                    f"filter     : {self._filter_text or '-'}",
-                    f"rows       : {filtered_rows}/{len(self._rows)}",
-                    f"rx_frames  : {self._rx_frames}",
-                    f"tcp_pkts   : {self._tcp_packets}",
-                    f"tcp_bytes  : {self._tcp_bytes}",
-                    f"seq_lost   : {self._lost_seen}",
-                    f"crc_errors : {self._crc_seen}",
-                    f"last_seq   : {self._tcp_last_frame}",
-                    f"replay     : {replay_state}",
-                    f"log_file   : {log_state}",
-                    f"decoder    : {self._decoder_path}",
-                ]
-            )
-        )
+        self._stats.update("\n".join(["[Stats]", f"transport  : {transport}", f"port       : {port}", f"connection : {conn}", f"screen     : {self._active_screen}", f"mode       : {self._mode}", f"filter     : {self._filter_text or '-'}", f"src_sel    : {self._selected_src_idx}", f"rows       : {filtered_rows}/{len(self._rows)}", f"rx_frames  : {self._rx_frames}", f"tcp_pkts   : {self._tcp_packets}", f"tcp_bytes  : {self._tcp_bytes}", f"seq_lost   : {self._lost_seen}", f"crc_errors : {self._crc_seen}", f"last_seq   : {self._tcp_last_frame}", f"replay     : {replay_state}", f"log_file   : {log_state}", f"decoder    : {self._decoder_path}"]))
 
     def _open_log_if_needed(self) -> None:
         if not self._log_enabled or self._log_fp is not None:
             return
-
         if self._log_file_path is None:
             logs_dir = Path("logs")
             logs_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self._log_file_path = logs_dir / f"uart_{timestamp}.log"
+            self._log_file_path = logs_dir / f"uart_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         else:
             self._log_file_path.parent.mkdir(parents=True, exist_ok=True)
-
         self._log_fp = self._log_file_path.open("a", encoding="utf-8")
 
     def _log_meta(self, message: str) -> None:
@@ -765,7 +1132,6 @@ class UARTLogApp(App[None]):
         self._open_log_if_needed()
         if self._log_fp is None:
             return
-
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         self._log_fp.write(f"{ts} mode=META {message}\n")
         self._log_fp.flush()
@@ -776,12 +1142,50 @@ class UARTLogApp(App[None]):
         self._open_log_if_needed()
         if self._log_fp is None:
             return
-
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        self._log_fp.write(
-            f"{ts} mode={self._mode.upper()} seq=0x{seq:02X} "
-            f"src=0x{event.src_id:02X} evt=0x{event.event_id:02X} ts={event.timestamp} "
-            f"arg0=0x{event.arg0:08X} arg1=0x{event.arg1:08X} arg2=0x{event.arg2:08X} "
-            f"crc=OK lost={lost_count} msg={text}\n"
-        )
+        self._log_fp.write(f"{ts} mode={self._mode.upper()} seq=0x{seq:02X} src=0x{event.src_id:02X} evt=0x{event.event_id:02X} ts={event.timestamp} arg0=0x{event.arg0:08X} arg1=0x{event.arg1:08X} arg2=0x{event.arg2:08X} crc=OK lost={lost_count} msg={text}\n")
         self._log_fp.flush()
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    script_dir = Path(__file__).resolve().parent
+    default_decoder = script_dir / "decode_rules.default.yaml"
+
+    parser = argparse.ArgumentParser(description="UART log monitor for tangnano20k uart_log_cli")
+    parser.add_argument("--transport", type=str, choices=["serial", "tcp"], default="tcp")
+    parser.add_argument("--port", type=str, default=None)
+    parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--tcp-host", type=str, default="192.168.10.40")
+    parser.add_argument("--tcp-port", type=int, default=2323)
+    parser.add_argument("--mode", type=str, choices=["raw", "decode"], default="decode")
+    parser.add_argument("--decoder", type=str, default=str(default_decoder))
+    parser.add_argument("--log-file", type=str, default=None)
+    parser.add_argument("--replay", type=str, default=None)
+    parser.add_argument("--no-color", action="store_true")
+    return parser
+
+
+def main() -> None:
+    parser = _build_parser()
+    args = parser.parse_args()
+
+    if args.no_color:
+        os.environ["NO_COLOR"] = "1"
+        os.environ["TEXTUAL_NO_COLOR"] = "1"
+
+    app = UARTLogApp(
+        transport=args.transport,
+        initial_port=args.port,
+        baud=args.baud,
+        tcp_host=args.tcp_host,
+        tcp_port=args.tcp_port,
+        mode=args.mode,
+        decoder_path=args.decoder,
+        log_file=args.log_file,
+        replay_file=args.replay,
+    )
+    app.run()
+
+
+if __name__ == "__main__":
+    main()

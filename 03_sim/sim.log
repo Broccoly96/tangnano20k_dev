@@ -1,5 +1,5 @@
-# vsim -c work.testbench -voptargs="+acc" -L gw1n -L gw2a -do "run -all; quit -code 0" -l sim.log 
-# Start time: 21:24:36 on Apr 04,2026
+# vsim -c work.testbench -voptargs="+acc" "+TB_LOG_LEVEL=3" -do "run -all; quit -code 0" -l sim.log 
+# Start time: 13:25:30 on Apr 05,2026
 # //  ModelSim - Lattice FPGA Edition 2023.3 Jul 18 2023
 # //
 # //  Copyright 1991-2023 Mentor Graphics Corporation
@@ -14,26 +14,57 @@
 # //  18 U.S.C. Section 1905.
 # //
 # Loading sv_std.std
+# Loading work.tb_log_pkg
+# Loading work.uart_log_cli_pkg
 # Loading work.uart_log_cli_tb_pkg
 # Loading work.testbench
 # Loading work.uart_log_testsrc1
-# Loading work.uart_log_cli_pkg
+# Loading work.uart_log_src_async_bridge
+# Loading work.sdram_emb_hostif
+# Loading work.sdram_memtest_ctrl
+# Loading work.sdram_uart_bridge_ctrl
+# Loading work.embedded_sdram
+# Loading work.VCC
+# Loading work.GND
+# Loading work.GSR
+# Loading work.IOBUF
+# Loading work.IBUF
+# Loading work.OBUF
+# Loading work.LUT4
+# Loading work.MUX16
+# Loading work.MUX8
+# Loading work.MUX4
+# Loading work.MUX2
+# Loading work.LUT3
+# Loading work.LUT2
+# Loading work.DFFR
+# Loading work.DFFC
+# Loading work.DFFS
+# Loading work.DFF
+# Loading work.DFFE
+# Loading work.DFFCE
+# Loading work.ALU
+# Loading work.INV
+# Loading work.LUT1
+# Loading work.DFFP
+# Loading work.DFFPE
+# Loading work.SDPX9B
 # Loading work.uart_log_cli
 # Loading work.uart_rx_stream
 # Loading work.uart_tx_stream
 # Loading work.uart_log_cli_evt_fifo
 # Loading work.sync_fifo_ae_af
+# Loading work.MT48LC8M16A2
 # Loading work.uart_log_tap
+# Loading work.mux2
 # run -all
-# stage: first heartbeat seq=0 count=0
-# stage: second heartbeat seq=1 count=1
-# stage: post-help frame seq=2 src=0 evt=2
-# stage: reset asserted
-# stage: reset observed
-# stage: heartbeat after reset seq=0 count=0
-# stage: second heartbeat after reset seq=1 count=1
-# UART log smoke test passed
-# ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/01_uart_log_cli_smoke/testcase_smoke.svh(87)
-#    Time: 22753500 ns  Iteration: 2  Instance: /testbench
-# End time: 21:24:36 on Apr 04,2026, Elapsed time: 0:00:00
+# [0 ns][INFO ][SDRAM HOSTIF TB] waiting for self-test PASS before enabling host access
+# [208375 ns][INFO ][SDRAM HOSTIF TB] self-test PASS signal observed
+# [208375 ns][INFO ][SDRAM HOSTIF TB] switching source selection to SDRAM host interface
+# [1945265 ns][INFO ][SDRAM HOSTIF TB] issuing host WRITE addr=0x00012 data=0x0612143f
+# [8458365 ns][INFO ][SDRAM HOSTIF TB] issuing host READ addr=0x00012
+# [10455775 ns][INFO ][SDRAM HOSTIF TB] embedded SDRAM host interface smoke test passed
+# ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/05_embedded_sdram_hostif/testcase_smoke.svh(123)
+#    Time: 10455775 ns  Iteration: 4  Instance: /testbench
+# End time: 13:26:08 on Apr 05,2026, Elapsed time: 0:00:38
 # Errors: 0, Warnings: 0
