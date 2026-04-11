@@ -236,7 +236,7 @@ module testbench;
   end
 
   initial begin
-    #(30ms);
+    #(80ms);
     $fatal(
       1,
       "embedded SDRAM hostif simulation timed out pass=%0b fail=%0b host_busy=%0b sel=%0d cli_rx=%0d host_evt=%0d mirror=%0d last_cli=0x%02h raw_rx_bypass=%0b raw_tx_mode=%0b",

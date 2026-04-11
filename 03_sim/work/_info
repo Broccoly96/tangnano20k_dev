@@ -12,7 +12,7 @@ Z0 dC:/Electronics/GitHubProjects/tangnano20k_dev/03_sim
 vALU
 Z1 2..\00_ip\embedded_sdram\tb\prim_sim.v|..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v|..\00_ip\embedded_sdram\embedded_sdram.vo|..\02_tb\tb_log_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_selftest.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge.sv|..\01_src\embedded_sdram\sdram_emb_hostif.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli.sv
 Z2 DXx6 sv_std 3 std 0 22 VYECXdT12H8WgbUP_5Y6:3
-Z3 !s110 1775883639
+Z3 !s110 1775885614
 !i10b 1
 !s100 Hn;I:<M1C3D2M43omzo_A2
 IgbdAib;N9SE>9ZaVSBF8`0
@@ -21,14 +21,14 @@ R0
 Z4 w1756433688
 Z5 8..\00_ip\embedded_sdram\tb\prim_sim.v
 Z6 F..\00_ip\embedded_sdram\tb\prim_sim.v
-!i122 16
+!i122 20
 L0 306 77
 Z7 VDg1SIo80bB@j0V0VzS_@n1
 Z8 OT;L;2023.3;77
 r1
 !s85 0
 31
-Z9 !s108 1775883639.000000
+Z9 !s108 1775885614.000000
 Z10 !s107 ..\01_src\uart_log_cli\uart_log_cli.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\embedded_sdram\sdram_emb_hostif.sv|..\01_src\embedded_sdram\sdram_uart_bridge.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_selftest.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\02_tb\tb_log_pkg.sv|..\00_ip\embedded_sdram\embedded_sdram.vo|..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v|..\00_ip\embedded_sdram\tb\prim_sim.v|
 Z11 !s90 -sv|-work|work|-f|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\vlog.f|-l|compile.log|
 !s101 -O0
@@ -49,7 +49,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 12346 354
 R7
 R8
@@ -78,7 +78,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 12702 8
 R7
 R8
@@ -107,7 +107,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 12712 8
 R7
 R8
@@ -135,7 +135,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13479 159
 R7
 R8
@@ -163,7 +163,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 14514 253
 R7
 R8
@@ -191,7 +191,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 386 25
 R7
 R8
@@ -219,7 +219,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 621 27
 R7
 R8
@@ -247,7 +247,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 650 28
 R7
 R8
@@ -275,7 +275,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 413 27
 R7
 R8
@@ -303,7 +303,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 680 25
 R7
 R8
@@ -331,7 +331,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 915 27
 R7
 R8
@@ -359,7 +359,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 944 28
 R7
 R8
@@ -387,7 +387,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 707 27
 R7
 R8
@@ -415,7 +415,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 856 27
 R7
 R8
@@ -443,7 +443,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 885 28
 R7
 R8
@@ -471,7 +471,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 796 28
 R7
 R8
@@ -499,7 +499,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 826 28
 R7
 R8
@@ -527,7 +527,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 736 28
 R7
 R8
@@ -555,7 +555,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 766 28
 R7
 R8
@@ -583,7 +583,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 562 27
 R7
 R8
@@ -611,7 +611,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 591 28
 R7
 R8
@@ -639,7 +639,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 502 28
 R7
 R8
@@ -667,7 +667,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 532 28
 R7
 R8
@@ -695,7 +695,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 442 28
 R7
 R8
@@ -723,7 +723,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 472 28
 R7
 R8
@@ -751,7 +751,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13640 17
 R7
 R8
@@ -779,7 +779,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 975 21
 R7
 R8
@@ -807,7 +807,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1021 23
 R7
 R8
@@ -835,7 +835,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1046 23
 R7
 R8
@@ -863,7 +863,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 998 21
 R7
 R8
@@ -891,7 +891,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13346 130
 R7
 R8
@@ -919,7 +919,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 14405 106
 R7
 R8
@@ -947,7 +947,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1121 21
 R7
 R8
@@ -975,7 +975,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1167 23
 R7
 R8
@@ -1003,7 +1003,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1192 23
 R7
 R8
@@ -1031,7 +1031,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1144 21
 R7
 R8
@@ -1059,7 +1059,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1217 23
 R7
 R8
@@ -1087,7 +1087,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1242 23
 R7
 R8
@@ -1115,7 +1115,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1071 23
 R7
 R8
@@ -1143,7 +1143,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1096 23
 R7
 R8
@@ -1171,7 +1171,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 5394 389
 R7
 R8
@@ -1199,7 +1199,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 8271 397
 R7
 R8
@@ -1227,7 +1227,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 5784 346
 R7
 R8
@@ -1255,7 +1255,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 8669 353
 R7
 R8
@@ -1283,7 +1283,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 14769 13
 R7
 R8
@@ -1311,7 +1311,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13659 743
 R7
 R8
@@ -1339,7 +1339,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13297 14
 R7
 R8
@@ -1367,7 +1367,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13328 16
 R7
 R8
@@ -1396,7 +1396,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13312 8
 R7
 R8
@@ -1425,7 +1425,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13321 6
 R7
 R8
@@ -1454,7 +1454,7 @@ R0
 w1775830351
 8..\00_ip\embedded_sdram\embedded_sdram.vo
 F..\00_ip\embedded_sdram\embedded_sdram.vo
-!i122 16
+!i122 20
 L0 8 6697
 R7
 R8
@@ -1482,7 +1482,7 @@ R0
 Z17 w1775364009
 8..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv
 F..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv
-!i122 16
+!i122 20
 L0 13 0
 Vmog0lR1GNGze?OJnB1B<U1
 R8
@@ -1509,7 +1509,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 12723 9
 R7
 R8
@@ -1537,7 +1537,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 12745 9
 R7
 R8
@@ -1566,7 +1566,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1276 8
 R7
 R8
@@ -1594,7 +1594,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1318 51
 R7
 R8
@@ -1622,7 +1622,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1429 57
 R7
 R8
@@ -1650,7 +1650,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1370 57
 R7
 R8
@@ -1678,7 +1678,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 2603 198
 R7
 R8
@@ -1706,7 +1706,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1750 154
 R7
 R8
@@ -1734,7 +1734,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1906 164
 R7
 R8
@@ -1762,7 +1762,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 2232 178
 R7
 R8
@@ -1790,7 +1790,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 2412 189
 R7
 R8
@@ -1818,7 +1818,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 3973 116
 R7
 R8
@@ -1846,7 +1846,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1267 8
 R7
 R8
@@ -1875,7 +1875,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1306 10
 R7
 R8
@@ -1903,7 +1903,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 3923 48
 R7
 R8
@@ -1931,7 +1931,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 2072 159
 R7
 R8
@@ -1960,7 +1960,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 185 10
 R7
 R8
@@ -1989,7 +1989,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 197 10
 R7
 R8
@@ -2018,7 +2018,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 209 10
 R7
 R8
@@ -2047,7 +2047,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 221 10
 R7
 R8
@@ -2076,7 +2076,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 233 10
 R7
 R8
@@ -2105,7 +2105,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 245 18
 R7
 R8
@@ -2134,7 +2134,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 265 18
 R7
 R8
@@ -2163,7 +2163,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 285 18
 R7
 R8
@@ -2191,7 +2191,7 @@ R0
 R17
 8..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v
 F..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v
-!i122 16
+!i122 20
 L0 44 921
 R7
 R8
@@ -2219,7 +2219,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 9679 358
 R7
 R8
@@ -2247,7 +2247,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 10040 375
 R7
 R8
@@ -2275,7 +2275,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 9322 355
 R7
 R8
@@ -2303,7 +2303,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 10898 848
 R7
 R8
@@ -2331,7 +2331,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 11748 596
 R7
 R8
@@ -2359,7 +2359,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 10418 477
 R7
 R8
@@ -2388,7 +2388,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 150 14
 R7
 R8
@@ -2416,7 +2416,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 20 0
 R7
 R8
@@ -2444,7 +2444,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 41 9
 R7
 R8
@@ -2473,7 +2473,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 51 9
 R7
 R8
@@ -2502,7 +2502,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 61 9
 R7
 R8
@@ -2531,7 +2531,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 71 9
 R7
 R8
@@ -2560,7 +2560,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 81 9
 R7
 R8
@@ -2589,7 +2589,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 101 9
 R7
 R8
@@ -2618,7 +2618,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 111 9
 R7
 R8
@@ -2647,7 +2647,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 91 9
 R7
 R8
@@ -2676,7 +2676,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 166 16
 R7
 R8
@@ -2705,7 +2705,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 121 13
 R7
 R8
@@ -2734,7 +2734,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 135 13
 R7
 R8
@@ -2763,7 +2763,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1286 8
 R7
 R8
@@ -2791,7 +2791,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1488 80
 R7
 R8
@@ -2819,7 +2819,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1660 89
 R7
 R8
@@ -2847,7 +2847,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1569 89
 R7
 R8
@@ -2875,7 +2875,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 12756 24
 R7
 R8
@@ -2903,7 +2903,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 3775 146
 R7
 R8
@@ -2931,7 +2931,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 2803 171
 R7
 R8
@@ -2959,7 +2959,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 2976 205
 R7
 R8
@@ -2987,7 +2987,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 3380 180
 R7
 R8
@@ -3015,7 +3015,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 3562 211
 R7
 R8
@@ -3043,7 +3043,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 3183 195
 R7
 R8
@@ -3071,7 +3071,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 9026 146
 R7
 R8
@@ -3099,7 +3099,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 9174 145
 R7
 R8
@@ -3127,7 +3127,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 12782 461
 R7
 R8
@@ -3155,7 +3155,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 7400 188
 R7
 R8
@@ -3183,7 +3183,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 7590 166
 R7
 R8
@@ -3211,7 +3211,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4091 22
 R7
 R8
@@ -3239,7 +3239,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4115 31
 R7
 R8
@@ -3267,7 +3267,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4148 41
 R7
 R8
@@ -3295,7 +3295,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4191 23
 R7
 R8
@@ -3323,7 +3323,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4216 31
 R7
 R8
@@ -3351,7 +3351,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4249 42
 R7
 R8
@@ -3379,7 +3379,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 6132 202
 R7
 R8
@@ -3407,7 +3407,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4293 17
 R7
 R8
@@ -3435,7 +3435,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 6335 180
 R7
 R8
@@ -3463,7 +3463,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 7016 201
 R7
 R8
@@ -3491,7 +3491,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 7219 179
 R7
 R8
@@ -3519,7 +3519,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 6517 267
 R7
 R8
@@ -3547,7 +3547,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 6786 228
 R7
 R8
@@ -3575,7 +3575,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4891 270
 R7
 R8
@@ -3603,7 +3603,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 7758 275
 R7
 R8
@@ -3631,7 +3631,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 5162 231
 R7
 R8
@@ -3659,7 +3659,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 8035 235
 R7
 R8
@@ -3687,7 +3687,7 @@ R0
 w1775883484
 8..\01_src\embedded_sdram\sdram_emb_hostif.sv
 F..\01_src\embedded_sdram\sdram_emb_hostif.sv
-!i122 16
+!i122 20
 L0 10 151
 R7
 R8
@@ -3714,7 +3714,7 @@ R0
 w1775883480
 8..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv
 F..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv
-!i122 16
+!i122 20
 L0 11 126
 R7
 R8
@@ -3741,7 +3741,7 @@ R0
 R17
 8..\01_src\embedded_sdram\sdram_emb_selftest.sv
 F..\01_src\embedded_sdram\sdram_emb_selftest.sv
-!i122 16
+!i122 20
 L0 8 158
 R7
 R8
@@ -3769,7 +3769,7 @@ R0
 R17
 8..\01_src\embedded_sdram\sdram_memtest_ctrl.sv
 F..\01_src\embedded_sdram\sdram_memtest_ctrl.sv
-!i122 16
+!i122 20
 L0 10 404
 R7
 R8
@@ -3787,19 +3787,19 @@ R14
 vsdram_uart_access_engine
 R1
 R2
-Z18 DXx4 work 20 sdram_uart_proto_pkg 0 22 ?BcckMO=L_ed5UDRYU2[31
+Z18 DXx4 work 20 sdram_uart_proto_pkg 0 22 0f[H6hchCM]]1eb[_[o4A0
 R16
 R3
 !i10b 1
-!s100 5KMb5[_^nljIz@?G[=FJN3
-I`:J^lX7`LiRB>kcccY@kn2
+!s100 H^DG60SP3J<K2]>dRo@ek1
+IbaAMJlzd;5heRVIjM7cNj1
 S1
 R0
-w1775883468
+w1775885583
 8..\01_src\embedded_sdram\sdram_uart_access_engine.sv
 F..\01_src\embedded_sdram\sdram_uart_access_engine.sv
-!i122 16
-L0 11 397
+!i122 20
+L0 11 564
 R7
 R8
 r1
@@ -3827,7 +3827,7 @@ R0
 w1775872632
 8..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv
 F..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv
-!i122 16
+!i122 20
 L0 10 741
 R7
 R8
@@ -3855,7 +3855,7 @@ R0
 R17
 8..\01_src\embedded_sdram\sdram_uart_bridge.sv
 F..\01_src\embedded_sdram\sdram_uart_bridge.sv
-!i122 16
+!i122 20
 L0 20 583
 R7
 R8
@@ -3877,15 +3877,15 @@ R18
 R16
 R3
 !i10b 1
-!s100 3GOO]j9dY0;@>7Oz0^5PV3
-InWfJj9fGNJI;[[@O`QmLi1
+!s100 1?^XeCM7:e_MI@74;CNK>0
+IFI[>BXc0<>ZCl5`UoKDIn1
 S1
 R0
-w1775883474
+w1775884277
 8..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv
 F..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv
-!i122 16
-L0 10 350
+!i122 20
+L0 10 416
 R7
 R8
 r1
@@ -3904,16 +3904,16 @@ R1
 R2
 R3
 !i10b 1
-!s100 9S_DLCI3HDolakFz55?no1
-I?BcckMO=L_ed5UDRYU2[31
+!s100 2nMVlE_dmiXWAc^aD9NaN3
+I0f[H6hchCM]]1eb[_[o4A0
 S1
 R0
-w1775825607
+w1775884222
 8..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv
 F..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv
-!i122 16
+!i122 20
 L0 9 0
-V?BcckMO=L_ed5UDRYU2[31
+V0f[H6hchCM]]1eb[_[o4A0
 R8
 r1
 !s85 0
@@ -3938,7 +3938,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4313 297
 R7
 R8
@@ -3966,7 +3966,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 4611 278
 R7
 R8
@@ -3994,7 +3994,7 @@ R0
 w1775304871
 8..\01_src\sync_fifo_ae_af.sv
 F..\01_src\sync_fifo_ae_af.sv
-!i122 16
+!i122 20
 L0 8 72
 R7
 R8
@@ -4021,7 +4021,7 @@ R0
 R17
 8..\02_tb\tb_log_pkg.sv
 F..\02_tb\tb_log_pkg.sv
-!i122 16
+!i122 20
 L0 23 0
 V`Wzj`7KYP0^0;ND1Qmf6H2
 R8
@@ -4049,7 +4049,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 1296 8
 R7
 R8
@@ -4066,30 +4066,32 @@ R13
 R14
 n@t@b@u@f
 vtestbench
-2C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\09_sdram_uart_access_engine\testbench.sv
+2C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\05_embedded_sdram_hostif\testbench.sv
 R2
+Z19 DXx4 work 16 uart_log_cli_pkg 0 22 >>2je^LjmA4>DFN3OTL9Q2
 R16
+DXx4 work 19 uart_log_cli_tb_pkg 0 22 n2lj[he:0Z[A6b5ab9M[Q1
 R18
 R3
 !i10b 1
-!s100 n3kD8j;`ePcZAj:]h><D61
-IhZ@oGJK^Wf<jXe0]c3K;f0
+!s100 LH[o^[abINgDW0[X:WA^m2
+IOHaBBC8OL_3;c3<5YF>o92
 S1
 R0
-w1775883623
-8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\09_sdram_uart_access_engine\testbench.sv
-FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\09_sdram_uart_access_engine\testbench.sv
-FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\09_sdram_uart_access_engine/testcase_smoke.svh
-!i122 17
-L0 3 331
+w1775884559
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\05_embedded_sdram_hostif\testbench.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\05_embedded_sdram_hostif\testbench.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\05_embedded_sdram_hostif/testcase_smoke.svh
+!i122 21
+L0 3 651
 R7
 R8
 r1
 !s85 0
 31
 R9
-!s107 C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\09_sdram_uart_access_engine/testcase_smoke.svh|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\09_sdram_uart_access_engine\testbench.sv|
-!s90 -sv|+define+SIM|-work|work|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\09_sdram_uart_access_engine\testbench.sv|
+!s107 C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\05_embedded_sdram_hostif/testcase_smoke.svh|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\05_embedded_sdram_hostif\testbench.sv|
+!s90 -sv|+define+SIM|-work|work|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\05_embedded_sdram_hostif\testbench.sv|
 !s101 -O0
 !i113 1
 R12
@@ -4107,7 +4109,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13248 14
 R7
 R8
@@ -4135,7 +4137,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13279 16
 R7
 R8
@@ -4164,7 +4166,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13263 8
 R7
 R8
@@ -4193,7 +4195,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 13272 6
 R7
 R8
@@ -4212,7 +4214,7 @@ n@t@l@v@d@s_@t@b@u@f
 vuart_log_cli
 R1
 R2
-Z19 DXx4 work 16 uart_log_cli_pkg 0 22 >>2je^LjmA4>DFN3OTL9Q2
+R19
 R3
 !i10b 1
 !s100 ]M=W=j;Z0P2:m^4;z8N6m1
@@ -4222,7 +4224,7 @@ R0
 w1775371493
 8..\01_src\uart_log_cli\uart_log_cli.sv
 F..\01_src\uart_log_cli\uart_log_cli.sv
-!i122 16
+!i122 20
 L0 18 690
 R7
 R8
@@ -4249,7 +4251,7 @@ R0
 w1775878173
 8..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv
 F..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv
-!i122 16
+!i122 20
 L0 10 96
 R7
 R8
@@ -4277,7 +4279,7 @@ R0
 w1775304886
 8..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv
 F..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv
-!i122 16
+!i122 20
 L0 17 43
 R7
 R8
@@ -4304,7 +4306,7 @@ R0
 R17
 8..\01_src\uart_log_cli\uart_log_cli_pkg.sv
 F..\01_src\uart_log_cli\uart_log_cli_pkg.sv
-!i122 16
+!i122 20
 L0 17 0
 V>>2je^LjmA4>DFN3OTL9Q2
 R8
@@ -4333,7 +4335,7 @@ R0
 w1775388450
 8..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv
 F..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv
-!i122 16
+!i122 20
 L0 16 0
 Vn2lj[he:0Z[A6b5ab9M[Q1
 R8
@@ -4360,7 +4362,7 @@ R0
 w1775878166
 8..\01_src\uart_log_cli\uart_log_src_async_bridge.sv
 F..\01_src\uart_log_cli\uart_log_src_async_bridge.sv
-!i122 16
+!i122 20
 L0 10 129
 R7
 R8
@@ -4387,7 +4389,7 @@ R0
 Z20 w1771665726
 8..\01_src\uart_log_cli\uart_log_tap.sv
 F..\01_src\uart_log_cli\uart_log_tap.sv
-!i122 16
+!i122 20
 L0 18 80
 R7
 R8
@@ -4414,7 +4416,7 @@ R0
 w1775304547
 8..\01_src\uart_log_cli\uart_log_testsrc1.sv
 F..\01_src\uart_log_cli\uart_log_testsrc1.sv
-!i122 16
+!i122 20
 L0 15 60
 R7
 R8
@@ -4441,7 +4443,7 @@ R0
 R20
 8..\01_src\uart_lite\uart_rx_stream.sv
 F..\01_src\uart_lite\uart_rx_stream.sv
-!i122 16
+!i122 20
 L0 6 161
 R7
 R8
@@ -4468,7 +4470,7 @@ R0
 R20
 8..\01_src\uart_lite\uart_tx_stream.sv
 F..\01_src\uart_lite\uart_tx_stream.sv
-!i122 16
+!i122 20
 L0 6 149
 R7
 R8
@@ -4495,7 +4497,7 @@ R0
 R4
 R5
 R6
-!i122 16
+!i122 20
 L0 12734 9
 R7
 R8

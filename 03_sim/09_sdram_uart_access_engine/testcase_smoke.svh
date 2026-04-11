@@ -20,6 +20,30 @@
       log_fatal(1, "ACCESS ENG TB", "cache hit unexpectedly issued new SDRC read");
     end
 
+    log_info("ACCESS ENG TB", "case: unaligned write/readback");
+    issue_request(1'b1, 21'h00343, 32'h5566_7788);
+    expect_response(1'b1, 21'h00343, 32'h5566_7788, 32'h0, "unaligned write");
+    issue_request(1'b0, 21'h00343, 32'h0);
+    expect_response(1'b0, 21'h00343, 32'h5566_7788, 32'h0, "unaligned readback");
+
+    log_info("ACCESS ENG TB", "case: write updates cache");
+    issue_request(1'b1, 21'h00030, 32'hCAFE_BABE);
+    expect_response(1'b1, 21'h00030, 32'hCAFE_BABE, 32'h0, "rewrite same addr");
+    read_req_count_q = read_req_count;
+    issue_request(1'b0, 21'h00030, 32'h0);
+    expect_response(1'b0, 21'h00030, 32'hCAFE_BABE, 32'h0, "readback after rewrite");
+    if (read_req_count != read_req_count_q) begin
+      log_fatal(1, "ACCESS ENG TB", "rewrite unexpectedly forced cache refill");
+    end
+
+    log_info("ACCESS ENG TB", "case: two-address separation");
+    issue_request(1'b1, 21'h00012, 32'h0012_A55A);
+    expect_response(1'b1, 21'h00012, 32'h0012_A55A, 32'h0, "control-pattern write");
+    issue_request(1'b0, 21'h00343, 32'h0);
+    expect_response(1'b0, 21'h00343, 32'h5566_7788, 32'h0, "unaligned read still intact");
+    issue_request(1'b0, 21'h00012, 32'h0);
+    expect_response(1'b0, 21'h00012, 32'h0012_A55A, 32'h0, "control-pattern readback");
+
     log_info("ACCESS ENG TB", "case: write timeout");
     inject_next_wr_timeout = 1'b1;
     issue_request(1'b1, 21'h00040, 32'h1234_5678);

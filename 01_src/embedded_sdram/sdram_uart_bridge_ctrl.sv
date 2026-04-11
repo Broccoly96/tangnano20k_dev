@@ -50,7 +50,7 @@ module sdram_uart_bridge_ctrl (
   `define SDRAM_BRIDGE_LOG_TRACE(MSG) tb_log_pkg::log_trace("SDRAM UART BRIDGE", MSG)
 // synthesis translate_on
 
-  localparam int unsigned EVT_FIFO_DEPTH = 8;
+  localparam int unsigned EVT_FIFO_DEPTH = 16;
   localparam int unsigned EVT_FIFO_PTR_W = $clog2(EVT_FIFO_DEPTH);
   localparam int unsigned EVT_FIFO_CNT_W = $clog2(EVT_FIFO_DEPTH + 1);
 
@@ -77,6 +77,21 @@ module sdram_uart_bridge_ctrl (
   logic [20:0] s_access_rsp_addr;
   logic [31:0] s_access_rsp_data;
   logic [31:0] s_access_rsp_status;
+  logic        s_dbg_req_valid;
+  logic        s_dbg_req_is_write;
+  logic [20:0] s_dbg_req_addr;
+  logic [31:0] s_dbg_req_data;
+  logic        s_dbg_issue_valid;
+  logic        s_dbg_issue_is_write;
+  logic [20:0] s_dbg_issue_addr;
+  logic [7:0]  s_dbg_issue_data_len;
+  logic        s_dbg_wr_ack_valid;
+  logic [20:0] s_dbg_wr_ack_addr;
+  logic [31:0] s_dbg_wr_ack_data;
+  logic        s_dbg_rd0_valid;
+  logic [20:0] s_dbg_rd0_base_addr;
+  logic [20:0] s_dbg_rd0_req_addr;
+  logic [31:0] s_dbg_rd0_data;
 
   logic [103:0] r_evt_fifo_mem [0:EVT_FIFO_DEPTH-1];
   logic [EVT_FIFO_PTR_W-1:0] r_evt_wr_ptr;
@@ -151,7 +166,22 @@ module sdram_uart_bridge_ctrl (
     .O_RSP_IS_WRITE   (s_access_rsp_is_write),
     .O_RSP_ADDR       (s_access_rsp_addr),
     .O_RSP_DATA       (s_access_rsp_data),
-    .O_RSP_STATUS     (s_access_rsp_status)
+    .O_RSP_STATUS     (s_access_rsp_status),
+    .O_DBG_REQ_VALID      (s_dbg_req_valid),
+    .O_DBG_REQ_IS_WRITE   (s_dbg_req_is_write),
+    .O_DBG_REQ_ADDR       (s_dbg_req_addr),
+    .O_DBG_REQ_DATA       (s_dbg_req_data),
+    .O_DBG_ISSUE_VALID    (s_dbg_issue_valid),
+    .O_DBG_ISSUE_IS_WRITE (s_dbg_issue_is_write),
+    .O_DBG_ISSUE_ADDR     (s_dbg_issue_addr),
+    .O_DBG_ISSUE_DATA_LEN (s_dbg_issue_data_len),
+    .O_DBG_WR_ACK_VALID   (s_dbg_wr_ack_valid),
+    .O_DBG_WR_ACK_ADDR    (s_dbg_wr_ack_addr),
+    .O_DBG_WR_ACK_DATA    (s_dbg_wr_ack_data),
+    .O_DBG_RD0_VALID      (s_dbg_rd0_valid),
+    .O_DBG_RD0_BASE_ADDR  (s_dbg_rd0_base_addr),
+    .O_DBG_RD0_REQ_ADDR   (s_dbg_rd0_req_addr),
+    .O_DBG_RD0_DATA       (s_dbg_rd0_data)
   );
 
   task automatic push_event(
@@ -352,6 +382,42 @@ module sdram_uart_bridge_ctrl (
         end else begin
           push_event(EVT_CMD_ERR, s_access_rsp_status, {11'h0, s_access_rsp_addr}, 32'h0);
         end
+      end
+
+      if (s_dbg_req_valid) begin
+        push_event(
+          EVT_DBG_REQ,
+          {11'h0, s_dbg_req_addr},
+          s_dbg_req_data,
+          {31'h0, s_dbg_req_is_write}
+        );
+      end
+
+      if (s_dbg_issue_valid) begin
+        push_event(
+          EVT_DBG_ISSUE,
+          {11'h0, s_dbg_issue_addr},
+          {24'h0, s_dbg_issue_data_len},
+          {31'h0, s_dbg_issue_is_write}
+        );
+      end
+
+      if (s_dbg_wr_ack_valid) begin
+        push_event(
+          EVT_DBG_WR_ACK,
+          {11'h0, s_dbg_wr_ack_addr},
+          s_dbg_wr_ack_data,
+          32'h0
+        );
+      end
+
+      if (s_dbg_rd0_valid) begin
+        push_event(
+          EVT_DBG_RD0,
+          {11'h0, s_dbg_rd0_base_addr},
+          s_dbg_rd0_data,
+          {11'h0, s_dbg_rd0_req_addr}
+        );
       end
     end
   end

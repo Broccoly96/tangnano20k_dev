@@ -6,8 +6,9 @@ module testbench;
   import sdram_uart_proto_pkg::*;
 
   localparam time CLK_PERIOD = 10ns;
-  localparam int unsigned MEM_WORDS = 256;
+  localparam int unsigned MEM_WORDS = 2048;
   localparam int unsigned BURST_WORDS = 26;
+  localparam int unsigned WRITE_STREAM_CYCLES = BURST_WORDS + 2;
 
   typedef enum logic [2:0] {
     UIF_IDLE,
@@ -40,6 +41,21 @@ module testbench;
   logic [20:0] tb_rsp_addr;
   logic [31:0] tb_rsp_data;
   logic [31:0] tb_rsp_status;
+  logic        tb_dbg_req_valid;
+  logic        tb_dbg_req_is_write;
+  logic [20:0] tb_dbg_req_addr;
+  logic [31:0] tb_dbg_req_data;
+  logic        tb_dbg_issue_valid;
+  logic        tb_dbg_issue_is_write;
+  logic [20:0] tb_dbg_issue_addr;
+  logic [7:0]  tb_dbg_issue_data_len;
+  logic        tb_dbg_wr_ack_valid;
+  logic [20:0] tb_dbg_wr_ack_addr;
+  logic [31:0] tb_dbg_wr_ack_data;
+  logic        tb_dbg_rd0_valid;
+  logic [20:0] tb_dbg_rd0_base_addr;
+  logic [20:0] tb_dbg_rd0_req_addr;
+  logic [31:0] tb_dbg_rd0_data;
 
   logic [31:0] mem_words [0:MEM_WORDS-1];
   uif_state_e  st_uif;
@@ -90,8 +106,7 @@ module testbench;
   end
 
   sdram_uart_access_engine #(
-    .RESP_TIMEOUT_CYCLES(64),
-    .WR_STREAM_CYCLES(4)
+    .RESP_TIMEOUT_CYCLES(64)
   ) u_dut (
     .I_CLK           (tb_clk),
     .I_RST_N         (tb_rst_n),
@@ -116,7 +131,22 @@ module testbench;
     .O_RSP_IS_WRITE  (tb_rsp_is_write),
     .O_RSP_ADDR      (tb_rsp_addr),
     .O_RSP_DATA      (tb_rsp_data),
-    .O_RSP_STATUS    (tb_rsp_status)
+    .O_RSP_STATUS    (tb_rsp_status),
+    .O_DBG_REQ_VALID      (tb_dbg_req_valid),
+    .O_DBG_REQ_IS_WRITE   (tb_dbg_req_is_write),
+    .O_DBG_REQ_ADDR       (tb_dbg_req_addr),
+    .O_DBG_REQ_DATA       (tb_dbg_req_data),
+    .O_DBG_ISSUE_VALID    (tb_dbg_issue_valid),
+    .O_DBG_ISSUE_IS_WRITE (tb_dbg_issue_is_write),
+    .O_DBG_ISSUE_ADDR     (tb_dbg_issue_addr),
+    .O_DBG_ISSUE_DATA_LEN (tb_dbg_issue_data_len),
+    .O_DBG_WR_ACK_VALID   (tb_dbg_wr_ack_valid),
+    .O_DBG_WR_ACK_ADDR    (tb_dbg_wr_ack_addr),
+    .O_DBG_WR_ACK_DATA    (tb_dbg_wr_ack_data),
+    .O_DBG_RD0_VALID      (tb_dbg_rd0_valid),
+    .O_DBG_RD0_BASE_ADDR  (tb_dbg_rd0_base_addr),
+    .O_DBG_RD0_REQ_ADDR   (tb_dbg_rd0_req_addr),
+    .O_DBG_RD0_DATA       (tb_dbg_rd0_data)
   );
 
   // Simple SDRC user-interface responder for unit testing.
@@ -142,7 +172,6 @@ module testbench;
           if (!tb_sdrc_wr_n) begin
             r_uif_base_addr <= tb_sdrc_addr;
             r_uif_len       <= tb_sdrc_data_len + 1'b1;
-            r_uif_wr_value  <= tb_sdrc_wr_data;
             mem_words[tb_sdrc_addr] <= tb_sdrc_wr_data;
             tb_sdrc_wrd_ack <= 1'b1;
             tb_sdrc_busy_n <= 1'b0;
@@ -191,7 +220,8 @@ module testbench;
             tb_sdrc_wrd_ack <= 1'b1;
             mem_words[r_uif_base_addr + r_uif_count] <= tb_sdrc_wr_data;
             r_uif_count   <= r_uif_count + 1'b1;
-            r_uif_wr_value<= tb_sdrc_wr_data;
+          end else if (r_uif_count < WRITE_STREAM_CYCLES) begin
+            r_uif_count <= r_uif_count + 1'b1;
           end else begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif         <= UIF_IDLE;

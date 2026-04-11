@@ -34,6 +34,10 @@ package sdram_uart_proto_pkg;
   localparam logic [7:0] EVT_BULK_PROG   = 8'h34;
   localparam logic [7:0] EVT_BULK_DONE   = 8'h35;
   localparam logic [7:0] EVT_BULK_ABORT  = 8'h36;
+  localparam logic [7:0] EVT_DBG_REQ     = 8'h37;
+  localparam logic [7:0] EVT_DBG_ISSUE   = 8'h38;
+  localparam logic [7:0] EVT_DBG_WR_ACK  = 8'h39;
+  localparam logic [7:0] EVT_DBG_RD0     = 8'h3A;
   localparam logic [7:0] EVT_CMD_ERR     = 8'h3E;
 
   localparam logic [31:0] ERR_BAD_ASCII_CMD   = 32'h0000_0001;

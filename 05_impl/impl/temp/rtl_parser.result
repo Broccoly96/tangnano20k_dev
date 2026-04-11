@@ -81,7 +81,7 @@
       "SubInsts" : [
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 112,
+        "InstLine" : 127,
         "InstName" : "u_sdram_uart_ascii_ctrl",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv",
         "ModuleLine" : 10,
@@ -89,10 +89,10 @@
        },
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 130,
+        "InstLine" : 145,
         "InstName" : "u_sdram_uart_access_engine",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
-        "ModuleLine" : 11,
+        "ModuleLine" : 13,
         "ModuleName" : "sdram_uart_access_engine"
        }
       ]

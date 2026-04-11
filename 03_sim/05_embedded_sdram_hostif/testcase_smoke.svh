@@ -10,11 +10,17 @@
     logic [31:0]  wr_data_safe;
     logic [20:0]  wr_addr_ctrl;
     logic [31:0]  wr_data_ctrl;
+    logic [20:0]  wr_addr_unaligned;
+    logic [31:0]  wr_data_unaligned;
+    logic [31:0]  wr_data_safe_2;
 
     wr_addr_safe = 21'h00030;
     wr_data_safe = 32'h89AB_CDEF;
     wr_addr_ctrl = 21'h00012;
     wr_data_ctrl = 32'h0012_A55A;
+    wr_addr_unaligned = 21'h00343;
+    wr_data_unaligned = 32'h5566_7788;
+    wr_data_safe_2 = 32'hCAFE_BABE;
 
     tb_log_pkg::log_info("SDRAM HOSTIF TB", "waiting for self-test PASS");
     wait (tb_sdram_test_pass || tb_sdram_test_fail);
@@ -28,7 +34,7 @@
 
     ascii_cmd = $sformatf("W %05X %08X\n", wr_addr_safe, wr_data_safe);
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
-    repeat (12) begin
+    repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
       if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_WRITE_ACK)) begin
         break;
@@ -44,7 +50,7 @@
 
     ascii_cmd = $sformatf("R %05X\n", wr_addr_safe);
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
-    repeat (12) begin
+    repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
       if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_READ_RSP)) begin
         break;
@@ -60,7 +66,7 @@
 
     ascii_cmd = $sformatf("W %05X %08X\n", wr_addr_ctrl, wr_data_ctrl);
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
-    repeat (12) begin
+    repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
       if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_WRITE_ACK)) begin
         break;
@@ -75,7 +81,7 @@
 
     ascii_cmd = $sformatf("R %05X\n", wr_addr_ctrl);
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
-    repeat (12) begin
+    repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
       if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_READ_RSP)) begin
         break;
@@ -90,7 +96,69 @@
 
     ascii_cmd = "X\n";
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
-    repeat (12) begin
+    ascii_cmd = $sformatf("W %05X %08X\n", wr_addr_unaligned, wr_data_unaligned);
+    send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
+    repeat (20) begin
+      recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
+      if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_WRITE_ACK)) begin
+        break;
+      end
+    end
+    arg0 = payload[63:32];
+    arg1 = payload[95:64];
+    if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_WRITE_ACK) ||
+        (arg0[20:0] != wr_addr_unaligned) || (arg1 != wr_data_unaligned)) begin
+      tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "ASCII unaligned write mismatch");
+    end
+
+    ascii_cmd = $sformatf("R %05X\n", wr_addr_unaligned);
+    send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
+    repeat (20) begin
+      recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
+      if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_READ_RSP)) begin
+        break;
+      end
+    end
+    arg0 = payload[63:32];
+    arg1 = payload[95:64];
+    if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_READ_RSP) ||
+        (arg0[20:0] != wr_addr_unaligned) || (arg1 != wr_data_unaligned)) begin
+      tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "ASCII unaligned readback mismatch");
+    end
+
+    ascii_cmd = $sformatf("W %05X %08X\n", wr_addr_safe, wr_data_safe_2);
+    send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
+    repeat (20) begin
+      recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
+      if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_WRITE_ACK)) begin
+        break;
+      end
+    end
+    arg0 = payload[63:32];
+    arg1 = payload[95:64];
+    if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_WRITE_ACK) ||
+        (arg0[20:0] != wr_addr_safe) || (arg1 != wr_data_safe_2)) begin
+      tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "ASCII second safe write mismatch");
+    end
+
+    ascii_cmd = $sformatf("R %05X\n", wr_addr_ctrl);
+    send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
+    repeat (20) begin
+      recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
+      if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_READ_RSP)) begin
+        break;
+      end
+    end
+    arg0 = payload[63:32];
+    arg1 = payload[95:64];
+    if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_READ_RSP) ||
+        (arg0[20:0] != wr_addr_ctrl) || (arg1 != wr_data_ctrl)) begin
+      tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "two-address separation read mismatch");
+    end
+
+    ascii_cmd = "X\n";
+    send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
+    repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
       if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_CMD_ERR)) begin
         break;
@@ -103,7 +171,7 @@
 
     ascii_cmd = "BR 00040 00001\n";
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
-    repeat (12) begin
+    repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
       if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_CMD_ERR)) begin
         break;
@@ -116,7 +184,7 @@
 
     ascii_cmd = "BW 00040 00001\n";
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
-    repeat (12) begin
+    repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
       if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_CMD_ERR)) begin
         break;

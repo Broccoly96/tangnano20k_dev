@@ -7,6 +7,8 @@ module testbench;
 
   localparam time CLK_PERIOD = 10ns;
   localparam int unsigned MEM_WORDS = 256;
+  localparam int unsigned BURST_WORDS = 26;
+  localparam int unsigned WRITE_STREAM_CYCLES = BURST_WORDS + 2;
 
   typedef enum logic [2:0] {
     UIF_IDLE,
@@ -146,6 +148,8 @@ module testbench;
             tb_sdrc_wrd_ack <= 1'b1;
             mem_words[r_uif_base_addr + r_uif_count] <= tb_sdrc_wr_data;
             r_uif_count <= r_uif_count + 1'b1;
+          end else if (r_uif_count < WRITE_STREAM_CYCLES) begin
+            r_uif_count <= r_uif_count + 1'b1;
           end else begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif         <= UIF_IDLE;
@@ -200,11 +204,36 @@ module testbench;
     int wait_cycles;
     begin
       wait_cycles = 0;
-      while (!tb_evt_valid) begin
-        @(posedge tb_clk);
-        wait_cycles++;
-        if (wait_cycles > 500) begin
-          log_fatal(1, "BRIDGE CTRL TB", {"timeout waiting event: ", label});
+      while (1) begin
+        while (!tb_evt_valid) begin
+          @(posedge tb_clk);
+          wait_cycles++;
+          if (wait_cycles > 500) begin
+            log_fatal(1, "BRIDGE CTRL TB", {"timeout waiting event: ", label});
+          end
+        end
+
+        if ((tb_evt_id == EVT_DBG_REQ) ||
+            (tb_evt_id == EVT_DBG_ISSUE) ||
+            (tb_evt_id == EVT_DBG_WR_ACK) ||
+            (tb_evt_id == EVT_DBG_RD0)) begin
+          log_debug(
+            "BRIDGE CTRL TB",
+            $sformatf(
+              "skip debug event id=0x%02h arg0=0x%08h arg1=0x%08h arg2=0x%08h",
+              tb_evt_id,
+              tb_evt_arg0,
+              tb_evt_arg1,
+              tb_evt_arg2
+            )
+          );
+          @(posedge tb_clk);
+          tb_evt_ready <= 1'b1;
+          @(posedge tb_clk);
+          tb_evt_ready <= 1'b0;
+          wait_cycles = 0;
+        end else begin
+          break;
         end
       end
 

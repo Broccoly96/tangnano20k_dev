@@ -1,5 +1,5 @@
 # vsim -c work.testbench -voptargs="+acc" "+TB_LOG_LEVEL=4" -do "run -all; quit -code 0" -l sim.log 
-# Start time: 14:00:40 on Apr 11,2026
+# Start time: 14:33:35 on Apr 11,2026
 # //  ModelSim - Lattice FPGA Edition 2023.3 Jul 18 2023
 # //
 # //  Copyright 1991-2023 Mentor Graphics Corporation
@@ -16,61 +16,613 @@
 # Loading sv_std.std
 # Loading work.sdram_uart_proto_pkg
 # Loading work.tb_log_pkg
+# Loading work.uart_log_cli_pkg
+# Loading work.uart_log_cli_tb_pkg
 # Loading work.testbench
+# Loading work.uart_log_testsrc1
+# Loading work.uart_log_src_async_bridge
+# Loading work.uart_log_cli_byte_async_bridge
+# Loading work.sdram_emb_hostif_ctrl
+# Loading work.sdram_memtest_ctrl
+# Loading work.sdram_uart_bridge_ctrl
+# Loading work.sdram_uart_ascii_ctrl
 # Loading work.sdram_uart_access_engine
+# Loading work.embedded_sdram
+# Loading work.VCC
+# Loading work.GND
+# Loading work.GSR
+# Loading work.IOBUF
+# Loading work.IBUF
+# Loading work.OBUF
+# Loading work.LUT4
+# Loading work.MUX16
+# Loading work.MUX8
+# Loading work.MUX4
+# Loading work.MUX2
+# Loading work.LUT3
+# Loading work.LUT2
+# Loading work.DFFR
+# Loading work.DFFC
+# Loading work.DFFS
+# Loading work.DFF
+# Loading work.DFFE
+# Loading work.DFFCE
+# Loading work.ALU
+# Loading work.INV
+# Loading work.LUT1
+# Loading work.DFFP
+# Loading work.DFFPE
+# Loading work.SDPX9B
+# Loading work.uart_log_cli
+# Loading work.uart_rx_stream
+# Loading work.uart_tx_stream
+# Loading work.uart_log_cli_evt_fifo
+# Loading work.sync_fifo_ae_af
+# Loading work.MT48LC8M16A2
+# Loading work.uart_log_tap
+# Loading work.mux2
 # run -all
-# [115.000 ns][INFO ][ACCESS ENG TB] case: single write
-# [135.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type=WRITE addr=0x00030 data=0x89abcdef init_done=1 busy_n=1 cache_hit=0
-# [145.000 ns][DEBUG][ACCESS ENG TB] accept_write addr=0x00030 len=1 data=0x89abcdef
-# [165.000 ns][DEBUG][SDRAM ACCESS ENG] write_done addr=0x00030 data=0x89abcdef
-# [175.000 ns][INFO ][ACCESS ENG TB] response ok: single write
-# [185.000 ns][INFO ][ACCESS ENG TB] case: read miss refill
-# [205.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00030 data=0x00000000 init_done=1 busy_n=1 cache_hit=0
-# [215.000 ns][DEBUG][ACCESS ENG TB] accept_read addr=0x00030 len=26 count=1
-# [235.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=0 data=0x89abcdef
-# [245.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=1 data=0x10000031
-# [255.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=2 data=0x10000032
-# [265.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=3 data=0x10000033
-# [275.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=4 data=0x10000034
-# [285.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=5 data=0x10000035
-# [295.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=6 data=0x10000036
-# [305.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=7 data=0x10000037
-# [315.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=8 data=0x10000038
-# [325.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=9 data=0x10000039
-# [335.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=10 data=0x1000003a
-# [345.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=11 data=0x1000003b
-# [355.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=12 data=0x1000003c
-# [365.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=13 data=0x1000003d
-# [375.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=14 data=0x1000003e
-# [385.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=15 data=0x1000003f
-# [395.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=16 data=0x10000040
-# [405.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=17 data=0x10000041
-# [415.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=18 data=0x10000042
-# [425.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=19 data=0x10000043
-# [435.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=20 data=0x10000044
-# [445.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=21 data=0x10000045
-# [455.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=22 data=0x10000046
-# [465.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=23 data=0x10000047
-# [475.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=24 data=0x10000048
-# [485.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=25 data=0x10000049
-# [495.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_done base=0x00030 words=26 first=0x89abcdef
-# [505.000 ns][INFO ][ACCESS ENG TB] response ok: read miss
-# [515.000 ns][INFO ][ACCESS ENG TB] case: cache hit
-# [535.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00031 data=0x00000000 init_done=1 busy_n=1 cache_hit=1
-# [535.000 ns][DEBUG][SDRAM ACCESS ENG] cache_hit addr=0x00031 index=1 data=0x10000031 base=0x00030
-# [545.000 ns][INFO ][ACCESS ENG TB] response ok: cache hit next word
-# [555.000 ns][INFO ][ACCESS ENG TB] case: write timeout
-# [575.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type=WRITE addr=0x00040 data=0x12345678 init_done=1 busy_n=1 cache_hit=0
-# [585.000 ns][DEBUG][ACCESS ENG TB] accept_write addr=0x00040 len=1 data=0x12345678
-# [1225.000 ns][DEBUG][SDRAM ACCESS ENG] write_timeout addr=0x00040 ack_seen=1 busy_n=0
-# [1235.000 ns][INFO ][ACCESS ENG TB] response ok: write timeout
-# [1245.000 ns][INFO ][ACCESS ENG TB] case: read timeout
-# [1265.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00050 data=0x00000000 init_done=1 busy_n=1 cache_hit=0
-# [1275.000 ns][DEBUG][ACCESS ENG TB] accept_read addr=0x00050 len=26 count=2
-# [1915.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_timeout base=0x00050 count=0 busy_n=0 rd_valid=0
-# [1925.000 ns][INFO ][ACCESS ENG TB] response ok: read timeout
-# [1935.000 ns][INFO ][ACCESS ENG TB] sdram_uart_access_engine smoke test passed
-# ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/09_sdram_uart_access_engine/testcase_smoke.svh(34)
-#    Time: 1935 ns  Iteration: 1  Instance: /testbench
-# End time: 14:00:40 on Apr 11,2026, Elapsed time: 0:00:00
+# [0 ns][INFO ][SDRAM HOSTIF TB] waiting for self-test PASS
+# [201665 ns][DEBUG][SDRAM UIF] state IDLE -> WRITE_WAIT base=0 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [201665 ns][DEBUG][SDRAM UIF] write req addr=0x100205 len=26 first_data=0x00000000
+# [201675 ns][DEBUG][SDRAM UIF] state WRITE_WAIT -> WRITE_RUN base=0 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [201695 ns][DEBUG][SDRAM UIF] ack state=WRITE_RUN addr=0x100205 busy_n=1
+# [201955 ns][DEBUG][SDRAM UIF] state WRITE_RUN -> READ_WAIT base=0 cycle=0 busy_n=0 ack=0 rd_valid=0
+# [202075 ns][DEBUG][SDRAM UIF] read req addr=0x100205 len=26
+# [202085 ns][DEBUG][SDRAM UIF] state READ_WAIT -> READ_RUN base=0 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [202105 ns][DEBUG][SDRAM UIF] ack state=READ_RUN addr=0x100205 busy_n=1
+# [202365 ns][DEBUG][SDRAM UIF] state READ_RUN -> WRITE_WAIT base=26 cycle=0 busy_n=0 ack=0 rd_valid=1
+# [202465 ns][DEBUG][SDRAM UIF] write req addr=0x10021f len=26 first_data=0x0000001b
+# [202475 ns][DEBUG][SDRAM UIF] state WRITE_WAIT -> WRITE_RUN base=26 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [202495 ns][DEBUG][SDRAM UIF] ack state=WRITE_RUN addr=0x10021f busy_n=1
+# [202755 ns][DEBUG][SDRAM UIF] state WRITE_RUN -> READ_WAIT base=26 cycle=0 busy_n=0 ack=0 rd_valid=0
+# [202875 ns][DEBUG][SDRAM UIF] read req addr=0x10021f len=26
+# [202885 ns][DEBUG][SDRAM UIF] state READ_WAIT -> READ_RUN base=26 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [202905 ns][DEBUG][SDRAM UIF] ack state=READ_RUN addr=0x10021f busy_n=1
+# [203165 ns][DEBUG][SDRAM UIF] state READ_RUN -> WRITE_WAIT base=52 cycle=0 busy_n=0 ack=0 rd_valid=1
+# [203265 ns][DEBUG][SDRAM UIF] write req addr=0x100239 len=26 first_data=0x00000036
+# [203275 ns][DEBUG][SDRAM UIF] state WRITE_WAIT -> WRITE_RUN base=52 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [203295 ns][DEBUG][SDRAM UIF] ack state=WRITE_RUN addr=0x100239 busy_n=1
+# [203555 ns][DEBUG][SDRAM UIF] state WRITE_RUN -> READ_WAIT base=52 cycle=0 busy_n=0 ack=0 rd_valid=0
+# [203675 ns][DEBUG][SDRAM UIF] read req addr=0x100239 len=26
+# [203685 ns][DEBUG][SDRAM UIF] state READ_WAIT -> READ_RUN base=52 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [203705 ns][DEBUG][SDRAM UIF] ack state=READ_RUN addr=0x100239 busy_n=1
+# [203965 ns][DEBUG][SDRAM UIF] state READ_RUN -> WRITE_WAIT base=78 cycle=0 busy_n=0 ack=0 rd_valid=1
+# [204065 ns][DEBUG][SDRAM UIF] write req addr=0x100253 len=26 first_data=0x00000051
+# [204075 ns][DEBUG][SDRAM UIF] state WRITE_WAIT -> WRITE_RUN base=78 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [204095 ns][DEBUG][SDRAM UIF] ack state=WRITE_RUN addr=0x100253 busy_n=1
+# [204355 ns][DEBUG][SDRAM UIF] state WRITE_RUN -> READ_WAIT base=78 cycle=0 busy_n=0 ack=0 rd_valid=0
+# [204475 ns][DEBUG][SDRAM UIF] read req addr=0x100253 len=26
+# [204485 ns][DEBUG][SDRAM UIF] state READ_WAIT -> READ_RUN base=78 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [204505 ns][DEBUG][SDRAM UIF] ack state=READ_RUN addr=0x100253 busy_n=1
+# [204765 ns][DEBUG][SDRAM UIF] state READ_RUN -> WRITE_WAIT base=104 cycle=0 busy_n=0 ack=0 rd_valid=1
+# [204865 ns][DEBUG][SDRAM UIF] write req addr=0x10026d len=26 first_data=0x0000006c
+# [204875 ns][DEBUG][SDRAM UIF] state WRITE_WAIT -> WRITE_RUN base=104 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [204895 ns][DEBUG][SDRAM UIF] ack state=WRITE_RUN addr=0x10026d busy_n=1
+# [205155 ns][DEBUG][SDRAM UIF] state WRITE_RUN -> READ_WAIT base=104 cycle=0 busy_n=0 ack=0 rd_valid=0
+# [205275 ns][DEBUG][SDRAM UIF] read req addr=0x10026d len=26
+# [205285 ns][DEBUG][SDRAM UIF] state READ_WAIT -> READ_RUN base=104 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [205305 ns][DEBUG][SDRAM UIF] ack state=READ_RUN addr=0x10026d busy_n=1
+# [205565 ns][DEBUG][SDRAM UIF] state READ_RUN -> WRITE_WAIT base=130 cycle=0 busy_n=0 ack=0 rd_valid=1
+# [205665 ns][DEBUG][SDRAM UIF] write req addr=0x100287 len=26 first_data=0x00000087
+# [205675 ns][DEBUG][SDRAM UIF] state WRITE_WAIT -> WRITE_RUN base=130 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [205695 ns][DEBUG][SDRAM UIF] ack state=WRITE_RUN addr=0x100287 busy_n=1
+# [205955 ns][DEBUG][SDRAM UIF] state WRITE_RUN -> READ_WAIT base=130 cycle=0 busy_n=0 ack=0 rd_valid=0
+# [206205 ns][DEBUG][SDRAM UIF] read req addr=0x100287 len=26
+# [206215 ns][DEBUG][SDRAM UIF] state READ_WAIT -> READ_RUN base=130 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [206235 ns][DEBUG][SDRAM UIF] ack state=READ_RUN addr=0x100287 busy_n=1
+# [206495 ns][DEBUG][SDRAM UIF] state READ_RUN -> WRITE_WAIT base=156 cycle=0 busy_n=0 ack=0 rd_valid=1
+# [206595 ns][DEBUG][SDRAM UIF] write req addr=0x1002a1 len=26 first_data=0x000000a2
+# [206605 ns][DEBUG][SDRAM UIF] state WRITE_WAIT -> WRITE_RUN base=156 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [206625 ns][DEBUG][SDRAM UIF] ack state=WRITE_RUN addr=0x1002a1 busy_n=1
+# [206885 ns][DEBUG][SDRAM UIF] state WRITE_RUN -> READ_WAIT base=156 cycle=0 busy_n=0 ack=0 rd_valid=0
+# [207005 ns][DEBUG][SDRAM UIF] read req addr=0x1002a1 len=26
+# [207015 ns][DEBUG][SDRAM UIF] state READ_WAIT -> READ_RUN base=156 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [207035 ns][DEBUG][SDRAM UIF] ack state=READ_RUN addr=0x1002a1 busy_n=1
+# [207295 ns][DEBUG][SDRAM UIF] state READ_RUN -> WRITE_WAIT base=182 cycle=0 busy_n=0 ack=0 rd_valid=1
+# [207395 ns][DEBUG][SDRAM UIF] write req addr=0x1002bb len=26 first_data=0x000000bd
+# [207405 ns][DEBUG][SDRAM UIF] state WRITE_WAIT -> WRITE_RUN base=182 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [207425 ns][DEBUG][SDRAM UIF] ack state=WRITE_RUN addr=0x1002bb busy_n=1
+# [207685 ns][DEBUG][SDRAM UIF] state WRITE_RUN -> READ_WAIT base=182 cycle=0 busy_n=0 ack=0 rd_valid=0
+# [207805 ns][DEBUG][SDRAM UIF] read req addr=0x1002bb len=26
+# [207815 ns][DEBUG][SDRAM UIF] state READ_WAIT -> READ_RUN base=182 cycle=0 busy_n=1 ack=0 rd_valid=0
+# [207835 ns][DEBUG][SDRAM UIF] ack state=READ_RUN addr=0x1002bb busy_n=1
+# [208095 ns][DEBUG][SDRAM UIF] state READ_RUN -> PASS base=182 cycle=0 busy_n=0 ack=0 rd_valid=1
+# [295785 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x06 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=1
+# [295815 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x06 host_busy=0 count=1
+# [383271 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x06 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=2
+# [383295 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x06 host_busy=0 count=2
+# [1958985 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=17 text="W 00030 89abcdef
+# "
+# [2046723 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x57 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=3
+# [2046745 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x57 host_busy=0 count=3
+# [2134209 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=4
+# [2134235 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=4
+# [2221695 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=5
+# [2221725 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=5
+# [2309181 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=6
+# [2309205 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=6
+# [2396667 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=7
+# [2396695 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=7
+# [2484153 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x33 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=8
+# [2484175 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x33 host_busy=0 count=8
+# [2571639 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=9
+# [2571665 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=9
+# [2659125 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=10
+# [2659155 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=10
+# [2746611 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x38 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=11
+# [2746635 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x38 host_busy=0 count=11
+# [2834097 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x39 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=12
+# [2834125 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x39 host_busy=0 count=12
+# [2921583 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x61 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=13
+# [2921605 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x61 host_busy=0 count=13
+# [3009069 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x62 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=14
+# [3009095 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x62 host_busy=0 count=14
+# [3096555 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x63 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=15
+# [3096585 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x63 host_busy=0 count=15
+# [3184041 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x64 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=16
+# [3184065 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x64 host_busy=0 count=16
+# [3271527 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x65 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=17
+# [3271555 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x65 host_busy=0 count=17
+# [3359013 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x66 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=18
+# [3359035 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x66 host_busy=0 count=18
+# [3446499 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=19
+# [3446525 ns][DEBUG][SDRAM ASCII] emit_cmd WRITE addr=0x00030 data=0x89abcdef
+# [3446525 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=19
+# [3446535 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=2 bulk_read=0 addr=0x00030 data=0x89abcdef words=0x00000 enable=1 req_valid=0 inflight=0
+# [3446545 ns][DEBUG][SDRAM ACCESS ENG] accept_req type=WRITE addr=0x00030 data=0x89abcdef init_done=1 busy_n=1 cache_hit=0
+# [3446545 ns][DEBUG][SDRAM UART BRIDGE] req_accept type=WRITE addr=0x00030 data=0x89abcdef
+# [3446555 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x37 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000001 depth=0
+# [3446565 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000000 depth=0
+# [3446585 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [3446667 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x37 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000001 count=1
+# [3446695 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3a arg0=0x00000030 arg1=0xxxxxxxxx arg2=0x00000030 depth=0
+# [3446709 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000000 count=2
+# [3446835 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3a arg0=0x00000030 arg1=0xxxxxxxxx arg2=0x00000030 count=3
+# [3446965 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000001 depth=0
+# [3446985 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [3446995 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x39 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 depth=0
+# [3447087 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000001 count=4
+# [3447129 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x39 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 count=5
+# [3447365 ns][DEBUG][SDRAM ACCESS ENG] write_burst_done base=0x00030 req=0x00030 data=0x89abcdef
+# [3447375 ns][DEBUG][SDRAM UART BRIDGE] access_rsp type=WRITE addr=0x00030 data=0x89abcdef status=0x00000000
+# [3447375 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x30 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 depth=0
+# [3447507 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x30 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 count=6
+# [5197773 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x02 src=0x03 evt=0x37 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000001 crc=0xba
+# [6860889 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x03 src=0x03 evt=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000000 crc=0xfa
+# [8524005 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x04 src=0x03 evt=0x3a arg0=0x00000030 arg1=0xxxxxxxxx arg2=0x00000030 crc=0xa9
+# [10187121 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x05 src=0x03 evt=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000001 crc=0xc8
+# [11850237 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x06 src=0x03 evt=0x39 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 crc=0xf9
+# [13513353 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x07 src=0x03 evt=0x30 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 crc=0x2f
+# [13513353 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=8 text="R 00030
+# "
+# [13601091 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x52 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=20
+# [13601115 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x52 host_busy=0 count=20
+# [13688577 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=21
+# [13688605 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=21
+# [13776063 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=22
+# [13776085 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=22
+# [13863549 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=23
+# [13863575 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=23
+# [13951035 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=24
+# [13951065 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=24
+# [14038521 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x33 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=25
+# [14038545 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x33 host_busy=0 count=25
+# [14126007 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=26
+# [14126035 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=26
+# [14213493 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=27
+# [14213515 ns][DEBUG][SDRAM ASCII] emit_cmd READ addr=0x00030
+# [14213515 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=27
+# [14213525 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=1 bulk_read=0 addr=0x00030 data=0x00000000 words=0x00000 enable=1 req_valid=0 inflight=0
+# [14213535 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00030 data=0x00000000 init_done=1 busy_n=1 cache_hit=1
+# [14213535 ns][DEBUG][SDRAM ACCESS ENG] cache_hit addr=0x00030 index=0 data=0x89abcdef base=0x00030
+# [14213535 ns][DEBUG][SDRAM UART BRIDGE] req_accept type= READ addr=0x00030 data=0x00000000
+# [14213545 ns][DEBUG][SDRAM UART BRIDGE] access_rsp type= READ addr=0x00030 data=0x89abcdef status=0x00000000
+# [14213545 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x31 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 depth=0
+# [14213661 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x31 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 count=7
+# [15789333 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x08 src=0x03 evt=0x31 arg0=0x00000030 arg1=0x89abcdef arg2=0x00000000 crc=0x8a
+# [15789333 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=17 text="W 00012 0012a55a
+# "
+# [15877071 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x57 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=28
+# [15877095 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x57 host_busy=0 count=28
+# [15964557 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=29
+# [15964585 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=29
+# [16052043 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=30
+# [16052065 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=30
+# [16139529 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=31
+# [16139555 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=31
+# [16227015 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=32
+# [16227045 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=32
+# [16314501 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x31 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=33
+# [16314525 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x31 host_busy=0 count=33
+# [16401987 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x32 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=34
+# [16402015 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x32 host_busy=0 count=34
+# [16489473 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=35
+# [16489495 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=35
+# [16576959 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=36
+# [16576985 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=36
+# [16664445 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=37
+# [16664475 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=37
+# [16751931 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x31 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=38
+# [16751955 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x31 host_busy=0 count=38
+# [16839417 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x32 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=39
+# [16839445 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x32 host_busy=0 count=39
+# [16926903 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x61 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=40
+# [16926925 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x61 host_busy=0 count=40
+# [17014389 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x35 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=41
+# [17014415 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x35 host_busy=0 count=41
+# [17101875 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x35 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=42
+# [17101905 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x35 host_busy=0 count=42
+# [17189361 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x61 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=43
+# [17189385 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x61 host_busy=0 count=43
+# [17276847 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=44
+# [17276875 ns][DEBUG][SDRAM ASCII] emit_cmd WRITE addr=0x00012 data=0x0012a55a
+# [17276875 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=44
+# [17276885 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=2 bulk_read=0 addr=0x00012 data=0x0012a55a words=0x00000 enable=1 req_valid=0 inflight=0
+# [17276895 ns][DEBUG][SDRAM ACCESS ENG] accept_req type=WRITE addr=0x00012 data=0x0012a55a init_done=1 busy_n=1 cache_hit=0
+# [17276895 ns][DEBUG][SDRAM UART BRIDGE] req_accept type=WRITE addr=0x00012 data=0x0012a55a
+# [17276905 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x37 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000001 depth=0
+# [17276915 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000000 depth=0
+# [17276935 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [17277015 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x37 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000001 count=8
+# [17277045 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3a arg0=0x00000012 arg1=0xxxxxxxxx arg2=0x00000012 depth=0
+# [17277057 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000000 count=9
+# [17277183 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3a arg0=0x00000012 arg1=0xxxxxxxxx arg2=0x00000012 count=10
+# [17277315 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000001 depth=0
+# [17277335 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [17277345 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x39 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 depth=0
+# [17277435 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000001 count=11
+# [17277477 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x39 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 count=12
+# [17277715 ns][DEBUG][SDRAM ACCESS ENG] write_burst_done base=0x00012 req=0x00012 data=0x0012a55a
+# [17277725 ns][DEBUG][SDRAM UART BRIDGE] access_rsp type=WRITE addr=0x00012 data=0x0012a55a status=0x00000000
+# [17277725 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x30 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 depth=0
+# [17277855 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x30 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 count=13
+# [18852687 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x09 src=0x03 evt=0x37 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000001 crc=0xa3
+# [20515803 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x0a src=0x03 evt=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000000 crc=0x8b
+# [22178919 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x0b src=0x03 evt=0x3a arg0=0x00000012 arg1=0xxxxxxxxx arg2=0x00000012 crc=0x4b
+# [23842035 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x0c src=0x03 evt=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000001 crc=0xb9
+# [25505151 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x0d src=0x03 evt=0x39 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 crc=0xe0
+# [27168267 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x0e src=0x03 evt=0x30 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 crc=0x2a
+# [27168267 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=8 text="R 00012
+# "
+# [27256005 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x52 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=45
+# [27256035 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x52 host_busy=0 count=45
+# [27343491 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=46
+# [27343515 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=46
+# [27430977 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=47
+# [27431005 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=47
+# [27518463 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=48
+# [27518485 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=48
+# [27605949 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=49
+# [27605975 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=49
+# [27693435 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x31 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=50
+# [27693465 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x31 host_busy=0 count=50
+# [27780921 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x32 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=51
+# [27780945 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x32 host_busy=0 count=51
+# [27868407 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=52
+# [27868435 ns][DEBUG][SDRAM ASCII] emit_cmd READ addr=0x00012
+# [27868435 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=52
+# [27868445 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=1 bulk_read=0 addr=0x00012 data=0x00000000 words=0x00000 enable=1 req_valid=0 inflight=0
+# [27868455 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00012 data=0x00000000 init_done=1 busy_n=1 cache_hit=1
+# [27868455 ns][DEBUG][SDRAM ACCESS ENG] cache_hit addr=0x00012 index=0 data=0x0012a55a base=0x00012
+# [27868455 ns][DEBUG][SDRAM UART BRIDGE] req_accept type= READ addr=0x00012 data=0x00000000
+# [27868465 ns][DEBUG][SDRAM UART BRIDGE] access_rsp type= READ addr=0x00012 data=0x0012a55a status=0x00000000
+# [27868465 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x31 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 depth=0
+# [27868575 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x31 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 count=14
+# [29444247 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x0f src=0x03 evt=0x31 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 crc=0xd5
+# [29444247 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=2 text="X
+# "
+# [29531985 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x58 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=53
+# [29532015 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x58 host_busy=0 count=53
+# [29618967 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=17 text="W 00343 55667788
+# "
+# [29619471 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=54
+# [29619495 ns][DEBUG][SDRAM ASCII] emit_err code=0x00000001 detail=0x00000058
+# [29619495 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=54
+# [29619505 ns][DEBUG][SDRAM UART BRIDGE] ascii_err code=0x00000001 detail=0x00000058
+# [29619505 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3e arg0=0x00000001 arg1=0x00000058 arg2=0x00000000 depth=0
+# [29619639 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3e arg0=0x00000001 arg1=0x00000058 arg2=0x00000000 count=15
+# [29706957 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x57 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=55
+# [29706985 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x57 host_busy=0 count=55
+# [29794443 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=56
+# [29794465 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=56
+# [29881929 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=57
+# [29881955 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=57
+# [29969415 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=58
+# [29969445 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=58
+# [30056901 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x33 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=59
+# [30056925 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x33 host_busy=0 count=59
+# [30144387 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x34 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=60
+# [30144415 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x34 host_busy=0 count=60
+# [30231873 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x33 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=61
+# [30231895 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x33 host_busy=0 count=61
+# [30319359 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=62
+# [30319385 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=62
+# [30406845 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x35 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=63
+# [30406875 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x35 host_busy=0 count=63
+# [30494331 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x35 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=64
+# [30494355 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x35 host_busy=0 count=64
+# [30581817 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x36 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=65
+# [30581845 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x36 host_busy=0 count=65
+# [30669303 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x36 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=66
+# [30669325 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x36 host_busy=0 count=66
+# [30756789 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x37 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=67
+# [30756815 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x37 host_busy=0 count=67
+# [30844275 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x37 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=68
+# [30844305 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x37 host_busy=0 count=68
+# [30931761 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x38 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=69
+# [30931785 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x38 host_busy=0 count=69
+# [31019247 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x38 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=70
+# [31019275 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x38 host_busy=0 count=70
+# [31106733 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=71
+# [31106755 ns][DEBUG][SDRAM ASCII] emit_cmd WRITE addr=0x00343 data=0x55667788
+# [31106755 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=71
+# [31106765 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=2 bulk_read=0 addr=0x00343 data=0x55667788 words=0x00000 enable=1 req_valid=0 inflight=0
+# [31106775 ns][DEBUG][SDRAM ACCESS ENG] accept_req type=WRITE addr=0x00343 data=0x55667788 init_done=1 busy_n=1 cache_hit=0
+# [31106775 ns][DEBUG][SDRAM UART BRIDGE] req_accept type=WRITE addr=0x00343 data=0x55667788
+# [31106785 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x37 arg0=0x00000343 arg1=0x55667788 arg2=0x00000001 depth=0
+# [31106795 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000343 arg1=0x00000019 arg2=0x00000000 depth=0
+# [31106815 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [31106901 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x37 arg0=0x00000343 arg1=0x55667788 arg2=0x00000001 count=16
+# [31106925 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3a arg0=0x00000343 arg1=0xxxxxxxxx arg2=0x00000343 depth=0
+# [31106943 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000343 arg1=0x00000019 arg2=0x00000000 count=17
+# [31107069 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3a arg0=0x00000343 arg1=0xxxxxxxxx arg2=0x00000343 count=18
+# [31107195 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000343 arg1=0x00000019 arg2=0x00000001 depth=0
+# [31107215 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [31107225 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x39 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 depth=0
+# [31107321 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000343 arg1=0x00000019 arg2=0x00000001 count=19
+# [31107363 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x39 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 count=20
+# [31107725 ns][DEBUG][SDRAM ACCESS ENG] write_burst_done base=0x00343 req=0x00343 data=0x55667788
+# [31107735 ns][DEBUG][SDRAM UART BRIDGE] access_rsp type=WRITE addr=0x00343 data=0x55667788 status=0x00000000
+# [31107735 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x30 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 depth=0
+# [31107867 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x30 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 count=21
+# [32858427 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x11 src=0x03 evt=0x37 arg0=0x00000343 arg1=0x55667788 arg2=0x00000001 crc=0x08
+# [34521543 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x12 src=0x03 evt=0x38 arg0=0x00000343 arg1=0x00000019 arg2=0x00000000 crc=0x97
+# [36184659 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x13 src=0x03 evt=0x3a arg0=0x00000343 arg1=0xxxxxxxxx arg2=0x00000343 crc=0x1c
+# [37847775 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x14 src=0x03 evt=0x38 arg0=0x00000343 arg1=0x00000019 arg2=0x00000001 crc=0xa5
+# [39510891 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x15 src=0x03 evt=0x39 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 crc=0x4b
+# [41174007 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x16 src=0x03 evt=0x30 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 crc=0x81
+# [41174007 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=8 text="R 00343
+# "
+# [41261745 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x52 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=72
+# [41261775 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x52 host_busy=0 count=72
+# [41349231 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=73
+# [41349255 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=73
+# [41436717 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=74
+# [41436745 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=74
+# [41524203 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=75
+# [41524225 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=75
+# [41611689 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x33 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=76
+# [41611715 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x33 host_busy=0 count=76
+# [41699175 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x34 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=77
+# [41699205 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x34 host_busy=0 count=77
+# [41786661 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x33 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=78
+# [41786685 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x33 host_busy=0 count=78
+# [41874147 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=79
+# [41874175 ns][DEBUG][SDRAM ASCII] emit_cmd READ addr=0x00343
+# [41874175 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=79
+# [41874185 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=1 bulk_read=0 addr=0x00343 data=0x00000000 words=0x00000 enable=1 req_valid=0 inflight=0
+# [41874195 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00343 data=0x00000000 init_done=1 busy_n=1 cache_hit=1
+# [41874195 ns][DEBUG][SDRAM ACCESS ENG] cache_hit addr=0x00343 index=0 data=0x55667788 base=0x00343
+# [41874195 ns][DEBUG][SDRAM UART BRIDGE] req_accept type= READ addr=0x00343 data=0x00000000
+# [41874205 ns][DEBUG][SDRAM UART BRIDGE] access_rsp type= READ addr=0x00343 data=0x55667788 status=0x00000000
+# [41874205 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x31 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 depth=0
+# [41874315 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x31 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 count=22
+# [43449987 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x17 src=0x03 evt=0x31 arg0=0x00000343 arg1=0x55667788 arg2=0x00000000 crc=0x04
+# [43449987 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=17 text="W 00030 cafebabe
+# "
+# [43537725 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x57 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=80
+# [43537755 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x57 host_busy=0 count=80
+# [43625211 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=81
+# [43625235 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=81
+# [43712697 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=82
+# [43712725 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=82
+# [43800183 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=83
+# [43800205 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=83
+# [43887669 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=84
+# [43887695 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=84
+# [43975155 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x33 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=85
+# [43975185 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x33 host_busy=0 count=85
+# [44062641 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=86
+# [44062665 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=86
+# [44150127 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=87
+# [44150155 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=87
+# [44237613 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x63 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=88
+# [44237635 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x63 host_busy=0 count=88
+# [44325099 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x61 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=89
+# [44325125 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x61 host_busy=0 count=89
+# [44412585 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x66 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=90
+# [44412615 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x66 host_busy=0 count=90
+# [44500071 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x65 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=91
+# [44500095 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x65 host_busy=0 count=91
+# [44587557 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x62 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=92
+# [44587585 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x62 host_busy=0 count=92
+# [44675043 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x61 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=93
+# [44675065 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x61 host_busy=0 count=93
+# [44762529 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x62 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=94
+# [44762555 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x62 host_busy=0 count=94
+# [44850015 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x65 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=95
+# [44850045 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x65 host_busy=0 count=95
+# [44937501 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=96
+# [44937525 ns][DEBUG][SDRAM ASCII] emit_cmd WRITE addr=0x00030 data=0xcafebabe
+# [44937525 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=96
+# [44937535 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=2 bulk_read=0 addr=0x00030 data=0xcafebabe words=0x00000 enable=1 req_valid=0 inflight=0
+# [44937545 ns][DEBUG][SDRAM ACCESS ENG] accept_req type=WRITE addr=0x00030 data=0xcafebabe init_done=1 busy_n=1 cache_hit=0
+# [44937545 ns][DEBUG][SDRAM UART BRIDGE] req_accept type=WRITE addr=0x00030 data=0xcafebabe
+# [44937555 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x37 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000001 depth=0
+# [44937565 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000000 depth=0
+# [44937585 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [44937669 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x37 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000001 count=23
+# [44937695 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3a arg0=0x00000030 arg1=0x89abcdef arg2=0x00000030 depth=0
+# [44937711 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000000 count=24
+# [44937837 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3a arg0=0x00000030 arg1=0x89abcdef arg2=0x00000030 count=25
+# [44937965 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000001 depth=0
+# [44937985 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [44937995 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x39 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000000 depth=0
+# [44938089 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000001 count=26
+# [44938131 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x39 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000000 count=27
+# [44938365 ns][DEBUG][SDRAM ACCESS ENG] write_burst_done base=0x00030 req=0x00030 data=0xcafebabe
+# [44938375 ns][DEBUG][SDRAM UART BRIDGE] access_rsp type=WRITE addr=0x00030 data=0xcafebabe status=0x00000000
+# [44938375 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x30 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000000 depth=0
+# [44938509 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x30 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000000 count=28
+# [46513341 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x18 src=0x03 evt=0x37 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000001 crc=0xbf
+# [48176457 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x19 src=0x03 evt=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000000 crc=0x28
+# [49839573 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x1a src=0x03 evt=0x3a arg0=0x00000030 arg1=0x89abcdef arg2=0x00000030 crc=0x8e
+# [51502689 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x1b src=0x03 evt=0x38 arg0=0x00000030 arg1=0x00000019 arg2=0x00000001 crc=0x22
+# [53165805 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x1c src=0x03 evt=0x39 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000000 crc=0xfc
+# [54828921 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x1d src=0x03 evt=0x30 arg0=0x00000030 arg1=0xcafebabe arg2=0x00000000 crc=0x2a
+# [54828921 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=8 text="R 00012
+# "
+# [54916659 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x52 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=97
+# [54916685 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x52 host_busy=0 count=97
+# [55004145 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=98
+# [55004175 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=98
+# [55091631 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=99
+# [55091655 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=99
+# [55179117 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=100
+# [55179145 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=100
+# [55266603 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=101
+# [55266625 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=101
+# [55354089 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x31 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=102
+# [55354115 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x31 host_busy=0 count=102
+# [55441575 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x32 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=103
+# [55441605 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x32 host_busy=0 count=103
+# [55529061 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=104
+# [55529085 ns][DEBUG][SDRAM ASCII] emit_cmd READ addr=0x00012
+# [55529085 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=104
+# [55529095 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=1 bulk_read=0 addr=0x00012 data=0x00000000 words=0x00000 enable=1 req_valid=0 inflight=0
+# [55529105 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00012 data=0x00000000 init_done=1 busy_n=1 cache_hit=0
+# [55529105 ns][DEBUG][SDRAM UART BRIDGE] req_accept type= READ addr=0x00012 data=0x00000000
+# [55529115 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x37 arg0=0x00000012 arg1=0x00000000 arg2=0x00000000 depth=0
+# [55529125 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000000 depth=0
+# [55529145 ns][DEBUG][SDRAM UIF] ack state=PASS addr=0x1002bb busy_n=1
+# [55529229 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x37 arg0=0x00000012 arg1=0x00000000 arg2=0x00000000 count=29
+# [55529245 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=0 data=0x0012a55a
+# [55529255 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=1 data=0x0012a55a
+# [55529255 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3a arg0=0x00000012 arg1=0x0012a55a arg2=0x00000012 depth=0
+# [55529265 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=2 data=0xxxxxxxxx
+# [55529271 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000000 count=30
+# [55529275 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=3 data=0xxxxxxxxx
+# [55529285 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=4 data=0xxxxxxxxx
+# [55529295 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=5 data=0xxxxxxxxx
+# [55529305 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=6 data=0xxxxxxxxx
+# [55529315 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=7 data=0xxxxxxxxx
+# [55529325 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=8 data=0xxxxxxxxx
+# [55529335 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=9 data=0xxxxxxxxx
+# [55529345 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=10 data=0xxxxxxxxx
+# [55529355 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=11 data=0xxxxxxxxx
+# [55529365 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=12 data=0xxxxxxxxx
+# [55529375 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=13 data=0xxxxxxxxx
+# [55529385 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=14 data=0xxxxxxxxx
+# [55529395 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=15 data=0xxxxxxxxx
+# [55529397 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3a arg0=0x00000012 arg1=0x0012a55a arg2=0x00000012 count=31
+# [55529405 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=16 data=0xxxxxxxxx
+# [55529415 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=17 data=0xxxxxxxxx
+# [55529425 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=18 data=0xxxxxxxxx
+# [55529435 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=19 data=0xxxxxxxxx
+# [55529445 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=20 data=0xxxxxxxxx
+# [55529455 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=21 data=0xxxxxxxxx
+# [55529465 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=22 data=0xxxxxxxxx
+# [55529475 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=23 data=0xxxxxxxxx
+# [55529485 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=24 data=0xxxxxxxxx
+# [55529495 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00012 beat=25 data=0xxxxxxxxx
+# [55529505 ns][DEBUG][SDRAM ACCESS ENG] read_burst_done base=0x00012 words=26 first=0x0012a55a
+# [55529515 ns][DEBUG][SDRAM UART BRIDGE] access_rsp type= READ addr=0x00012 data=0x0012a55a status=0x00000000
+# [55529515 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x31 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 depth=0
+# [55529649 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x31 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 count=32
+# [57104901 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x1e src=0x03 evt=0x37 arg0=0x00000012 arg1=0x00000000 arg2=0x00000000 crc=0x2b
+# [58768017 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x1f src=0x03 evt=0x38 arg0=0x00000012 arg1=0x00000019 arg2=0x00000000 crc=0x11
+# [60431133 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x20 src=0x03 evt=0x3a arg0=0x00000012 arg1=0x0012a55a arg2=0x00000012 crc=0x4e
+# [62094249 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x21 src=0x03 evt=0x31 arg0=0x00000012 arg1=0x0012a55a arg2=0x00000000 crc=0x1e
+# [62094249 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=2 text="X
+# "
+# [62181987 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x58 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=105
+# [62182015 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x58 host_busy=0 count=105
+# [62269473 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=106
+# [62269495 ns][DEBUG][SDRAM ASCII] emit_err code=0x00000001 detail=0x00000058
+# [62269495 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=106
+# [62269505 ns][DEBUG][SDRAM UART BRIDGE] ascii_err code=0x00000001 detail=0x00000058
+# [62269505 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3e arg0=0x00000001 arg1=0x00000058 arg2=0x00000000 depth=0
+# [62269641 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3e arg0=0x00000001 arg1=0x00000058 arg2=0x00000000 count=33
+# [63845313 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x22 src=0x03 evt=0x3e arg0=0x00000001 arg1=0x00000058 arg2=0x00000000 crc=0xd7
+# [63845313 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=15 text="BR 00040 00001
+# "
+# [63933051 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x42 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=107
+# [63933075 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x42 host_busy=0 count=107
+# [64020537 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x52 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=108
+# [64020565 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x52 host_busy=0 count=108
+# [64108023 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=109
+# [64108045 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=109
+# [64195509 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=110
+# [64195535 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=110
+# [64282995 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=111
+# [64283025 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=111
+# [64370481 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=112
+# [64370505 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=112
+# [64457967 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x34 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=113
+# [64457995 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x34 host_busy=0 count=113
+# [64545453 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=114
+# [64545475 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=114
+# [64632939 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=115
+# [64632965 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=115
+# [64720425 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=116
+# [64720455 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=116
+# [64807911 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=117
+# [64807935 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=117
+# [64895397 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=118
+# [64895425 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=118
+# [64982883 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=119
+# [64982905 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=119
+# [65070369 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x31 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=120
+# [65070395 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x31 host_busy=0 count=120
+# [65157855 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=121
+# [65157885 ns][DEBUG][SDRAM ASCII] emit_cmd BULK addr=0x00040 words=0x00001 bulk_read=1
+# [65157885 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=121
+# [65157895 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=3 bulk_read=1 addr=0x00040 data=0x00000000 words=0x00001 enable=1 req_valid=0 inflight=0
+# [65157895 ns][DEBUG][SDRAM UART BRIDGE] reject_bulk single_only bulk_is_read=1 addr=0x00040 words=0x00001
+# [65157895 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3e arg0=0x0000000d arg1=0x00000040 arg2=0x00000001 depth=0
+# [65158023 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3e arg0=0x0000000d arg1=0x00000040 arg2=0x00000001 count=34
+# [66733695 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x23 src=0x03 evt=0x3e arg0=0x0000000d arg1=0x00000040 arg2=0x00000001 crc=0x0f
+# [66733695 ns][DEBUG][UART LOG CLI TB PKG] send_uart_string len=15 text="BW 00040 00001
+# "
+# [66821433 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x42 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=122
+# [66821455 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x42 host_busy=0 count=122
+# [66908919 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x57 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=123
+# [66908945 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x57 host_busy=0 count=123
+# [66996405 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=124
+# [66996435 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=124
+# [67083891 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=125
+# [67083915 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=125
+# [67171377 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=126
+# [67171405 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=126
+# [67258863 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=127
+# [67258885 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=127
+# [67346349 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x34 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=128
+# [67346375 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x34 host_busy=0 count=128
+# [67433835 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=129
+# [67433865 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=129
+# [67521321 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x20 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=130
+# [67521345 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x20 host_busy=0 count=130
+# [67608807 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=131
+# [67608835 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=131
+# [67696293 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=132
+# [67696315 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=132
+# [67783779 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=133
+# [67783805 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=133
+# [67871265 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x30 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=134
+# [67871295 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x30 host_busy=0 count=134
+# [67958751 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x31 raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=135
+# [67958775 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x31 host_busy=0 count=135
+# [68046237 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_24m data=0x0a raw_rx_bypass=0 raw_tx_mode=0 host_busy=0 count=136
+# [68046265 ns][DEBUG][SDRAM ASCII] emit_cmd BULK addr=0x00040 words=0x00001 bulk_read=0
+# [68046265 ns][DEBUG][SDRAM HOSTIF TB] cli_rx_96m data=0x0a host_busy=0 count=136
+# [68046275 ns][DEBUG][SDRAM UART BRIDGE] ascii_cmd op=3 bulk_read=0 addr=0x00040 data=0x00000000 words=0x00001 enable=1 req_valid=0 inflight=0
+# [68046275 ns][DEBUG][SDRAM UART BRIDGE] reject_bulk single_only bulk_is_read=0 addr=0x00040 words=0x00001
+# [68046275 ns][DEBUG][SDRAM UART BRIDGE] queue_event id=0x3e arg0=0x0000000d arg1=0x00000040 arg2=0x00000001 depth=0
+# [68046405 ns][DEBUG][SDRAM HOSTIF TB] host_evt id=0x3e arg0=0x0000000d arg1=0x00000040 arg2=0x00000001 count=35
+# [69622077 ns][DEBUG][UART LOG CLI TB PKG] recv_mirror_frame seq=0x24 src=0x03 evt=0x3e arg0=0x0000000d arg1=0x00000040 arg2=0x00000001 crc=0x23
+# [69622077 ns][INFO ][SDRAM HOSTIF TB] single-access-only host interface smoke test passed
+# ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/05_embedded_sdram_hostif/testcase_smoke.svh(199)
+#    Time: 69622077 ns  Iteration: 2  Instance: /testbench
+# End time: 14:37:28 on Apr 11,2026, Elapsed time: 0:03:53
 # Errors: 0, Warnings: 0
