@@ -1,6 +1,6 @@
 #
 
-## 0) Design Specification Writing Rule
+## 0 Design Specification Writing Rule
 
 When drafting design specifications, write at **Detail Level +1**.
 This means increasing **information content** (not word count) so a reviewer can implement and verify the design without guessing.
@@ -12,7 +12,7 @@ This means increasing **information content** (not word count) so a reviewer can
 - Use bullet lists when needed (enumeration, specification lineup, etc.). But do **not** overuse them.
 
 
-## 1) Directory Layout & Roles
+## 1 Directory Layout & Roles
 - `00_ip`      : Third-party/vendor IP sources (read-only). **Do not modify.**
 - `01_src`    : User RTL sources (design).
 - `02_tb`     : Common testbench utilities: packages, interfaces, BFMs, helpers, assertions, tasks/functions.
@@ -20,7 +20,7 @@ This means increasing **information content** (not word count) so a reviewer can
 - `04_simlib` : Precompiled simulation libraries (Questa/ModelSim, Xilinx/Intel libs, etc.).
 
 
-## 2) Source Code Categorization Rules
+## 2 Source Code Categorization Rules
 - RTL code **shall** be stored in `01_src/`.
 - Testbench common code **shall** be stored in `02_tb/`.
 - Testbench tops (wrappers) **shall** reside under `03_sim/<tb_name>/`.
@@ -36,7 +36,7 @@ This means increasing **information content** (not word count) so a reviewer can
 1. Packages → 2. Interfaces/typedefs → 3. Common TB utils → 4. DUT RTL → 5. TB top → 6. Testcases
 
 
-## 3) Commenting & Naming Rules
+## 3 Commenting & Naming Rules
 
 ### Source file naming
 - Add suffix `_pkg` for `package` type modules.
@@ -57,15 +57,19 @@ This means increasing **information content** (not word count) so a reviewer can
 - Prefix: `st_` (e.g., `st_state`, `st_nextstate`).
 - State names: all upper case (e.g., `IDLE`, `BOOT`, `END_SEQ`).
 
+### FSM
+- Always add a comment at the top of the FSM block explaining each state's purpose and
+  describing the transition flow between states with a diagram.
+
 ### Others
 - Header comment: purpose, behavior, usage (+ minimal example).
 - Every major `always`/`function`/`task` block needs verbose description.
 - FSM: document state purposes, actions, transition flow, **transition conditions**.
 
 
-## 4) Coding Rules (SystemVerilog)
+## 4 Coding Rules (SystemVerilog)
 
-### 4.1) Always-block structure
+### 4.1 Always-block structure
 - **Do not** implement functionality as a single monolithic block.
 - **Decompose** into multiple small blocks, each with **single responsibility**.
 - Keep sensitivity type correct (`always_ff` vs `always_comb`).
@@ -90,7 +94,7 @@ This means increasing **information content** (not word count) so a reviewer can
   - Nested conditional depth grows enough that side effects are hard to trace
   - The block requires long comments to explain independent behaviors
 
-### 4.2) When to split into multiple files/modules
+### 4.2 When to split into multiple files/modules
 Split when:
 - Distinct interface or protocol (AXI, SPI, I2C, UART, etc.)
 - Independent FSM that can be verified on its own
@@ -102,27 +106,27 @@ Split when:
 - File: ~800-1200 lines → prefer split
 - Port list: ~40-60 signals → consider split (or group via `interface`/`struct`)
 
-### 4.3) FSM coding rules
+### 4.3 FSM coding rules
 
-**4.3.1) State enum**
+**4.3.1 State enum**
 ```systemverilog
 typedef enum logic [2:0] {IDLE, START, DATA, STOP} state_t;
 state_t st_state, st_nextstate;
 ```
 
-**4.3.2) State register** - dedicated `always_ff` block, reset to default state.
+**4.3.2 State register** - dedicated `always_ff` block, reset to default state.
 
-**4.3.3) Next-state logic** - dedicated `always_comb` block with safe default:
+**4.3.3 Next-state logic** - dedicated `always_comb` block with safe default:
 ```systemverilog
 st_nextstate = st_state;  // hold unless condition met
 case (st_state) ... endcase
 ```
 
-**4.3.4) Separate FSM from datapath** - move counters, edge generators, output registers to separate blocks.
+**4.3.4 Separate FSM from datapath** - move counters, edge generators, output registers to separate blocks.
 
-**4.3.5) Reset helper logic** - explicitly reset in default/idle state.
+**4.3.5 Reset helper logic** - explicitly reset in default/idle state.
 
-**4.3.6) Comment every FSM block** - include default state and transition conditions.
+**4.3.6 Comment every FSM block** - include default state and transition conditions.
 
 
 ## 5. Logging Requirements for SystemVerilog Testbenches

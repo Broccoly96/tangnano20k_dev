@@ -115,6 +115,7 @@ module sdram_emb_hostif_ctrl (
     .I_RAW_TX_READY  (I_RAW_TX_READY),
     .I_SDRC_INIT_DONE(I_SDRC_INIT_DONE),
     .I_SDRC_BUSY_N   (I_SDRC_BUSY_N),
+    .I_SDRC_WRD_ACK  (I_SDRC_WRD_ACK),
     .I_SDRC_RD_VALID (I_SDRC_RD_VALID),
     .I_SDRC_RD_DATA  (I_SDRC_RD_DATA),
     .O_SDRC_WR_N     (l_host_wr_n),

@@ -6,7 +6,7 @@
 
 ..\00_ip\embedded_sdram\tb\prim_sim.v
 ..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v
-..\00_ip\embedded_sdram\embedded_sdram.v
+..\00_ip\embedded_sdram\embedded_sdram.vo
 
 ..\02_tb\tb_log_pkg.sv
 ..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv

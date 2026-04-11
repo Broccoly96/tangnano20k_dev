@@ -21,6 +21,7 @@ module sdram_uart_access_engine #(
   input  logic [31:0] I_REQ_DATA,
   input  logic        I_SDRC_INIT_DONE,
   input  logic        I_SDRC_BUSY_N,
+  input  logic        I_SDRC_WRD_ACK,
   input  logic        I_SDRC_RD_VALID,
   input  logic [31:0] I_SDRC_RD_DATA,
   output logic        O_SDRC_WR_N,
@@ -76,6 +77,7 @@ module sdram_uart_access_engine #(
   logic [WR_CYCLE_W-1:0] r_cycle_cnt;
   logic [BURST_CNT_W-1:0] r_read_word_count;
   logic        r_busy_seen_low;
+  logic        r_wrd_ack_seen;
   logic [31:0] r_first_read_data;
 
   logic        r_rsp_valid;
@@ -144,6 +146,7 @@ module sdram_uart_access_engine #(
       r_cycle_cnt       <= '0;
       r_read_word_count <= '0;
       r_busy_seen_low   <= 1'b0;
+      r_wrd_ack_seen    <= 1'b0;
       r_first_read_data <= 32'h0;
       r_rsp_valid       <= 1'b0;
       r_rsp_is_write    <= 1'b0;
@@ -168,6 +171,7 @@ module sdram_uart_access_engine #(
           r_cycle_cnt       <= '0;
           r_read_word_count <= '0;
           r_busy_seen_low   <= 1'b0;
+          r_wrd_ack_seen    <= 1'b0;
           r_wr_stream_data  <= r_req_data;
 
           if (I_REQ_VALID && O_REQ_READY) begin
@@ -229,6 +233,7 @@ module sdram_uart_access_engine #(
           r_timeout_cnt    <= '0;
           r_cycle_cnt      <= '0;
           r_wr_stream_data <= r_req_data;
+          r_wrd_ack_seen   <= 1'b0;
           if (I_SDRC_BUSY_N) begin
             `SDRAM_ACCESS_LOG_TRACE(
               $sformatf(
@@ -243,15 +248,23 @@ module sdram_uart_access_engine #(
 
         ST_WRITE_WAIT: begin
           r_cycle_cnt <= r_cycle_cnt + 1'b1;
-          if (r_cycle_cnt < WR_STREAM_CYCLES - 1) begin
-            r_wr_stream_data <= r_wr_stream_data + 1'b1;
-          end
+          r_wr_stream_data <= r_req_data;
           if (!I_SDRC_BUSY_N) begin
             r_busy_seen_low <= 1'b1;
           end
+          if (I_SDRC_WRD_ACK) begin
+            r_wrd_ack_seen <= 1'b1;
+            `SDRAM_ACCESS_LOG_TRACE(
+              $sformatf(
+                "write_ack_seen addr=0x%05h data=0x%08h cycle=%0d",
+                r_req_addr,
+                r_req_data,
+                r_cycle_cnt
+              )
+            );
+          end
 
-          if (r_busy_seen_low && I_SDRC_BUSY_N &&
-              (r_cycle_cnt >= WR_STREAM_CYCLES - 1)) begin
+          if (r_busy_seen_low && I_SDRC_BUSY_N && r_wrd_ack_seen) begin
             `SDRAM_ACCESS_LOG_DEBUG(
               $sformatf("write_done addr=0x%05h data=0x%08h", r_req_addr, r_req_data)
             );
@@ -262,7 +275,14 @@ module sdram_uart_access_engine #(
             r_rsp_status   <= 32'h0;
             st_state       <= ST_RESPOND;
           end else if (r_timeout_cnt == RESP_TIMEOUT_CYCLES - 1) begin
-            `SDRAM_ACCESS_LOG_DEBUG($sformatf("write_timeout addr=0x%05h", r_req_addr));
+            `SDRAM_ACCESS_LOG_DEBUG(
+              $sformatf(
+                "write_timeout addr=0x%05h ack_seen=%0b busy_n=%0b",
+                r_req_addr,
+                r_wrd_ack_seen,
+                I_SDRC_BUSY_N
+              )
+            );
             r_rsp_valid    <= 1'b1;
             r_rsp_is_write <= 1'b1;
             r_rsp_addr     <= r_req_addr;

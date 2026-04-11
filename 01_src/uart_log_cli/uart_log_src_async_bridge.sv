@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+`ifndef UART_LOG_SRC_ASYNC_BRIDGE_SV
+`define UART_LOG_SRC_ASYNC_BRIDGE_SV
 //////////////////////////////////////////////////////////////////////////////////
 // File         : uart_log_src_async_bridge.sv
 // Description  : Dual-clock event bridge from a slow log source domain into the
@@ -134,3 +136,4 @@ module uart_log_src_async_bridge #(
   end
 
 endmodule
+`endif

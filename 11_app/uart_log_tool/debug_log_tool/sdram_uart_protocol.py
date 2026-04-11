@@ -12,6 +12,8 @@ from uart_log_protocol import Frame, FrameParser
 HOST_SRC_INDEX = 2
 UART_LOG_NUM_SRC = 3
 HOST_SRC_ID = 0x03
+SYS_SRC_ID = 0x00
+SYS_EVT_MODE_CHANGE = 0x01
 
 HOST_EVT_WRITE_ACK = 0x30
 HOST_EVT_READ_RSP = 0x31
@@ -202,6 +204,73 @@ def select_host_source(write_fn: Callable[[bytes], int], settle_ms: int = 100) -
     for _ in range(HOST_SRC_INDEX):
         write_exact(write_fn, bytes([CMD_NEXT_SRC]))
         time.sleep(settle_ms / 1000.0)
+
+
+def drain_frames(
+    read_fn: Callable[[], bytes],
+    parser: FrameParser,
+    drain_s: float,
+) -> list[Frame]:
+    """Collect any currently buffered frames for a short drain interval."""
+
+    deadline = time.monotonic() + drain_s
+    frames: list[Frame] = []
+    while time.monotonic() < deadline:
+        data = read_fn()
+        if data:
+            frames.extend(parser.feed(data))
+        time.sleep(0.01)
+    return frames
+
+
+def select_source_index(
+    write_fn: Callable[[bytes], int],
+    read_fn: Callable[[], bytes],
+    parser: FrameParser,
+    target_idx: int,
+    *,
+    num_src: int = UART_LOG_NUM_SRC,
+    drain_s: float = 0.2,
+    settle_ms: int = 100,
+    timeout_s: float = 1.0,
+) -> int:
+    """Advance source selection until the target mode-change event is seen.
+
+    The CLI only supports "next source", so this helper cycles through the
+    source ring and confirms progress using system mode-change events.
+    This avoids assuming the current source index after reconnects or resets.
+    """
+
+    if target_idx < 0 or target_idx >= num_src:
+        raise ValueError(f"target source index out of range: {target_idx}")
+
+    frames = drain_frames(read_fn, parser, drain_s)
+    current_idx: int | None = None
+    for frame in frames:
+        if frame.event.src_id == SYS_SRC_ID and frame.event.event_id == SYS_EVT_MODE_CHANGE:
+            current_idx = frame.event.arg1 & 0xFF
+    if current_idx == target_idx:
+        return target_idx
+
+    deadline = time.monotonic() + timeout_s
+    step_window_s = max(drain_s, (settle_ms / 1000.0) * 2.5, 0.25)
+    while time.monotonic() < deadline:
+        write_exact(write_fn, bytes([CMD_NEXT_SRC]))
+        step_deadline = min(deadline, time.monotonic() + step_window_s)
+        while time.monotonic() < step_deadline:
+            data = read_fn()
+            if data:
+                for frame in parser.feed(data):
+                    if frame.event.src_id != SYS_SRC_ID:
+                        continue
+                    if frame.event.event_id != SYS_EVT_MODE_CHANGE:
+                        continue
+                    current_idx = frame.event.arg1 & 0xFF
+                    if current_idx == target_idx:
+                        return current_idx
+            time.sleep(0.01)
+
+    raise TimeoutError(f"timed out selecting source index {target_idx}")
 
 
 def wait_for_frame(

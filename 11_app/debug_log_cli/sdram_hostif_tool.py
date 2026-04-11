@@ -29,6 +29,8 @@ from sdram_uart_protocol import (  # noqa: E402
     parse_u21,
     parse_u32,
     recv_bulk_read_blob,
+    drain_frames,
+    select_source_index,
     select_host_source,
     wait_for_frame,
     write_exact,
@@ -62,12 +64,16 @@ def wait_for_host_event(
     parser: FrameParser,
     timeout_s: float,
     event_id: int,
+    *,
+    addr: int | None = None,
 ) -> Frame:
     return wait_for_frame(
         lambda: client.read_bytes(),
         parser,
         timeout_s,
-        lambda frame: frame.event.src_id == 0x03 and frame.event.event_id == event_id,
+        lambda frame: frame.event.src_id == 0x03
+        and frame.event.event_id == event_id
+        and (addr is None or (frame.event.arg0 & 0x1F_FFFF) == addr),
     )
 
 
@@ -130,16 +136,44 @@ def main() -> int:
 
     try:
       if args.command == "select-host":
-        select_host_source(client.write_bytes, args.settle_ms)
+        try:
+            select_source_index(
+                client.write_bytes,
+                lambda: client.read_bytes(),
+                parser,
+                2,
+                settle_ms=args.settle_ms,
+                timeout_s=args.timeout_s,
+            )
+        except TimeoutError:
+            print("warning: host-source confirmation timed out; source may already be selected", file=sys.stderr)
         print("sent host-source select sequence")
         return 0
 
       if getattr(args, "select_host", False):
-        select_host_source(client.write_bytes, args.settle_ms)
+        try:
+            select_source_index(
+                client.write_bytes,
+                lambda: client.read_bytes(),
+                parser,
+                2,
+                settle_ms=args.settle_ms,
+                timeout_s=args.timeout_s,
+            )
+        except TimeoutError:
+            print("warning: host-source confirmation timed out; proceeding anyway", file=sys.stderr)
+
+      drain_frames(lambda: client.read_bytes(), parser, 0.2)
 
       if args.command == "write":
         write_exact(client.write_bytes, build_write_command(args.addr, args.data))
-        frame = wait_for_host_event(client, parser, args.timeout_s, HOST_EVT_WRITE_ACK)
+        frame = wait_for_host_event(
+            client,
+            parser,
+            args.timeout_s,
+            HOST_EVT_WRITE_ACK,
+            addr=args.addr,
+        )
         print(
             f"WRITE_ACK addr=0x{frame.event.arg0:05X} data=0x{frame.event.arg1:08X} "
             f"status=0x{frame.event.arg2:08X}"
@@ -148,7 +182,13 @@ def main() -> int:
 
       if args.command == "read":
         write_exact(client.write_bytes, build_read_command(args.addr))
-        frame = wait_for_host_event(client, parser, args.timeout_s, HOST_EVT_READ_RSP)
+        frame = wait_for_host_event(
+            client,
+            parser,
+            args.timeout_s,
+            HOST_EVT_READ_RSP,
+            addr=args.addr,
+        )
         print(
             f"READ_RSP addr=0x{frame.event.arg0:05X} data=0x{frame.event.arg1:08X} "
             f"status=0x{frame.event.arg2:08X}"

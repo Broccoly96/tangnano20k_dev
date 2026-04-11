@@ -1,5 +1,5 @@
-# vsim -c work.testbench -voptargs="+acc" "+TB_LOG_LEVEL=3" -do "run -all; quit -code 0" -l sim.log 
-# Start time: 08:24:38 on Apr 11,2026
+# vsim -c work.testbench -voptargs="+acc" "+TB_LOG_LEVEL=4" -do "run -all; quit -code 0" -l sim.log 
+# Start time: 14:00:40 on Apr 11,2026
 # //  ModelSim - Lattice FPGA Edition 2023.3 Jul 18 2023
 # //
 # //  Copyright 1991-2023 Mentor Graphics Corporation
@@ -14,85 +14,63 @@
 # //  18 U.S.C. Section 1905.
 # //
 # Loading sv_std.std
+# Loading work.sdram_uart_proto_pkg
 # Loading work.tb_log_pkg
-# Loading work.embedded_sdram_tb_pkg
 # Loading work.testbench
-# Loading work.embedded_sdram
-# Loading work.VCC
-# Loading work.GND
-# Loading work.GSR
-# Loading work.IOBUF
-# Loading work.IBUF
-# Loading work.OBUF
-# Loading work.LUT4
-# Loading work.MUX16
-# Loading work.MUX8
-# Loading work.MUX4
-# Loading work.MUX2
-# Loading work.LUT3
-# Loading work.LUT2
-# Loading work.DFFR
-# Loading work.DFFC
-# Loading work.DFFS
-# Loading work.DFF
-# Loading work.DFFE
-# Loading work.DFFCE
-# Loading work.ALU
-# Loading work.INV
-# Loading work.LUT1
-# Loading work.DFFP
-# Loading work.DFFPE
-# Loading work.SDPX9B
-# Loading work.MT48LC8M16A2
-# Loading work.mux2
+# Loading work.sdram_uart_access_engine
 # run -all
-# [0 ns][INFO ][SDRAM UI PROBE TB] waiting for SDRAM initialization to complete
-# at time        15 ns ERROR: Bank 3 is not Precharged.
-# at time        15 ns ERROR: tMRD violation during Activate bank = 3
-# at time        15 ns ERROR: tRC violation during Activate bank = 3
-# at time        15 ns ERROR: Bank 3 is not Precharged.
-# at time        15 ns ERROR: tMRD violation during Activate bank = 3
-# at time        15 ns ERROR: tRC violation during Activate bank = 3
-# [1323 ns][INFO ][SDRAM UI PROBE TB] scenario 1: vendor-style 26-word burst write/read reference
-# at time      1545 ns ERROR: tRC violation during Auto Refresh
-# at time      1545 ns ERROR: tRC violation during Auto Refresh
-# at time      1555 ns ERROR: tRC violation during Auto Refresh
-# at time      1555 ns ERROR: tRC violation during Auto Refresh
-# at time      1565 ns ERROR: tRC violation during Auto Refresh
-# at time      1565 ns ERROR: tRC violation during Auto Refresh
-# at time      1575 ns ERROR: tRC violation during Auto Refresh
-# at time      1575 ns ERROR: tRC violation during Auto Refresh
-# at time      1965 ns ERROR: tRC violation during Auto Refresh
-# at time      1965 ns ERROR: tRC violation during Auto Refresh
-# at time      1975 ns ERROR: tRC violation during Auto Refresh
-# at time      1975 ns ERROR: tRC violation during Auto Refresh
-# at time      1985 ns ERROR: tRC violation during Auto Refresh
-# at time      1985 ns ERROR: tRC violation during Auto Refresh
-# at time      1995 ns ERROR: tRC violation during Auto Refresh
-# at time      1995 ns ERROR: tRC violation during Auto Refresh
-# at time      2385 ns ERROR: tMRD violation during Load Mode Register
-# at time      2385 ns ERROR: tMRD violation during Load Mode Register
-# at time      2395 ns ERROR: tMRD violation during Load Mode Register
-# at time      2395 ns ERROR: tMRD violation during Load Mode Register
-# at time      2405 ns ERROR: tMRD violation during Load Mode Register
-# at time      2405 ns ERROR: tMRD violation during Load Mode Register
-# at time      2415 ns ERROR: tMRD violation during Load Mode Register
-# at time      2415 ns ERROR: tMRD violation during Load Mode Register
-# at time      3815 ns ERROR: Bank 2 is not Precharged.
-# at time      3815 ns ERROR: Bank 2 is not Precharged.
-# at time      3825 ns ERROR: Bank 2 is not Precharged.
-# at time      3825 ns ERROR: Bank 2 is not Precharged.
-# at time      3835 ns ERROR: Bank 2 is not Precharged.
-# at time      3835 ns ERROR: Bank 2 is not Precharged.
-# at time      6425 ns ERROR: Bank 2 is not Precharged.
-# at time      6425 ns ERROR: Bank 2 is not Precharged.
-# at time      6435 ns ERROR: Bank 2 is not Precharged.
-# at time      6435 ns ERROR: Bank 2 is not Precharged.
-# at time      6445 ns ERROR: Bank 2 is not Precharged.
-# at time      6445 ns ERROR: Bank 2 is not Precharged.
-# ** Fatal: [6783 ns][FATAL][SDRAM TB PKG] scenario1 vendor-style burst mismatch beat=0 exp=0x51000000 act=0xxxxxxxxx
-#    Time: 6783 ns  Scope: tb_log_pkg.log_fatal File: ../02_tb/tb_log_pkg.sv Line: 109
-# ** Note: $finish    : ../02_tb/tb_log_pkg.sv(109)
-#    Time: 6783 ns  Iteration: 1  Instance: /testbench
-# End time: 08:24:40 on Apr 11,2026, Elapsed time: 0:00:02
-# Errors: 1, Warnings: 0
+# [115.000 ns][INFO ][ACCESS ENG TB] case: single write
+# [135.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type=WRITE addr=0x00030 data=0x89abcdef init_done=1 busy_n=1 cache_hit=0
+# [145.000 ns][DEBUG][ACCESS ENG TB] accept_write addr=0x00030 len=1 data=0x89abcdef
+# [165.000 ns][DEBUG][SDRAM ACCESS ENG] write_done addr=0x00030 data=0x89abcdef
+# [175.000 ns][INFO ][ACCESS ENG TB] response ok: single write
+# [185.000 ns][INFO ][ACCESS ENG TB] case: read miss refill
+# [205.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00030 data=0x00000000 init_done=1 busy_n=1 cache_hit=0
+# [215.000 ns][DEBUG][ACCESS ENG TB] accept_read addr=0x00030 len=26 count=1
+# [235.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=0 data=0x89abcdef
+# [245.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=1 data=0x10000031
+# [255.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=2 data=0x10000032
+# [265.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=3 data=0x10000033
+# [275.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=4 data=0x10000034
+# [285.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=5 data=0x10000035
+# [295.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=6 data=0x10000036
+# [305.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=7 data=0x10000037
+# [315.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=8 data=0x10000038
+# [325.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=9 data=0x10000039
+# [335.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=10 data=0x1000003a
+# [345.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=11 data=0x1000003b
+# [355.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=12 data=0x1000003c
+# [365.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=13 data=0x1000003d
+# [375.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=14 data=0x1000003e
+# [385.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=15 data=0x1000003f
+# [395.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=16 data=0x10000040
+# [405.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=17 data=0x10000041
+# [415.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=18 data=0x10000042
+# [425.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=19 data=0x10000043
+# [435.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=20 data=0x10000044
+# [445.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=21 data=0x10000045
+# [455.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=22 data=0x10000046
+# [465.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=23 data=0x10000047
+# [475.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=24 data=0x10000048
+# [485.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_beat base=0x00030 beat=25 data=0x10000049
+# [495.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_done base=0x00030 words=26 first=0x89abcdef
+# [505.000 ns][INFO ][ACCESS ENG TB] response ok: read miss
+# [515.000 ns][INFO ][ACCESS ENG TB] case: cache hit
+# [535.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00031 data=0x00000000 init_done=1 busy_n=1 cache_hit=1
+# [535.000 ns][DEBUG][SDRAM ACCESS ENG] cache_hit addr=0x00031 index=1 data=0x10000031 base=0x00030
+# [545.000 ns][INFO ][ACCESS ENG TB] response ok: cache hit next word
+# [555.000 ns][INFO ][ACCESS ENG TB] case: write timeout
+# [575.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type=WRITE addr=0x00040 data=0x12345678 init_done=1 busy_n=1 cache_hit=0
+# [585.000 ns][DEBUG][ACCESS ENG TB] accept_write addr=0x00040 len=1 data=0x12345678
+# [1225.000 ns][DEBUG][SDRAM ACCESS ENG] write_timeout addr=0x00040 ack_seen=1 busy_n=0
+# [1235.000 ns][INFO ][ACCESS ENG TB] response ok: write timeout
+# [1245.000 ns][INFO ][ACCESS ENG TB] case: read timeout
+# [1265.000 ns][DEBUG][SDRAM ACCESS ENG] accept_req type= READ addr=0x00050 data=0x00000000 init_done=1 busy_n=1 cache_hit=0
+# [1275.000 ns][DEBUG][ACCESS ENG TB] accept_read addr=0x00050 len=26 count=2
+# [1915.000 ns][DEBUG][SDRAM ACCESS ENG] read_burst_timeout base=0x00050 count=0 busy_n=0 rd_valid=0
+# [1925.000 ns][INFO ][ACCESS ENG TB] response ok: read timeout
+# [1935.000 ns][INFO ][ACCESS ENG TB] sdram_uart_access_engine smoke test passed
+# ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/09_sdram_uart_access_engine/testcase_smoke.svh(34)
+#    Time: 1935 ns  Iteration: 1  Instance: /testbench
+# End time: 14:00:40 on Apr 11,2026, Elapsed time: 0:00:00
+# Errors: 0, Warnings: 0

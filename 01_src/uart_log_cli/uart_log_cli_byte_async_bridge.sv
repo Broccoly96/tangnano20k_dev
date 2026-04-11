@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+`ifndef UART_LOG_CLI_BYTE_ASYNC_BRIDGE_SV
+`define UART_LOG_CLI_BYTE_ASYNC_BRIDGE_SV
 //////////////////////////////////////////////////////////////////////////////////
 // File         : uart_log_cli_byte_async_bridge.sv
 // Description  : Dual-clock byte FIFO used to carry CLI RX bytes from the
@@ -101,3 +103,4 @@ module uart_log_cli_byte_async_bridge #(
   end
 
 endmodule
+`endif

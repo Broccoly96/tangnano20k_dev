@@ -110,6 +110,7 @@ module sdram_emb_hostif (
     .I_RAW_TX_READY  (I_RAW_TX_READY),
     .I_SDRC_INIT_DONE(O_INIT_DONE),
     .I_SDRC_BUSY_N   (l_sdrc_busy_n),
+    .I_SDRC_WRD_ACK  (l_sdrc_wrd_ack),
     .I_SDRC_RD_VALID (l_sdrc_rd_valid),
     .I_SDRC_RD_DATA  (l_sdrc_rd_data),
     .O_SDRC_WR_N     (l_host_wr_n),
