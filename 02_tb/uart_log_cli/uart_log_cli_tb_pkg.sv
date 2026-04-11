@@ -16,6 +16,7 @@
 package uart_log_cli_tb_pkg;
 
   import uart_log_cli_pkg::*;
+  import tb_log_pkg::*;
 
   typedef struct packed {
     logic [7:0]   sync;
@@ -154,6 +155,10 @@ package uart_log_cli_tb_pkg;
     input logic [7:0] tx_byte
   );
     begin
+      tb_log_pkg::log_trace(
+        "UART LOG CLI TB PKG",
+        $sformatf("send_uart_byte data=0x%02h", tx_byte)
+      );
       uart_line = 1'b0;
       #(bit_period);
       for (int bit_idx = 0; bit_idx < 8; bit_idx++) begin
@@ -178,6 +183,10 @@ package uart_log_cli_tb_pkg;
         #(bit_period);
       end
       #(bit_period);
+      tb_log_pkg::log_trace(
+        "UART LOG CLI TB PKG",
+        $sformatf("recv_uart_byte data=0x%02h", rx_byte)
+      );
     end
   endtask
 
@@ -231,6 +240,76 @@ package uart_log_cli_tb_pkg;
 
       @(posedge mirror_valid);
       crc = mirror_data;
+      tb_log_pkg::log_debug(
+        "UART LOG CLI TB PKG",
+        $sformatf(
+          "recv_mirror_frame seq=0x%02h src=0x%02h evt=0x%02h arg0=0x%08h arg1=0x%08h arg2=0x%08h crc=0x%02h",
+          seq,
+          payload[31:24],
+          payload[23:16],
+          payload[63:32],
+          payload[95:64],
+          payload[127:96],
+          crc
+        )
+      );
+    end
+  endtask
+
+  task automatic recv_mirror_byte(
+    ref logic       mirror_valid,
+    ref logic [7:0] mirror_data,
+    output logic [7:0] rx_byte
+  );
+    begin
+      @(posedge mirror_valid);
+      rx_byte = mirror_data;
+      tb_log_pkg::log_trace(
+        "UART LOG CLI TB PKG",
+        $sformatf("recv_mirror_byte data=0x%02h", rx_byte)
+      );
+    end
+  endtask
+
+  task automatic recv_mirror_until_byte(
+    ref logic       mirror_valid,
+    ref logic [7:0] mirror_data,
+    input logic [7:0] expected_byte,
+    output logic [7:0] rx_byte
+  );
+    begin
+      rx_byte = 8'h00;
+      do begin
+        recv_mirror_byte(mirror_valid, mirror_data, rx_byte);
+      end while (rx_byte != expected_byte);
+    end
+  endtask
+
+  task automatic send_uart_bytes(
+    ref logic uart_line,
+    input time bit_period,
+    input byte payload[]
+  );
+    begin
+      for (int idx = 0; idx < payload.size(); idx++) begin
+        send_uart_byte(uart_line, bit_period, payload[idx][7:0]);
+      end
+    end
+  endtask
+
+  task automatic send_uart_string(
+    ref logic uart_line,
+    input time bit_period,
+    input string text
+  );
+    begin
+      tb_log_pkg::log_debug(
+        "UART LOG CLI TB PKG",
+        $sformatf("send_uart_string len=%0d text=\"%0s\"", text.len(), text)
+      );
+      for (int idx = 0; idx < text.len(); idx++) begin
+        send_uart_byte(uart_line, bit_period, text.getc(idx)[7:0]);
+      end
     end
   endtask
 

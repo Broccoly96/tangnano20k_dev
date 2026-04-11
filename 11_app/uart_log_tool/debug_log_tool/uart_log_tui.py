@@ -13,6 +13,19 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 
+from sdram_uart_protocol import (
+    HOST_EVT_BULK_DONE,
+    HOST_EVT_BULK_OK,
+    HOST_EVT_READ_RSP,
+    HOST_EVT_WRITE_ACK,
+    build_bulk_read_command,
+    build_bulk_write_command,
+    build_read_command,
+    build_write_command,
+    iter_bulk_write_blocks,
+    recv_bulk_read_blob,
+    wait_for_frame,
+)
 from uart_log_decoder import UARTLogDecoder
 from uart_log_protocol import Event, Frame, FrameParser
 from uart_log_replay import ReplayRecord, load_replay_records
@@ -29,9 +42,6 @@ HOST_EVT_WRITE_ACK = 0x30
 HOST_EVT_READ_RSP = 0x31
 HOST_EVT_CMD_ERR = 0x3E
 CMD_NEXT_SRC = 0x06
-CMD_LITERAL_NEXT = 0x10
-CMD_WRITE = 0x57
-CMD_READ = 0x52
 MAP_BYTE_COUNT = 256
 MAP_WORD_COUNT = MAP_BYTE_COUNT // 4
 MAP_RESPONSE_TIMEOUT_S = 1.0
@@ -68,37 +78,12 @@ def parse_u21(text: str) -> int:
     return value
 
 
-def escape_cli_payload(payload: bytes) -> bytes:
-    reserved = {0x04, 0x06, 0x10, 0x12, 0x14, 0x3F}
-    escaped = bytearray()
-    for byte_value in payload:
-        if byte_value in reserved:
-            escaped.append(CMD_LITERAL_NEXT)
-        escaped.append(byte_value)
-    return bytes(escaped)
-
-
 def make_read_packet(addr: int) -> bytes:
-    return escape_cli_payload(
-        bytes([CMD_READ, (addr >> 16) & 0x1F, (addr >> 8) & 0xFF, addr & 0xFF])
-    )
+    return build_read_command(addr)
 
 
 def make_write_packet(addr: int, data: int) -> bytes:
-    return escape_cli_payload(
-        bytes(
-            [
-                CMD_WRITE,
-                (addr >> 16) & 0x1F,
-                (addr >> 8) & 0xFF,
-                addr & 0xFF,
-                (data >> 24) & 0xFF,
-                (data >> 16) & 0xFF,
-                (data >> 8) & 0xFF,
-                data & 0xFF,
-            ]
-        )
-    )
+    return build_write_command(addr, data)
 
 
 def next_src_steps(current_idx: int, target_idx: int, num_src: int = UART_LOG_NUM_SRC) -> int:
@@ -663,6 +648,21 @@ class UARTLogApp(App[None]):
             return 0 if not self._tcp.is_connected else self._tcp.write_bytes(payload)
         return 0 if not self._serial.is_connected else self._serial.write_bytes(payload)
 
+    def _read_bytes(self) -> bytes:
+        if self._replay_file_path is not None:
+            return b""
+        if self._transport == "tcp":
+            return b"" if not self._tcp.is_connected else self._tcp.read_bytes()
+        return b"" if not self._serial.is_connected else self._serial.read_bytes()
+
+    def _wait_for_host_event(self, event_id: int, timeout_s: float) -> Frame:
+        return wait_for_frame(
+            self._read_bytes,
+            self._parser,
+            timeout_s,
+            lambda frame: frame.event.src_id == HOST_SRC_ID and frame.event.event_id == event_id,
+        )
+
     def _send_next_src_steps(self, steps: int) -> bool:
         for _ in range(steps):
             if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
@@ -759,40 +759,14 @@ class UARTLogApp(App[None]):
             self._refresh_rw_view()
 
     def _start_file_write(self) -> None:
-        if self._file_write_addr_input is None or self._file_write_path_input is None:
-            return
-        try:
-            base_addr = parse_u21(self._file_write_addr_input.value.strip())
-            path = Path(self._file_write_path_input.value.strip())
-            payload = path.read_bytes()
-        except Exception as exc:
-            self._rw_file_write_result = f"file write setup failed: {exc}"
-            self._refresh_rw_view()
-            return
-        commands: list[tuple[str, int, int]] = []
-        for word_idx in range((len(payload) + 3) // 4):
-            chunk = payload[word_idx * 4 : word_idx * 4 + 4]
-            chunk = chunk + bytes(4 - len(chunk))
-            commands.append(("write", base_addr + word_idx, int.from_bytes(chunk, "little", signed=False)))
-        if self._start_rw_task(kind="file_write", commands=commands):
-            self._rw_file_write_result = f"writing {len(payload)} bytes from {path} to 0x{base_addr:05X}"
-            self._refresh_rw_view()
+        self._rw_file_write_result = "INOP: bulk path disabled"
+        self._refresh_rw_view()
+        self._set_status(self._rw_file_write_result)
 
     def _start_file_read_save(self) -> None:
-        if self._file_read_path_input is None:
-            return
-        try:
-            path = Path(self._file_read_path_input.value.strip())
-        except Exception as exc:
-            self._rw_file_read_result = f"file read setup failed: {exc}"
-            self._refresh_rw_view()
-            return
-        base_addr = self._map_base_addr
-        length = MAP_BYTE_COUNT
-        commands = [("read", base_addr + word_idx, 0) for word_idx in range((length + 3) // 4)]
-        if self._start_rw_task(kind="file_read_save", commands=commands, expected_reads=len(commands), output_path=path, output_len=length):
-            self._rw_file_read_result = f"reading {length} bytes from 0x{base_addr:05X} to {path}"
-            self._refresh_rw_view()
+        self._rw_file_read_result = "INOP: bulk path disabled"
+        self._refresh_rw_view()
+        self._set_status(self._rw_file_read_result)
 
     def _poll_serial(self) -> None:
         if not self._serial.is_connected:
@@ -955,32 +929,16 @@ class UARTLogApp(App[None]):
             self._map_view.update(format_sdram_map_text(self._map_base_addr, self._map_bytes))
 
     def _start_map_refresh(self) -> None:
-        if self._replay_file_path is not None:
-            self._set_status("replay mode: map refresh disabled")
-            return
-        if not self._active_connected():
-            self._set_status("not connected")
-            return
-        if self._map_base_input is None:
-            self._set_status("map input unavailable")
-            return
-        try:
-            base_addr = parse_u21(self._map_base_input.value.strip())
-        except Exception as exc:
-            self._set_status(f"invalid base addr: {exc}")
-            return
-        self._map_base_addr = base_addr
-        self._map_bytes = bytearray(MAP_BYTE_COUNT)
-        self._map_received_words.clear()
-        self._map_pending_queue = [base_addr + idx for idx in range(MAP_WORD_COUNT)]
-        self._map_inflight_addr = None
-        self._map_refresh_active = True
-        self._map_summary_text = "selecting host source"
-        self._map_restore_src_idx = None
-        self._map_select_deadline = time.monotonic()
-        self._map_rsp_deadline = 0.0
+        if self._map_base_input is not None:
+            try:
+                self._map_base_addr = parse_u21(self._map_base_input.value.strip())
+            except Exception as exc:
+                self._set_status(f"invalid base addr: {exc}")
+                return
+        self._map_summary_text = "INOP: bulk path disabled"
+        self._map_refresh_active = False
         self._refresh_map_view()
-        self._set_status(f"map refresh started at 0x{base_addr:05X}")
+        self._set_status(self._map_summary_text)
 
     def _poll_map_refresh(self) -> None:
         if not self._map_refresh_active:

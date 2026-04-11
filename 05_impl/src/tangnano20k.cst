@@ -1,5 +1,5 @@
 //Copyright (C)2014-2025 Gowin Semiconductor Corporation.
-//All rights reserved. 
+//All rights reserved.
 //File Title: Physical Constraints file
 //Tool Version: V1.9.12 (64-bit)
 //Part Number: GW2AR-LV18QN88C8/I7
@@ -7,7 +7,6 @@
 //Device Version: C
 //Created Time: Sat 04 04 22:10:56 2026
 
-IO_PORT "O_RST_FPGA_N" IO_TYPE=LVCMOS33 OPEN_DRAIN=OFF;
 IO_LOC "PIN20_IOL51B_LED5" 20;
 IO_PORT "PIN20_IOL51B_LED5" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=8 BANK_VCCIO=3.3;
 IO_LOC "PIN19_IOL51A_LED4" 19;

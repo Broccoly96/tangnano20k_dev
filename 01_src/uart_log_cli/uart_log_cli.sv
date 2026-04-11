@@ -36,6 +36,11 @@ module uart_log_cli #(
   output logic O_SOFT_RESET_REQ,
   output logic O_STATUS_REQ_VALID,
   output logic [7:0] O_STATUS_REQ_KEY,
+  input  logic       I_RAW_RX_BYPASS,
+  input  logic       I_RAW_TX_MODE,
+  input  logic       I_RAW_TX_VALID,
+  input  logic [7:0] I_RAW_TX_DATA,
+  output logic       O_RAW_TX_READY,
   output logic       O_CLI_RX_VALID,
   output logic [7:0] O_CLI_RX_DATA,
   output logic       O_MIRROR_VALID,
@@ -364,7 +369,9 @@ module uart_log_cli #(
   assign s_sys_q_empty = (r_sys_q_count == 0);
   assign s_sys_q_rdata = r_sys_q_mem[r_sys_q_rd_ptr];
 
-  assign s_tx_boundary_idle = (!r_frame_active) && (!s_uart_tx_busy);
+  assign s_tx_boundary_idle = (!r_frame_active) && (!s_uart_tx_busy) && !I_RAW_TX_MODE;
+  assign O_RAW_TX_READY     =
+    (r_tx_state == TX_IDLE) && (!r_frame_active) && (!s_uart_tx_busy) && I_RAW_TX_MODE;
 
   // Source change is applied only when all in-flight payloads are drained:
   //  - frame engine idle
@@ -439,7 +446,11 @@ module uart_log_cli #(
   assign s_reset_clear    = s_push_req && (s_push_sel == SYS_PUSH_RESET);
 
   // Consumer read request from shared FIFO.
-  assign s_shared_rd_en = s_tx_boundary_idle && (!r_shared_rd_pending) && (!s_shared_empty);
+  assign s_shared_rd_en =
+    (!I_RAW_TX_MODE) &&
+    s_tx_boundary_idle &&
+    (!r_shared_rd_pending) &&
+    (!s_shared_empty);
 
   //------------------------------------------------------------------------------
   // Main control process
@@ -511,7 +522,11 @@ module uart_log_cli #(
 
       // CLI command decode.
       if (s_uart_rx_valid) begin
-        if (r_cli_literal_pending) begin
+        if (I_RAW_RX_BYPASS) begin
+          O_CLI_RX_VALID        <= 1'b1;
+          O_CLI_RX_DATA         <= s_uart_rx_data;
+          r_cli_literal_pending <= 1'b0;
+        end else if (r_cli_literal_pending) begin
           O_CLI_RX_VALID        <= 1'b1;
           O_CLI_RX_DATA         <= s_uart_rx_data;
           r_cli_literal_pending <= 1'b0;
@@ -597,14 +612,16 @@ module uart_log_cli #(
       endcase
 
       // Pending flags update after system-queue arbitration.
-      if ((s_uart_rx_valid) && !r_cli_literal_pending &&
+      if (!I_RAW_RX_BYPASS &&
+          (s_uart_rx_valid) && !r_cli_literal_pending &&
           (s_uart_rx_data == CMD_SOFT_RESET)) begin
         r_reset_ack_pending <= 1'b1;
       end else if (s_reset_clear) begin
         r_reset_ack_pending <= 1'b0;
       end
 
-      if (!((s_uart_rx_valid) && !r_cli_literal_pending &&
+      if (!(!I_RAW_RX_BYPASS &&
+             (s_uart_rx_valid) && !r_cli_literal_pending &&
              (s_uart_rx_data == CMD_HELP))) begin
         if (s_help_line_step) begin
           if (r_help_pending_count != 0) begin
@@ -651,7 +668,13 @@ module uart_log_cli #(
       // TX_WAIT_DONE : waits for uart_tx_stream done pulse, then advances byte.
       case (r_tx_state)
         TX_IDLE: begin
-          if (r_frame_active && !s_uart_tx_busy) begin
+          if (I_RAW_TX_MODE && I_RAW_TX_VALID && !s_uart_tx_busy && !r_frame_active) begin
+            r_uart_tx_start <= 1'b1;
+            r_uart_tx_data  <= I_RAW_TX_DATA;
+            O_MIRROR_VALID  <= 1'b1;
+            O_MIRROR_DATA   <= I_RAW_TX_DATA;
+            r_tx_state      <= TX_WAIT_DONE;
+          end else if (r_frame_active && !s_uart_tx_busy && !I_RAW_TX_MODE) begin
             r_uart_tx_start <= 1'b1;
             O_MIRROR_VALID  <= 1'b1;
             O_MIRROR_DATA   <= r_uart_tx_data;

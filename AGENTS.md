@@ -49,10 +49,9 @@ This means increasing **information content** (not word count) so a reviewer can
 
 ### Signal types
 - All Lower case.
-- Prefix: `s_` (wire), `r_` (reg), `l_` (logic).
 
 ### Buffer Flip-flop
-- Incoming signal buffer: `r_signal` → `r_signal_q` → `r_signal_qq`.
+- Incoming signal buffer: `signal` → `signal_q` → `signal_qq`.
 
 ### State Machine
 - Prefix: `st_` (e.g., `st_state`, `st_nextstate`).
@@ -126,7 +125,263 @@ case (st_state) ... endcase
 **4.3.6) Comment every FSM block** - include default state and transition conditions.
 
 
-## 5) Simulation
+## 5. Logging Requirements for SystemVerilog Testbenches
+
+### 5.1 Purpose
+
+The testbench shall use structured logging with multiple verbosity levels so
+that:
+
+* normal regressions remain readable,
+* failures can be debugged efficiently by increasing verbosity,
+* log usage stays consistent across all testbench components.
+
+The default behavior shall avoid excessive output while still preserving
+enough information to localize failures.
+
+### 5.2 Supported Log Levels
+
+The testbench shall support:
+
+* `LOG_ERROR`
+* `LOG_WARN`
+* `LOG_INFO`
+* `LOG_DEBUG`
+* `LOG_TRACE`
+
+All components shall use these levels consistently.
+
+### 5.3 Log Level Definitions
+
+#### ERROR
+
+Use for definite testcase failures or specification violations.
+
+Typical cases:
+
+* expected vs actual mismatch
+* protocol violation
+* invalid DUT response
+* failing timeout
+* scoreboard mismatch
+
+#### WARN
+
+Use for suspicious or degraded behavior that does not immediately fail the
+testcase.
+
+Typical cases:
+
+* unusually slow response
+* retry or recovery path taken
+* fallback configuration used
+* transient `X` / `Z` observed but recovered
+* queue buildup or repeated backpressure
+* rare but legal behavior worth reviewing
+
+Rule:
+
+* Use `WARN` for "not failed, but suspicious".
+
+#### INFO
+
+Use for normal high-level progress messages.
+
+Typical cases:
+
+* testcase start/end
+* reset asserted/deasserted
+* environment initialized
+* sequence start/end
+* transaction summary
+* final pass/fail summary
+
+Rule:
+
+* Use `INFO` for "what is happening".
+
+#### DEBUG
+
+Use for detailed diagnostic information needed during failure analysis.
+
+Typical cases:
+
+* transaction field details
+* internal state transitions
+* expected value calculation details
+* queue depth
+* retry count, polling count, wait count
+* local decision context in driver, monitor, or scoreboard
+
+Rule:
+
+* Use `DEBUG` for "why it happened".
+
+#### TRACE
+
+Use only for very high-frequency step-by-step tracing.
+
+Typical cases:
+
+* per-cycle signal logging
+* per-beat bus activity
+* loop iteration tracing
+* task/function entry and exit
+* repeated polling output
+
+Rule:
+
+* Use `TRACE` for "show every step".
+
+### 5.4 Usage Rules
+
+* `INFO` shall be the default regression level.
+* `WARN` shall not be used for normal control flow.
+* `DEBUG` shall not be used for per-cycle logging.
+* `TRACE` shall normally be disabled in standard regression runs.
+* The same kind of event shall use the same log level across all components.
+
+### 5.5 Component Guidance
+
+#### Driver
+
+* `INFO`
+  : transaction start/end summary
+* `DEBUG`
+  : request details, local decisions
+* `TRACE`
+  : handshake waiting, low-level bus activity
+* `WARN`
+  : retries, delayed acceptance, fallback behavior
+
+#### Monitor
+
+* `INFO`
+  : captured transaction summary
+* `DEBUG`
+  : decoded fields and interpretation
+* `TRACE`
+  : per-beat / per-cycle observation
+* `WARN`
+  : suspicious but recoverable observations
+
+#### Scoreboard / Checker
+
+* `INFO`
+  : compare summary and aggregate progress
+* `DEBUG`
+  : expected / actual details and compare context
+* `ERROR`
+  : mismatch or violation
+* `WARN`
+  : delayed compare, queue backlog,
+  suspicious non-fatal condition
+
+#### Testcase / Sequence Control
+
+* `INFO`
+  : testcase / phase / scenario milestones
+* `DEBUG`
+  : parameter choices and control decisions
+* `WARN`
+  : degraded but recoverable execution
+
+### 5.6 Practical Decision Guide
+
+* Definite failure            -> `ERROR`
+* Suspicious but not failing  -> `WARN`
+* Normal progress             -> `INFO`
+* Diagnostic detail           -> `DEBUG`
+* Per-step tracing            -> `TRACE`
+
+---
+
+## 6. RTL Simulation Policy
+
+### 6.1 Purpose
+RTL simulation shall be performed in two stages:
+1. unit-level testing for each module,
+2. integration-level testing for the top RTL.
+
+The objective is to verify all functional behavior, including edge cases,
+before proceeding to full-system integration.
+
+### 6.2 Test Order Rule
+- The agent shall first create and execute unit tests for each module.
+- The agent shall not skip directly to integration testing.
+- Integration testing shall begin only after all target unit tests are
+  completed.
+
+### 6.3 Unit Test Requirements
+- A dedicated simulation folder shall be created under `03_sim/`
+  for each module.
+- Each unit test folder shall contain:
+  - a testbench top,
+  - one or more testcase files,
+  - required simulation scripts.
+- Unit tests shall be executed for every module.
+- Unit tests shall cover:
+  - all intended functional behavior,
+  - boundary conditions,
+  - abnormal and corner cases,
+  - interface timing edge cases,
+  - reset and initialization behavior.
+- Unit testing shall pursue thorough verification rather than minimal
+  testcase count.
+
+### 6.4 Integration Test Requirements
+- A dedicated integration test environment shall be created for the top RTL.
+- The integration test shall include:
+  - the top-level RTL,
+  - a top-level testbench,
+  - testcases that activate all subordinate units under the top RTL.
+- Integration tests shall exercise all major system functions and
+  inter-module interactions.
+- Integration tests shall confirm that the full design behavior matches the
+  expected top-level functionality.
+
+### 6.5 Logging Requirements for Simulation
+- All testbenches and testcases shall actively use `tb_log_pkg.sv`
+  and/or `eth_log_pkg`, where applicable.
+- Logging shall be used not only for failure reporting, but also for:
+  - testcase progress visibility,
+  - transaction tracing,
+  - internal state observation,
+  - efficient debug during failure analysis.
+- Logging usage shall follow the logging policy defined in this document.
+
+### 6.6 Simulation Folder Naming Rules
+- The integration test folder shall be named:
+
+  `01_[top_rtl_name]`
+
+- Unit test folders shall be named:
+
+  `[NN]_[module_name]`
+
+  where:
+  - `NN` is a two-digit decimal number,
+  - unit test numbering shall start after `01`,
+  - `01_...` shall be reserved exclusively for the integration test.
+
+### 6.7 Examples
+- Integration test:
+  - `03_sim/01_top_system`
+- Unit tests:
+  - `03_sim/02_uart_rx`
+  - `03_sim/03_uart_tx`
+  - `03_sim/04_csr_regs`
+
+### 6.8 Execution Rule
+- Test creation shall prioritize thoroughness over minimality.
+- Simulation plans shall explicitly identify and verify edge cases.
+- Each unit test shall be completed before relying on the same behavior only
+  from integration-level coverage.
+
+---
+
+
+## 7 Simulation
 
 ### Linux (Questa) - highest priority
 ```bash
@@ -146,9 +401,9 @@ python sim.py 01_uart\testbench.sv recompile
 Options: `recompile`, `openwave`, `log LEVEL`, `vsimpath PATH`, `+PLUSARGS`
 
 
-## 6) Synthesis with GOWIN EDA
+## 7 Synthesis with GOWIN EDA
 
-### 6.1) gowin_syn.sh wrapper (recommended) (Linux only)
+### 7.1 gowin_syn.sh wrapper (recommended) (Linux only)
 ```bash
 cd /home/kenji/git/tangmega60k_dev
 ./11_app/gowin_syn.sh syn       # synthesis only
@@ -158,7 +413,7 @@ cd /home/kenji/git/tangmega60k_dev
 ```
 - Success: `GowinSynthesis finish`, `Placement and routing completed`
 
-### 6.2) Direct gw_sh invocation (manual only) (Linux only)
+### 7.2 Direct gw_sh invocation (manual only) (Linux only)
 ```bash
 export GOWIN_EDA_HOME=/home/kenji/tools/gowin/eda-current/IDE
 export QT_QPA_PLATFORM=offscreen
@@ -166,7 +421,7 @@ export LD_PRELOAD=/lib/x86_64-linux-gnu/libfreetype.so.6
 ${GOWIN_EDA_HOME}/bin/gw_sh /tmp/gw_run_syn_only.tcl
 ```
 
-### 6.3) Common issues
+### 7.3 Common issues
 - **Linux License**: check `IDE/bin/gwlicense.ini`, verify network to
   `gowinlic.sipeed.com:10559`
 - **Linux Qt errors**: use `QT_QPA_PLATFORM=offscreen`
@@ -180,7 +435,7 @@ ${GOWIN_EDA_HOME}/bin/gw_sh /tmp/gw_run_syn_only.tcl
   `impl\gwsynthesis\<project>.vg`.
   On a clean project, run `run syn` first or use `run all`.
 
-### 6.4) Synthesis (Windows)
+### 7.4 Synthesis (Windows)
 Use the project file as the single entry point.
 
 - Gowin EDA executable:
@@ -205,7 +460,7 @@ Set-Content -Path $tcl -Value @(
   `05_impl\impl\gwsynthesis\tangnano20k_syn.rpt.html`
   `05_impl\impl\gwsynthesis\tangnano20k.log`
 
-### 6.5) Plan & Route (Windows)
+### 7.5 Plan & Route (Windows)
 Use `run pnr` only after synthesis output already exists.
 For a clean rebuild from synthesis through bitstream generation,
 prefer `run all`.
@@ -250,15 +505,15 @@ Set-Content -Path $tcl -Value @(
   `05_impl\impl\pnr\tangnano20k.fs`.
 
 
-## 7) Programming
+## 8 Programming
 
-### 7.1) Start sudo session (Linux only)
+### 8.1 Start sudo session (Linux only)
 ```bash
 cd /home/kenji/git/tangmega60k_dev
 ./11_app/sudo_session/sudo_session_start.sh
 ```
 
-### 7.2) Program FPGA (SRAM, temporary)
+### 8.2 Program FPGA (SRAM, temporary)
 
 #### Linux
 ```bash
@@ -293,12 +548,12 @@ cd /home/kenji/git/tangmega60k_dev
   `Status Code is: 0x00006020`
   `Finished.`
 
-### 7.3) Stop session (Linux only)
+### 8.3 Stop session (Linux only)
 ```bash
 cd /home/kenji/git/tangmega60k_dev
 ./11_app/sudo_session/sudo_session_stop.sh
 ```
 
-### 7.4) Notes
+### 8.4 Notes
 - `sudo_run.sh` uses `sudo -n` (non-interactive).
 - If session missing/expired: exit code 90, re-run `sudo_session_start.sh`.

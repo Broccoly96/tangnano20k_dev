@@ -2,7 +2,43 @@
  "Device" : "GW2AR-18C",
  "Files" : [
   {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/SDRAM_controller_top_SIP/SDRAM_controller_top_SIP.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/embedded_sdram/embedded_sdram.v",
+   "Type" : "verilog"
+  },
+  {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_pll/gowin_pll.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_memtest_ctrl.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_proto_pkg.sv",
    "Type" : "verilog"
   },
   {
@@ -14,6 +50,10 @@
    "Type" : "verilog"
   },
   {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+   "Type" : "verilog"
+  },
+  {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_lite/uart_rx_stream.sv",
    "Type" : "verilog"
   },
@@ -22,11 +62,11 @@
    "Type" : "verilog"
   },
   {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_pkg.sv",
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
    "Type" : "verilog"
   },
   {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_tap.sv",
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv",
    "Type" : "verilog"
   },
   {
@@ -34,15 +74,19 @@
    "Type" : "verilog"
   },
   {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_pkg.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_tap.sv",
+   "Type" : "verilog"
+  },
+  {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_testsrc1.sv",
-   "Type" : "verilog"
-  },
-  {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
-   "Type" : "verilog"
-  },
-  {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
    "Type" : "verilog"
   }
  ],

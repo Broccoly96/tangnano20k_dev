@@ -14,6 +14,7 @@ module uart_log_cli_byte_async_bridge #(
   input  logic       I_DST_RST_N,
   input  logic       I_SRC_VALID,
   input  logic [7:0] I_SRC_DATA,
+  output logic       O_SRC_READY,
   output logic       O_DST_VALID,
   output logic [7:0] O_DST_DATA,
   input  logic       I_DST_READY
@@ -55,6 +56,7 @@ module uart_log_cli_byte_async_bridge #(
   );
   assign s_fifo_empty = (r_rd_ptr_gray == r_wr_ptr_gray_sync2_dst);
   assign s_src_push   = I_SRC_VALID && !s_fifo_full;
+  assign O_SRC_READY  = !s_fifo_full;
   assign O_DST_VALID  = !s_fifo_empty;
   assign O_DST_DATA   = r_fifo_mem[r_rd_ptr_bin[ADDR_W-1:0]];
   assign s_dst_pop    = O_DST_VALID && I_DST_READY;

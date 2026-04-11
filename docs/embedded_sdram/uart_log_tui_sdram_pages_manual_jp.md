@@ -64,7 +64,8 @@
 1. 現在の source 選択状態を保存します。
 2. `src_id=0x03` の SDRAM host source に切り替えます。
 3. ベースアドレスから 64 word を順次 read します。
-4. 読み出した 256 byte を画面に反映します。
+4. `BR` コマンドで 64 word の bulk read session を開始します。
+5. raw binary block を受信して 256 byte を画面に反映します。
 5. 可能であれば元の source に戻します。
 
 注意:
@@ -95,7 +96,7 @@ SDRAM host interface を利用します。
 
 ### 4.2 動作
 
-- 指定アドレスに対して 32-bit word read を 1 回実行します。
+- ASCII `R <addr>` を送って 32-bit word read を 1 回実行します。
 - 応答は `READ_RSP` を待って結果欄に表示します。
 
 ### 4.3 表示
@@ -119,7 +120,7 @@ SDRAM host interface を利用します。
 
 ### 5.2 動作
 
-- 指定アドレスに対して 32-bit word write を 1 回実行します。
+- ASCII `W <addr> <data>` を送って 32-bit word write を 1 回実行します。
 - 応答は `WRITE_ACK` を待って結果欄に表示します。
 
 ### 5.3 表示
@@ -141,7 +142,8 @@ SDRAM host interface を利用します。
 - 現在 `SDRAM Map` 画面で指定されている
   ベースアドレスを開始位置として使います。
 - 読み出しサイズは固定で `256 byte` です。
-- 内部では 64 word の read を順次実行します。
+- 内部では ASCII `BR` で bulk read session を開始します。
+- 続いて raw binary block を受信して保存します。
 - 読み出したデータを raw binary として
   指定 path に保存します。
 
@@ -201,6 +203,8 @@ SDRAM host interface を利用します。
 
 ### 7.4 書き込み単位
 
+- まず ASCII `BW` で bulk write session を開始します。
+- 続いて raw binary block として payload を送ります。
 - SDRAM host IF は 32-bit word 単位で write します。
 - 入力ファイルは 4 byte ごとに 1 word へ変換します。
 - 変換時の byte order は little-endian です。
@@ -244,9 +248,10 @@ SDRAM host interface を利用します。
   `SDRAM Map` 画面のベースアドレスを使います。
 - `File Select Write` の開始アドレスは
   `File Select Write` 行のベースアドレス入力値を使います。
-- 大容量 file を指定した場合でも、現在の実装は
-  1 word ずつ逐次送受信します。
-  そのため速度は高速ではありません。
+- single read/write は ASCII 制御です。
+- map refresh / file read / file write は raw bulk path を使います。
+- bulk payload は `0x04`, `0x06`, `0x10`, `0x12`, `0x14`, `0x3F`
+  を含んでも CLI 制御文字として扱われません。
 
 
 ## 9. 推奨運用

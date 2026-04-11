@@ -1,0 +1,34 @@
+<?xml version="1" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW2AR-18C" pn="GW2AR-LV18QN88C8/I7">gw2ar18c-000</Device>
+    <FileList>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/SDRAM_controller_top_SIP/SDRAM_controller_top_SIP.v" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/embedded_sdram/embedded_sdram.v" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_pll/gowin_pll.v" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_memtest_ctrl.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_proto_pkg.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/reset_mng.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/sync_fifo_ae_af.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/05_impl/exp_cut/tangnano20k_top_awake_all.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_lite/uart_rx_stream.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_lite/uart_tx_stream.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_evt_fifo.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_pkg.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_tap.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_testsrc1.sv" type="file.verilog" enable="1"/>
+        <File path="src/tangnano20k.cst" type="file.cst" enable="1"/>
+        <File path="src/tangnano20k.sdc" type="file.sdc" enable="1"/>
+    </FileList>
+</Project>
+

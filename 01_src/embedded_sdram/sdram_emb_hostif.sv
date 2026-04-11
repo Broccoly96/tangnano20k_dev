@@ -12,6 +12,11 @@ module sdram_emb_hostif (
   input  logic        I_RST_N,
   input  logic        I_CLI_RX_VALID,
   input  logic [7:0]  I_CLI_RX_DATA,
+  output logic        O_RAW_RX_BYPASS,
+  output logic        O_RAW_TX_MODE,
+  output logic        O_RAW_TX_VALID,
+  output logic [7:0]  O_RAW_TX_DATA,
+  input  logic        I_RAW_TX_READY,
   output logic        O_TEST_EVT_VALID,
   output logic [7:0]  O_TEST_EVT_ID,
   output logic [31:0] O_TEST_EVT_ARG0,
@@ -63,6 +68,10 @@ module sdram_emb_hostif (
   logic        l_host_enable;
 
   assign l_host_enable = O_TEST_PASS || O_TEST_FAIL;
+  assign O_RAW_RX_BYPASS = 1'b0;
+  assign O_RAW_TX_MODE   = 1'b0;
+  assign O_RAW_TX_VALID  = 1'b0;
+  assign O_RAW_TX_DATA   = 8'h00;
 
   sdram_memtest_ctrl u_sdram_memtest_ctrl (
     .I_CLK           (I_CLK),
@@ -94,6 +103,11 @@ module sdram_emb_hostif (
     .I_ENABLE        (l_host_enable),
     .I_CLI_RX_VALID  (I_CLI_RX_VALID),
     .I_CLI_RX_DATA   (I_CLI_RX_DATA),
+    .O_RAW_RX_BYPASS (),
+    .O_RAW_TX_MODE   (),
+    .O_RAW_TX_VALID  (),
+    .O_RAW_TX_DATA   (),
+    .I_RAW_TX_READY  (I_RAW_TX_READY),
     .I_SDRC_INIT_DONE(O_INIT_DONE),
     .I_SDRC_BUSY_N   (l_sdrc_busy_n),
     .I_SDRC_RD_VALID (l_sdrc_rd_valid),
@@ -113,33 +127,33 @@ module sdram_emb_hostif (
     .O_CMD_BUSY      (O_HOST_BUSY)
   );
 
-  embedded_sdram u_embedded_sdram (
-    .O_sdram_clk        (O_sdram_clk),
-    .O_sdram_cke        (O_sdram_cke),
-    .O_sdram_cs_n       (O_sdram_cs_n),
-    .O_sdram_cas_n      (O_sdram_cas_n),
-    .O_sdram_ras_n      (O_sdram_ras_n),
-    .O_sdram_wen_n      (O_sdram_wen_n),
-    .O_sdram_dqm        (O_sdram_dqm),
-    .O_sdram_addr       (O_sdram_addr),
-    .O_sdram_ba         (O_sdram_ba),
-    .IO_sdram_dq        (IO_sdram_dq),
-    .I_sdrc_rst_n       (I_RST_N),
-    .I_sdrc_clk         (I_CLK),
-    .I_sdram_clk        (I_CLK),
-    .I_sdrc_selfrefresh (1'b0),
-    .I_sdrc_power_down  (1'b0),
-    .I_sdrc_wr_n        (l_host_enable ? l_host_wr_n : l_test_wr_n),
-    .I_sdrc_rd_n        (l_host_enable ? l_host_rd_n : l_test_rd_n),
-    .I_sdrc_addr        (l_host_enable ? l_host_addr : l_test_addr),
-    .I_sdrc_data_len    (l_host_enable ? l_host_data_len : l_test_data_len),
-    .I_sdrc_dqm         (l_host_enable ? l_host_dqm : l_test_dqm),
-    .I_sdrc_data        (l_host_enable ? l_host_wr_data : l_test_wr_data),
-    .O_sdrc_data        (l_sdrc_rd_data),
-    .O_sdrc_init_done   (O_INIT_DONE),
-    .O_sdrc_busy_n      (l_sdrc_busy_n),
-    .O_sdrc_rd_valid    (l_sdrc_rd_valid),
-    .O_sdrc_wrd_ack     (l_sdrc_wrd_ack)
-  );
+  // embedded_sdram u_embedded_sdram (
+  //   .O_sdram_clk        (O_sdram_clk),
+  //   .O_sdram_cke        (O_sdram_cke),
+  //   .O_sdram_cs_n       (O_sdram_cs_n),
+  //   .O_sdram_cas_n      (O_sdram_cas_n),
+  //   .O_sdram_ras_n      (O_sdram_ras_n),
+  //   .O_sdram_wen_n      (O_sdram_wen_n),
+  //   .O_sdram_dqm        (O_sdram_dqm),
+  //   .O_sdram_addr       (O_sdram_addr),
+  //   .O_sdram_ba         (O_sdram_ba),
+  //   .IO_sdram_dq        (IO_sdram_dq),
+  //   .I_sdrc_rst_n       (I_RST_N),
+  //   .I_sdrc_clk         (I_CLK),
+  //   .I_sdram_clk        (I_CLK),
+  //   .I_sdrc_selfrefresh (1'b0),
+  //   .I_sdrc_power_down  (1'b0),
+  //   .I_sdrc_wr_n        (l_host_enable ? l_host_wr_n : l_test_wr_n),
+  //   .I_sdrc_rd_n        (l_host_enable ? l_host_rd_n : l_test_rd_n),
+  //   .I_sdrc_addr        (l_host_enable ? l_host_addr : l_test_addr),
+  //   .I_sdrc_data_len    (l_host_enable ? l_host_data_len : l_test_data_len),
+  //   .I_sdrc_dqm         (l_host_enable ? l_host_dqm : l_test_dqm),
+  //   .I_sdrc_data        (l_host_enable ? l_host_wr_data : l_test_wr_data),
+  //   .O_sdrc_data        (l_sdrc_rd_data),
+  //   .O_sdrc_init_done   (O_INIT_DONE),
+  //   .O_sdrc_busy_n      (l_sdrc_busy_n),
+  //   .O_sdrc_rd_valid    (l_sdrc_rd_valid),
+  //   .O_sdrc_wrd_ack     (l_sdrc_wrd_ack)
+  // );
 
 endmodule

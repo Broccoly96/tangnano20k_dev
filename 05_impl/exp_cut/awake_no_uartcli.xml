@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module name="tangnano20k_top" Register="29" Lut="56" T_Register="624(29)" T_Alu="82(0)" T_Lut="901(56)" T_Bsram="1(0)">
+ <SubModule name="u0_gowin_pll"/>
+ <SubModule name="u0_reset_mng" Register="2" Lut="2" T_Register="2(2)" T_Lut="2(2)"/>
+ <SubModule name="u_sdram_emb_hostif_ctrl" Lut="49" T_Register="184(0)" T_Alu="32(0)" T_Lut="502(49)">
+  <SubModule name="u_sdram_memtest_ctrl" Register="130" Alu="32" Lut="344" T_Register="130(130)" T_Alu="32(32)" T_Lut="344(344)"/>
+  <SubModule name="u_sdram_uart_bridge_ctrl" T_Register="54(0)" T_Lut="109(0)">
+   <SubModule name="u_sdram_uart_access_engine" Register="54" Lut="109" T_Register="54(54)" T_Lut="109(109)"/>
+  </SubModule>
+ </SubModule>
+ <SubModule name="u_embedded_sdram" Register="409" Alu="50" Lut="341" Bsram="1" T_Register="409(409)" T_Alu="50(50)" T_Lut="341(341)" T_Bsram="1(1)"/>
+</Module>

@@ -4,6 +4,7 @@ module testbench;
 
   import uart_log_cli_tb_pkg::*;
   import tb_log_pkg::*;
+  import sdram_uart_proto_pkg::*;
 
   localparam int unsigned CLK_24M_HZ = 24_000_000;
   localparam int unsigned CLK_100M_HZ = 100_000_000;
@@ -61,6 +62,11 @@ module testbench;
 
   logic tb_cli_rx_valid;
   logic [7:0] tb_cli_rx_data;
+  logic tb_raw_rx_bypass;
+  logic tb_raw_tx_mode;
+  logic tb_raw_tx_valid;
+  logic [7:0] tb_raw_tx_data;
+  logic tb_raw_tx_ready;
   logic tb_sdram_init_done;
   logic tb_sdram_test_active;
   logic tb_sdram_test_pass;
@@ -77,6 +83,12 @@ module testbench;
   logic [10:0] tb_sdram_addr;
   logic [1:0]  tb_sdram_ba;
   wire  [31:0] tb_sdram_dq;
+  integer tb_cli_rx_count;
+  integer tb_host_evt_count;
+  integer tb_mirror_count;
+  integer tb_bulk_done_count;
+  logic tb_raw_rx_bypass_q;
+  logic tb_raw_tx_mode_q;
 
   assign tb_src_evt_valid[0] = tb_src0_evt_valid_100m;
   assign tb_src_evt_valid[1] = tb_src1_evt_valid_100m;
@@ -113,17 +125,95 @@ module testbench;
     tb_rst_24m_n = 1'b1;
     repeat (32) @(posedge tb_clk_100m);
     tb_rst_100m_n = 1'b1;
+    tb_cli_rx_count = 0;
+    tb_host_evt_count = 0;
+    tb_mirror_count = 0;
+    tb_bulk_done_count = 0;
+    tb_raw_rx_bypass_q = 1'b0;
+    tb_raw_tx_mode_q = 1'b0;
+  end
+
+  // Captures hostif-side activity so TRACE/DEBUG runs can correlate
+  // CLI ingress, raw streaming, and framed event timing in one log.
+  always_ff @(posedge tb_clk_100m) begin
+    if (tb_cli_rx_valid) begin
+      tb_cli_rx_count <= tb_cli_rx_count + 1;
+      tb_log_pkg::log_trace(
+        "SDRAM HOSTIF TB",
+        $sformatf(
+          "cli_rx data=0x%02h raw_rx_bypass=%0b raw_tx_mode=%0b host_busy=%0b",
+          tb_cli_rx_data,
+          tb_raw_rx_bypass,
+          tb_raw_tx_mode,
+          tb_sdram_host_busy
+        )
+      );
+    end
+    if (tb_src2_evt_valid_100m && tb_src_evt_ready[2]) begin
+      tb_host_evt_count <= tb_host_evt_count + 1;
+      tb_log_pkg::log_debug(
+        "SDRAM HOSTIF TB",
+        $sformatf(
+          "host_evt id=0x%02h arg0=0x%08h arg1=0x%08h arg2=0x%08h count=%0d",
+          tb_src2_evt_id_100m,
+          tb_src2_arg0_100m,
+          tb_src2_arg1_100m,
+          tb_src2_arg2_100m,
+          tb_host_evt_count + 1
+        )
+      );
+      if (tb_src2_evt_id_100m == EVT_BULK_DONE) begin
+        tb_bulk_done_count <= tb_bulk_done_count + 1;
+        tb_log_pkg::log_debug(
+          "SDRAM HOSTIF TB",
+          $sformatf("bulk_done_count=%0d", tb_bulk_done_count + 1)
+        );
+      end
+    end
+    if (tb_mirror_valid) begin
+      tb_mirror_count <= tb_mirror_count + 1;
+      tb_log_pkg::log_trace(
+        "SDRAM HOSTIF TB",
+        $sformatf("mirror_byte data=0x%02h count=%0d", tb_mirror_data, tb_mirror_count + 1)
+      );
+    end
+    if (tb_raw_tx_valid && tb_raw_tx_ready) begin
+      tb_log_pkg::log_trace(
+        "SDRAM HOSTIF TB",
+        $sformatf("raw_tx data=0x%02h", tb_raw_tx_data)
+      );
+    end
+    if (tb_raw_rx_bypass != tb_raw_rx_bypass_q) begin
+      tb_log_pkg::log_debug(
+        "SDRAM HOSTIF TB",
+        $sformatf("raw_rx_bypass -> %0b", tb_raw_rx_bypass)
+      );
+      tb_raw_rx_bypass_q <= tb_raw_rx_bypass;
+    end
+    if (tb_raw_tx_mode != tb_raw_tx_mode_q) begin
+      tb_log_pkg::log_debug(
+        "SDRAM HOSTIF TB",
+        $sformatf("raw_tx_mode -> %0b", tb_raw_tx_mode)
+      );
+      tb_raw_tx_mode_q <= tb_raw_tx_mode;
+    end
   end
 
   initial begin
-    #(25ms);
+    #(100ms);
     $fatal(
       1,
-      "embedded SDRAM hostif simulation timed out pass=%0b fail=%0b host_busy=%0b sel=%0d",
+      "embedded SDRAM hostif simulation timed out pass=%0b fail=%0b host_busy=%0b sel=%0d cli_rx=%0d host_evt=%0d mirror=%0d last_cli=0x%02h raw_rx_bypass=%0b raw_tx_mode=%0b",
       tb_sdram_test_pass,
       tb_sdram_test_fail,
       tb_sdram_host_busy,
-      u_uart_log_cli.r_log_src_sel
+      u_uart_log_cli.r_log_src_sel,
+      tb_cli_rx_count,
+      tb_host_evt_count,
+      tb_mirror_count,
+      tb_cli_rx_data,
+      tb_raw_rx_bypass,
+      tb_raw_tx_mode
     );
   end
 
@@ -168,6 +258,11 @@ module testbench;
     .I_RST_N(tb_rst_100m_n),
     .I_CLI_RX_VALID(tb_cli_rx_valid),
     .I_CLI_RX_DATA(tb_cli_rx_data),
+    .O_RAW_RX_BYPASS(tb_raw_rx_bypass),
+    .O_RAW_TX_MODE(tb_raw_tx_mode),
+    .O_RAW_TX_VALID(tb_raw_tx_valid),
+    .O_RAW_TX_DATA(tb_raw_tx_data),
+    .I_RAW_TX_READY(tb_raw_tx_ready),
     .O_TEST_EVT_VALID(tb_src1_evt_valid_100m),
     .O_TEST_EVT_ID(tb_src1_evt_id_100m),
     .O_TEST_EVT_ARG0(tb_src1_arg0_100m),
@@ -217,6 +312,11 @@ module testbench;
     .O_SOFT_RESET_REQ(),
     .O_STATUS_REQ_VALID(),
     .O_STATUS_REQ_KEY(),
+    .I_RAW_RX_BYPASS(tb_raw_rx_bypass),
+    .I_RAW_TX_MODE(tb_raw_tx_mode),
+    .I_RAW_TX_VALID(tb_raw_tx_valid),
+    .I_RAW_TX_DATA(tb_raw_tx_data),
+    .O_RAW_TX_READY(tb_raw_tx_ready),
     .O_CLI_RX_VALID(tb_cli_rx_valid),
     .O_CLI_RX_DATA(tb_cli_rx_data),
     .O_MIRROR_VALID(tb_mirror_valid),

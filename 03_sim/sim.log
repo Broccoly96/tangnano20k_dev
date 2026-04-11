@@ -1,5 +1,5 @@
 # vsim -c work.testbench -voptargs="+acc" "+TB_LOG_LEVEL=3" -do "run -all; quit -code 0" -l sim.log 
-# Start time: 13:25:30 on Apr 05,2026
+# Start time: 08:24:38 on Apr 11,2026
 # //  ModelSim - Lattice FPGA Edition 2023.3 Jul 18 2023
 # //
 # //  Copyright 1991-2023 Mentor Graphics Corporation
@@ -15,14 +15,8 @@
 # //
 # Loading sv_std.std
 # Loading work.tb_log_pkg
-# Loading work.uart_log_cli_pkg
-# Loading work.uart_log_cli_tb_pkg
+# Loading work.embedded_sdram_tb_pkg
 # Loading work.testbench
-# Loading work.uart_log_testsrc1
-# Loading work.uart_log_src_async_bridge
-# Loading work.sdram_emb_hostif
-# Loading work.sdram_memtest_ctrl
-# Loading work.sdram_uart_bridge_ctrl
 # Loading work.embedded_sdram
 # Loading work.VCC
 # Loading work.GND
@@ -49,22 +43,56 @@
 # Loading work.DFFP
 # Loading work.DFFPE
 # Loading work.SDPX9B
-# Loading work.uart_log_cli
-# Loading work.uart_rx_stream
-# Loading work.uart_tx_stream
-# Loading work.uart_log_cli_evt_fifo
-# Loading work.sync_fifo_ae_af
 # Loading work.MT48LC8M16A2
-# Loading work.uart_log_tap
 # Loading work.mux2
 # run -all
-# [0 ns][INFO ][SDRAM HOSTIF TB] waiting for self-test PASS before enabling host access
-# [208375 ns][INFO ][SDRAM HOSTIF TB] self-test PASS signal observed
-# [208375 ns][INFO ][SDRAM HOSTIF TB] switching source selection to SDRAM host interface
-# [1945265 ns][INFO ][SDRAM HOSTIF TB] issuing host WRITE addr=0x00012 data=0x0612143f
-# [8458365 ns][INFO ][SDRAM HOSTIF TB] issuing host READ addr=0x00012
-# [10455775 ns][INFO ][SDRAM HOSTIF TB] embedded SDRAM host interface smoke test passed
-# ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/05_embedded_sdram_hostif/testcase_smoke.svh(123)
-#    Time: 10455775 ns  Iteration: 4  Instance: /testbench
-# End time: 13:26:08 on Apr 05,2026, Elapsed time: 0:00:38
-# Errors: 0, Warnings: 0
+# [0 ns][INFO ][SDRAM UI PROBE TB] waiting for SDRAM initialization to complete
+# at time        15 ns ERROR: Bank 3 is not Precharged.
+# at time        15 ns ERROR: tMRD violation during Activate bank = 3
+# at time        15 ns ERROR: tRC violation during Activate bank = 3
+# at time        15 ns ERROR: Bank 3 is not Precharged.
+# at time        15 ns ERROR: tMRD violation during Activate bank = 3
+# at time        15 ns ERROR: tRC violation during Activate bank = 3
+# [1323 ns][INFO ][SDRAM UI PROBE TB] scenario 1: vendor-style 26-word burst write/read reference
+# at time      1545 ns ERROR: tRC violation during Auto Refresh
+# at time      1545 ns ERROR: tRC violation during Auto Refresh
+# at time      1555 ns ERROR: tRC violation during Auto Refresh
+# at time      1555 ns ERROR: tRC violation during Auto Refresh
+# at time      1565 ns ERROR: tRC violation during Auto Refresh
+# at time      1565 ns ERROR: tRC violation during Auto Refresh
+# at time      1575 ns ERROR: tRC violation during Auto Refresh
+# at time      1575 ns ERROR: tRC violation during Auto Refresh
+# at time      1965 ns ERROR: tRC violation during Auto Refresh
+# at time      1965 ns ERROR: tRC violation during Auto Refresh
+# at time      1975 ns ERROR: tRC violation during Auto Refresh
+# at time      1975 ns ERROR: tRC violation during Auto Refresh
+# at time      1985 ns ERROR: tRC violation during Auto Refresh
+# at time      1985 ns ERROR: tRC violation during Auto Refresh
+# at time      1995 ns ERROR: tRC violation during Auto Refresh
+# at time      1995 ns ERROR: tRC violation during Auto Refresh
+# at time      2385 ns ERROR: tMRD violation during Load Mode Register
+# at time      2385 ns ERROR: tMRD violation during Load Mode Register
+# at time      2395 ns ERROR: tMRD violation during Load Mode Register
+# at time      2395 ns ERROR: tMRD violation during Load Mode Register
+# at time      2405 ns ERROR: tMRD violation during Load Mode Register
+# at time      2405 ns ERROR: tMRD violation during Load Mode Register
+# at time      2415 ns ERROR: tMRD violation during Load Mode Register
+# at time      2415 ns ERROR: tMRD violation during Load Mode Register
+# at time      3815 ns ERROR: Bank 2 is not Precharged.
+# at time      3815 ns ERROR: Bank 2 is not Precharged.
+# at time      3825 ns ERROR: Bank 2 is not Precharged.
+# at time      3825 ns ERROR: Bank 2 is not Precharged.
+# at time      3835 ns ERROR: Bank 2 is not Precharged.
+# at time      3835 ns ERROR: Bank 2 is not Precharged.
+# at time      6425 ns ERROR: Bank 2 is not Precharged.
+# at time      6425 ns ERROR: Bank 2 is not Precharged.
+# at time      6435 ns ERROR: Bank 2 is not Precharged.
+# at time      6435 ns ERROR: Bank 2 is not Precharged.
+# at time      6445 ns ERROR: Bank 2 is not Precharged.
+# at time      6445 ns ERROR: Bank 2 is not Precharged.
+# ** Fatal: [6783 ns][FATAL][SDRAM TB PKG] scenario1 vendor-style burst mismatch beat=0 exp=0x51000000 act=0xxxxxxxxx
+#    Time: 6783 ns  Scope: tb_log_pkg.log_fatal File: ../02_tb/tb_log_pkg.sv Line: 109
+# ** Note: $finish    : ../02_tb/tb_log_pkg.sv(109)
+#    Time: 6783 ns  Iteration: 1  Instance: /testbench
+# End time: 08:24:40 on Apr 11,2026, Elapsed time: 0:00:02
+# Errors: 1, Warnings: 0

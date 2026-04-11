@@ -46,6 +46,43 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.query_one("#btn_file_write", Button).label.plain, "Write")
             self.assertEqual(app.query_one("#file_write_addr_input", Input).value, "0x00000")
 
+    async def test_map_refresh_reports_inop(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._start_map_refresh()
+            self.assertEqual(app._map_summary_text, "INOP: bulk path disabled")
+            self.assertFalse(app._map_refresh_active)
+
+    async def test_file_buttons_report_inop(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._start_file_write()
+            app._start_file_read_save()
+            self.assertEqual(app._rw_file_write_result, "INOP: bulk path disabled")
+            self.assertEqual(app._rw_file_read_result, "INOP: bulk path disabled")
+
 
 if __name__ == "__main__":
     unittest.main()

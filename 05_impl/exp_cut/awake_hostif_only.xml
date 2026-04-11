@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module name="tangnano20k_top" Register="29" Lut="61" T_Register="368(29)" T_Alu="50(0)" T_Lut="400(61)" T_Bsram="1(0)">
+ <SubModule name="u0_gowin_pll"/>
+ <SubModule name="u0_reset_mng" Register="2" Lut="2" T_Register="2(2)" T_Lut="2(2)"/>
+ <SubModule name="u_embedded_sdram" Register="337" Alu="50" Lut="337" Bsram="1" T_Register="337(337)" T_Alu="50(50)" T_Lut="337(337)" T_Bsram="1(1)"/>
+</Module>

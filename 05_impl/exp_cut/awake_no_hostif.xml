@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module name="tangnano20k_top" Register="29" Alu="25" Lut="38" T_Register="1627(29)" T_Alu="151(25)" T_Lut="1922(38)" T_Bsram="16(0)" T_Ssram="5(0)">
+ <SubModule name="u0_gowin_pll"/>
+ <SubModule name="u0_reset_mng" Register="2" Lut="2" T_Register="2(2)" T_Lut="2(2)"/>
+ <SubModule name="u_uart_log_testsrc1" Register="94" Alu="32" Lut="54" T_Register="94(94)" T_Alu="32(32)" T_Lut="54(54)"/>
+ <SubModule name="u_embedded_sdram" Register="337" Alu="50" Lut="337" Bsram="1" T_Register="337(337)" T_Alu="50(50)" T_Lut="337(337)" T_Bsram="1(1)"/>
+ <SubModule name="u_sdram_test_evt_bridge" Register="7" Lut="10" T_Register="7(7)" T_Lut="10(10)"/>
+ <SubModule name="u_sdram_host_evt_bridge" Register="7" Lut="11" T_Register="7(7)" T_Lut="11(11)"/>
+ <SubModule name="u_uart_log_cli" Register="755" Alu="32" Lut="1122" T_Register="1151(755)" T_Alu="44(32)" T_Lut="1470(1122)" T_Bsram="15(0)" T_Ssram="5(0)">
+  <SubModule name="u_uart_rx" Register="39" Lut="61" T_Register="39(39)" T_Lut="61(61)"/>
+  <SubModule name="u_uart_tx" Register="33" Lut="58" T_Register="33(33)" T_Lut="58(58)"/>
+  <SubModule name="g_log_tap[0].u_tap" Register="203" Lut="115" T_Register="203(203)" T_Lut="115(115)"/>
+  <SubModule name="g_log_tap[1].u_tap" Register="12" Lut="22" Ssram="5" T_Register="12(12)" T_Lut="22(22)" T_Ssram="5(5)"/>
+  <SubModule name="g_log_tap[2].u_tap" Register="75" Lut="18" T_Register="75(75)" T_Lut="18(18)"/>
+  <SubModule name="u_evt_fifo" T_Register="34(0)" T_Alu="12(0)" T_Lut="74(0)" T_Bsram="15(0)">
+   <SubModule name="u_sim_fifo" Register="34" Alu="12" Lut="74" Bsram="15" T_Register="34(34)" T_Alu="12(12)" T_Lut="74(74)" T_Bsram="15(15)"/>
+  </SubModule>
+ </SubModule>
+</Module>
