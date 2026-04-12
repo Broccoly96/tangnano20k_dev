@@ -7,18 +7,20 @@
 module reset_mng(
 // Input
     input           I_CLK_24M,
+    input           I_CLK_48M,
     input           I_PLL_LOCK,
     input           I_SOFT_RST_N,
 // Output
-    output reg      O_RST_FPGA_24M_N
+    output reg      O_RST_FPGA_24M_N,
+    output reg      O_RST_FPGA_48M_N
 );
 
 
-parameter FPGA_INIT_WAIT = 12000; // wait time counter. Default is 1ms @12MHz.
+parameter FPGA_INIT_WAIT = 240000; // wait time counter in clock cycles.
 
-reg [31:0]  s_cnt;
+reg [$clog2(FPGA_INIT_WAIT)-1:0]  s_cnt;
 reg         r_global_reset_n;
-reg         r_pcie_rst_n;
+reg         r_reset_48m_sync1_n;
 
 // FPGA Global Reset
 always @(posedge I_CLK_24M or negedge I_SOFT_RST_N) begin
@@ -43,6 +45,19 @@ end
 always @(posedge I_CLK_24M or negedge r_global_reset_n) begin
   if(~r_global_reset_n) O_RST_FPGA_24M_N <= 1'b0;
   else                  O_RST_FPGA_24M_N <= 1'b1;
+end
+
+//--------------------------------------------------------------------------------------
+// FPGA Reset (48MHz domain synchronized release)
+//--------------------------------------------------------------------------------------
+always @(posedge I_CLK_48M or negedge r_global_reset_n) begin
+  if(~r_global_reset_n) begin
+    r_reset_48m_sync1_n <= 1'b0;
+    O_RST_FPGA_48M_N    <= 1'b0;
+  end else begin
+    r_reset_48m_sync1_n <= O_RST_FPGA_24M_N;
+    O_RST_FPGA_48M_N    <= r_reset_48m_sync1_n;
+  end
 end
 
 

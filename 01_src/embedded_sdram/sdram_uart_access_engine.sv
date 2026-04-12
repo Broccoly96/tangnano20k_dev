@@ -2,7 +2,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 // File         : sdram_uart_access_engine.sv
 // Description  : SDRAM access engine for the UART host path.
-//                - Write requests remain single-word host writes.
+//                - Write requests are converted into a 26-word read-modify-
+//                  write burst on the SDRC user interface.
+//                - The write-side sequencer launches the first data beat in
+//                  the same cycle as `wr_n` and then streams exactly
+//                  `data_len + 1` total beats including that launch beat.
 //                - Read requests are serviced from a 26-word prefetch cache.
 //                - Cache misses trigger a 26-word SDRAM burst read that starts
 //                  at the requested address.
@@ -34,22 +38,7 @@ module sdram_uart_access_engine #(
   output logic        O_RSP_IS_WRITE,
   output logic [20:0] O_RSP_ADDR,
   output logic [31:0] O_RSP_DATA,
-  output logic [31:0] O_RSP_STATUS,
-  output logic        O_DBG_REQ_VALID,
-  output logic        O_DBG_REQ_IS_WRITE,
-  output logic [20:0] O_DBG_REQ_ADDR,
-  output logic [31:0] O_DBG_REQ_DATA,
-  output logic        O_DBG_ISSUE_VALID,
-  output logic        O_DBG_ISSUE_IS_WRITE,
-  output logic [20:0] O_DBG_ISSUE_ADDR,
-  output logic [7:0]  O_DBG_ISSUE_DATA_LEN,
-  output logic        O_DBG_WR_ACK_VALID,
-  output logic [20:0] O_DBG_WR_ACK_ADDR,
-  output logic [31:0] O_DBG_WR_ACK_DATA,
-  output logic        O_DBG_RD0_VALID,
-  output logic [20:0] O_DBG_RD0_BASE_ADDR,
-  output logic [20:0] O_DBG_RD0_REQ_ADDR,
-  output logic [31:0] O_DBG_RD0_DATA
+  output logic [31:0] O_RSP_STATUS
 );
 
   import sdram_uart_proto_pkg::*;
@@ -67,7 +56,7 @@ module sdram_uart_access_engine #(
   localparam int unsigned TIMEOUT_W = (RESP_TIMEOUT_CYCLES <= 1) ? 1 :
                                       $clog2(RESP_TIMEOUT_CYCLES + 1);
   localparam int unsigned BURST_CNT_W = $clog2(BURST_WORDS + 1);
-  localparam int unsigned WRITE_STREAM_CYCLES = BURST_WORDS + 2;
+  localparam int unsigned WRITE_STREAM_CYCLES = BURST_WORDS - 1;
   localparam int unsigned WR_CYCLE_W = $clog2(WRITE_STREAM_CYCLES + 1);
 
   typedef enum logic [2:0] {
@@ -102,22 +91,6 @@ module sdram_uart_access_engine #(
   logic [20:0] r_rsp_addr;
   logic [31:0] r_rsp_data;
   logic [31:0] r_rsp_status;
-  logic        r_dbg_req_valid;
-  logic        r_dbg_req_is_write;
-  logic [20:0] r_dbg_req_addr;
-  logic [31:0] r_dbg_req_data;
-  logic        r_dbg_issue_valid;
-  logic        r_dbg_issue_is_write;
-  logic [20:0] r_dbg_issue_addr;
-  logic [7:0]  r_dbg_issue_data_len;
-  logic        r_dbg_wr_ack_valid;
-  logic [20:0] r_dbg_wr_ack_addr;
-  logic [31:0] r_dbg_wr_ack_data;
-  logic        r_dbg_rd0_valid;
-  logic [20:0] r_dbg_rd0_base_addr;
-  logic [20:0] r_dbg_rd0_req_addr;
-  logic [31:0] r_dbg_rd0_data;
-
   logic        r_cache_valid;
   logic [20:0] r_cache_base_addr;
   logic [31:0] r_cache_words [0:BURST_WORDS-1];
@@ -127,67 +100,57 @@ module sdram_uart_access_engine #(
   logic [20:0] s_cache_addr_limit;
   logic [4:0]  s_cache_index;
 
-  assign s_cache_addr_limit = r_cache_base_addr + BURST_WORDS;
-  assign s_cache_hit = r_cache_valid &&
-                       (I_REQ_ADDR >= r_cache_base_addr) &&
-                       (I_REQ_ADDR < s_cache_addr_limit);
-  assign s_cache_index = I_REQ_ADDR - r_cache_base_addr;
-  assign s_write_stream_data = r_cache_words[r_write_word_index];
+  assign s_cache_addr_limit   = r_cache_base_addr + BURST_WORDS;
+  assign s_cache_hit          = r_cache_valid && (I_REQ_ADDR >= r_cache_base_addr) && (I_REQ_ADDR < s_cache_addr_limit);
+  assign s_cache_index        = I_REQ_ADDR - r_cache_base_addr;
+  assign s_write_stream_data  = r_cache_words[r_write_word_index];
 
-  assign O_REQ_READY = (st_state == ST_IDLE) && !r_rsp_valid;
-  assign O_SDRC_ADDR = (st_state == ST_READ_REQ || st_state == ST_READ_WAIT ||
-                        st_state == ST_WRITE_FILL_REQ || st_state == ST_WRITE_FILL_WAIT ||
-                        st_state == ST_WRITE_BURST_REQ || st_state == ST_WRITE_BURST_RUN) ?
-                       r_read_burst_addr : r_req_addr;
-  assign O_SDRC_DATA_LEN = (st_state == ST_READ_REQ || st_state == ST_READ_WAIT ||
-                            st_state == ST_WRITE_FILL_REQ || st_state == ST_WRITE_FILL_WAIT ||
-                            st_state == ST_WRITE_BURST_REQ || st_state == ST_WRITE_BURST_RUN) ?
-                           8'(BURST_LEN_M1) : 8'h00;
-  assign O_SDRC_DQM = 4'h0;
-  assign O_SDRC_WR_DATA = s_write_stream_data;
-  assign O_SDRC_WR_N =
-    (st_state == ST_WRITE_BURST_REQ && I_SDRC_BUSY_N) ? 1'b0 : 1'b1;
-  assign O_SDRC_RD_N =
-    ((st_state == ST_READ_REQ || st_state == ST_WRITE_FILL_REQ) && I_SDRC_BUSY_N) ? 1'b0 : 1'b1;
+  assign O_REQ_READY          = (st_state == ST_IDLE) && !r_rsp_valid;
+  assign O_SDRC_ADDR          = (st_state == ST_READ_REQ || st_state == ST_READ_WAIT ||
+                                  st_state == ST_WRITE_FILL_REQ || st_state == ST_WRITE_FILL_WAIT ||
+                                  st_state == ST_WRITE_BURST_REQ || st_state == ST_WRITE_BURST_RUN) ?
+                                  r_read_burst_addr : r_req_addr;
+  assign O_SDRC_DATA_LEN      = (st_state == ST_READ_REQ || st_state == ST_READ_WAIT ||
+                                  st_state == ST_WRITE_FILL_REQ || st_state == ST_WRITE_FILL_WAIT ||
+                                  st_state == ST_WRITE_BURST_REQ || st_state == ST_WRITE_BURST_RUN) ?
+                                  8'(BURST_LEN_M1) : 8'h00;
+  assign O_SDRC_DQM           = 4'h0;
+  assign O_SDRC_WR_DATA       = s_write_stream_data;
+  assign O_SDRC_WR_N          = (st_state == ST_WRITE_BURST_REQ && I_SDRC_BUSY_N) ? 1'b0 : 1'b1;
+  assign O_SDRC_RD_N          = ((st_state == ST_READ_REQ || st_state == ST_WRITE_FILL_REQ) && I_SDRC_BUSY_N) ? 1'b0 : 1'b1;
 
-  assign O_RSP_VALID = r_rsp_valid;
+  assign O_RSP_VALID    = r_rsp_valid;
   assign O_RSP_IS_WRITE = r_rsp_is_write;
-  assign O_RSP_ADDR = r_rsp_addr;
-  assign O_RSP_DATA = r_rsp_data;
-  assign O_RSP_STATUS = r_rsp_status;
-  assign O_DBG_REQ_VALID      = r_dbg_req_valid;
-  assign O_DBG_REQ_IS_WRITE   = r_dbg_req_is_write;
-  assign O_DBG_REQ_ADDR       = r_dbg_req_addr;
-  assign O_DBG_REQ_DATA       = r_dbg_req_data;
-  assign O_DBG_ISSUE_VALID    = r_dbg_issue_valid;
-  assign O_DBG_ISSUE_IS_WRITE = r_dbg_issue_is_write;
-  assign O_DBG_ISSUE_ADDR     = r_dbg_issue_addr;
-  assign O_DBG_ISSUE_DATA_LEN = r_dbg_issue_data_len;
-  assign O_DBG_WR_ACK_VALID   = r_dbg_wr_ack_valid;
-  assign O_DBG_WR_ACK_ADDR    = r_dbg_wr_ack_addr;
-  assign O_DBG_WR_ACK_DATA    = r_dbg_wr_ack_data;
-  assign O_DBG_RD0_VALID      = r_dbg_rd0_valid;
-  assign O_DBG_RD0_BASE_ADDR  = r_dbg_rd0_base_addr;
-  assign O_DBG_RD0_REQ_ADDR   = r_dbg_rd0_req_addr;
-  assign O_DBG_RD0_DATA       = r_dbg_rd0_data;
+  assign O_RSP_ADDR     = r_rsp_addr;
+  assign O_RSP_DATA     = r_rsp_data;
+  assign O_RSP_STATUS   = r_rsp_status;
 
 `ifdef SIM
   function automatic string state_to_string(input st_state_e state_value);
     case (state_value)
-      ST_IDLE:       return "ST_IDLE";
+      ST_IDLE:            return "ST_IDLE";
       ST_WRITE_FILL_REQ:  return "ST_WRITE_FILL_REQ";
       ST_WRITE_FILL_WAIT: return "ST_WRITE_FILL_WAIT";
       ST_WRITE_BURST_REQ: return "ST_WRITE_BURST_REQ";
       ST_WRITE_BURST_RUN: return "ST_WRITE_BURST_RUN";
-      ST_READ_REQ:   return "ST_READ_REQ";
-      ST_READ_WAIT:  return "ST_READ_WAIT";
-      ST_RESPOND:    return "ST_RESPOND";
-      default:       return "ST_UNKNOWN";
+      ST_READ_REQ:        return "ST_READ_REQ";
+      ST_READ_WAIT:       return "ST_READ_WAIT";
+      ST_RESPOND:         return "ST_RESPOND";
+      default:            return "ST_UNKNOWN";
     endcase
   endfunction
 `endif
 
   // Holds the access engine state, response registers, and read cache.
+  // Write sequencing rule:
+  //  - ST_WRITE_BURST_REQ launches `wr_n` for one cycle while presenting
+  //    beat 0 on `O_SDRC_WR_DATA`.
+  //  - The same edge preloads beat 1 so the next cycle presents the second
+  //    data word without repeating beat 0.
+  //  - After the final post-launch beat is presented, the last word is held
+  //    stable until `busy_n` returns high.
+  //  - Completion waits for the requested beat count to be streamed,
+  //    `WRD_ACK` to be observed, and the controller to return idle.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
       st_state          <= ST_IDLE;
@@ -209,21 +172,6 @@ module sdram_uart_access_engine #(
       r_rsp_addr        <= '0;
       r_rsp_data        <= '0;
       r_rsp_status      <= '0;
-      r_dbg_req_valid   <= 1'b0;
-      r_dbg_req_is_write<= 1'b0;
-      r_dbg_req_addr    <= '0;
-      r_dbg_req_data    <= '0;
-      r_dbg_issue_valid <= 1'b0;
-      r_dbg_issue_is_write <= 1'b0;
-      r_dbg_issue_addr  <= '0;
-      r_dbg_issue_data_len <= '0;
-      r_dbg_wr_ack_valid <= 1'b0;
-      r_dbg_wr_ack_addr <= '0;
-      r_dbg_wr_ack_data <= '0;
-      r_dbg_rd0_valid   <= 1'b0;
-      r_dbg_rd0_base_addr <= '0;
-      r_dbg_rd0_req_addr <= '0;
-      r_dbg_rd0_data    <= '0;
       r_cache_valid     <= 1'b0;
       r_cache_base_addr <= '0;
       for (int idx = 0; idx < BURST_WORDS; idx++) begin
@@ -231,11 +179,6 @@ module sdram_uart_access_engine #(
       end
     end else begin
       r_prev_state <= st_state;
-      r_dbg_req_valid   <= 1'b0;
-      r_dbg_issue_valid <= 1'b0;
-      r_dbg_wr_ack_valid<= 1'b0;
-      r_dbg_rd0_valid   <= 1'b0;
-
       if (r_rsp_valid && I_RSP_READY) begin
         r_rsp_valid <= 1'b0;
       end
@@ -289,10 +232,6 @@ module sdram_uart_access_engine #(
               r_rsp_status   <= 32'h0;
               st_state       <= ST_RESPOND;
             end else begin
-              r_dbg_req_valid    <= 1'b1;
-              r_dbg_req_is_write <= I_REQ_IS_WRITE;
-              r_dbg_req_addr     <= I_REQ_ADDR;
-              r_dbg_req_data     <= I_REQ_DATA;
               r_first_read_data <= 32'h0;
               if (I_REQ_IS_WRITE) begin
                 if (s_cache_hit) begin
@@ -316,6 +255,7 @@ module sdram_uart_access_engine #(
         ST_WRITE_FILL_REQ: begin
           r_timeout_cnt    <= '0;
           r_cycle_cnt      <= '0;
+          r_busy_seen_low  <= 1'b0;
           r_wrd_ack_seen   <= 1'b0;
           if (I_SDRC_BUSY_N) begin
             `SDRAM_ACCESS_LOG_TRACE(
@@ -325,10 +265,6 @@ module sdram_uart_access_engine #(
                 BURST_WORDS
               )
             );
-            r_dbg_issue_valid    <= 1'b1;
-            r_dbg_issue_is_write <= 1'b0;
-            r_dbg_issue_addr     <= r_read_burst_addr;
-            r_dbg_issue_data_len <= 8'(BURST_LEN_M1);
             st_state <= ST_WRITE_FILL_WAIT;
           end
         end
@@ -343,18 +279,13 @@ module sdram_uart_access_engine #(
             end
             if (r_read_word_count == 0) begin
               r_first_read_data <= I_SDRC_RD_DATA;
-              r_dbg_rd0_valid      <= 1'b1;
-              r_dbg_rd0_base_addr  <= r_read_burst_addr;
-              r_dbg_rd0_req_addr   <= r_req_addr;
-              r_dbg_rd0_data       <= I_SDRC_RD_DATA;
             end
             if (r_read_word_count < BURST_WORDS) begin
               r_read_word_count <= r_read_word_count + 1'b1;
             end
           end
 
-          if (r_busy_seen_low && I_SDRC_BUSY_N &&
-              (r_read_word_count >= BURST_WORDS)) begin
+          if (r_read_word_count >= BURST_WORDS && r_busy_seen_low && I_SDRC_BUSY_N) begin
             r_cache_valid <= 1'b1;
             r_cache_base_addr <= r_read_burst_addr;
             r_cache_words[r_write_update_index] <= r_req_data;
@@ -375,8 +306,8 @@ module sdram_uart_access_engine #(
         ST_WRITE_BURST_REQ: begin
           r_timeout_cnt      <= '0;
           r_cycle_cnt        <= '0;
-          r_wrd_ack_seen     <= 1'b0;
           r_busy_seen_low    <= 1'b0;
+          r_wrd_ack_seen     <= 1'b0;
           r_write_word_index <= '0;
           if (I_SDRC_BUSY_N) begin
             `SDRAM_ACCESS_LOG_TRACE(
@@ -388,10 +319,10 @@ module sdram_uart_access_engine #(
                 r_req_data
               )
             );
-            r_dbg_issue_valid    <= 1'b1;
-            r_dbg_issue_is_write <= 1'b1;
-            r_dbg_issue_addr     <= r_read_burst_addr;
-            r_dbg_issue_data_len <= 8'(BURST_LEN_M1);
+            r_cycle_cnt        <= '0;
+            if (BURST_WORDS > 1) begin
+              r_write_word_index <= 5'd1;
+            end
             st_state <= ST_WRITE_BURST_RUN;
           end
         end
@@ -402,26 +333,24 @@ module sdram_uart_access_engine #(
           end
           if (I_SDRC_WRD_ACK && !r_wrd_ack_seen) begin
             r_wrd_ack_seen     <= 1'b1;
-            r_dbg_wr_ack_valid <= 1'b1;
-            r_dbg_wr_ack_addr  <= r_req_addr;
-            r_dbg_wr_ack_data  <= r_req_data;
           end
 
           if (r_cycle_cnt < WRITE_STREAM_CYCLES) begin
             r_cycle_cnt <= r_cycle_cnt + 1'b1;
-            if (r_write_word_index < (BURST_WORDS - 1)) begin
+            if (r_cycle_cnt < (BURST_WORDS - 2)) begin
               r_write_word_index <= r_write_word_index + 1'b1;
             end
           end
 
-          if ((r_cycle_cnt >= WRITE_STREAM_CYCLES) &&
-              r_busy_seen_low && I_SDRC_BUSY_N && r_wrd_ack_seen) begin
+          if ((r_cycle_cnt >= WRITE_STREAM_CYCLES) && r_busy_seen_low &&
+              r_wrd_ack_seen && I_SDRC_BUSY_N) begin
             `SDRAM_ACCESS_LOG_DEBUG(
               $sformatf(
-                "write_burst_done base=0x%05h req=0x%05h data=0x%08h",
+                "write_burst_done base=0x%05h req=0x%05h data=0x%08h cycles=%0d",
                 r_read_burst_addr,
                 r_req_addr,
-                r_req_data
+                r_req_data,
+                WRITE_STREAM_CYCLES
               )
             );
             r_rsp_valid    <= 1'b1;
@@ -433,7 +362,7 @@ module sdram_uart_access_engine #(
           end else if (r_timeout_cnt == RESP_TIMEOUT_CYCLES - 1) begin
             `SDRAM_ACCESS_LOG_DEBUG(
               $sformatf(
-                "write_burst_timeout base=0x%05h req=0x%05h ack_seen=%0b busy_n=%0b cycles=%0d",
+                "write_burst_timeout base=0x%05h req=0x%05h ack_seen=%0b busy_n=%0b beats_seen=%0d",
                 r_read_burst_addr,
                 r_req_addr,
                 r_wrd_ack_seen,
@@ -457,6 +386,7 @@ module sdram_uart_access_engine #(
           r_timeout_cnt     <= '0;
           r_cycle_cnt       <= '0;
           r_read_word_count <= '0;
+          r_busy_seen_low   <= 1'b0;
           if (I_SDRC_BUSY_N) begin
             `SDRAM_ACCESS_LOG_TRACE(
               $sformatf(
@@ -465,10 +395,6 @@ module sdram_uart_access_engine #(
                 BURST_WORDS
               )
             );
-            r_dbg_issue_valid    <= 1'b1;
-            r_dbg_issue_is_write <= 1'b0;
-            r_dbg_issue_addr     <= r_read_burst_addr;
-            r_dbg_issue_data_len <= 8'(BURST_LEN_M1);
             st_state <= ST_READ_WAIT;
           end
         end
@@ -477,17 +403,12 @@ module sdram_uart_access_engine #(
           if (!I_SDRC_BUSY_N) begin
             r_busy_seen_low <= 1'b1;
           end
-
           if (I_SDRC_RD_VALID) begin
             if (r_read_word_count < BURST_WORDS) begin
               r_cache_words[r_read_word_count] <= I_SDRC_RD_DATA;
             end
             if (r_read_word_count == 0) begin
               r_first_read_data <= I_SDRC_RD_DATA;
-              r_dbg_rd0_valid      <= 1'b1;
-              r_dbg_rd0_base_addr  <= r_read_burst_addr;
-              r_dbg_rd0_req_addr   <= r_req_addr;
-              r_dbg_rd0_data       <= I_SDRC_RD_DATA;
             end
             `SDRAM_ACCESS_LOG_DEBUG(
               $sformatf(
@@ -502,8 +423,7 @@ module sdram_uart_access_engine #(
             end
           end
 
-          if (r_busy_seen_low && I_SDRC_BUSY_N &&
-              (r_read_word_count >= BURST_WORDS)) begin
+          if (r_read_word_count >= BURST_WORDS && r_busy_seen_low && I_SDRC_BUSY_N) begin
             `SDRAM_ACCESS_LOG_DEBUG(
               $sformatf(
                 "read_burst_done base=0x%05h words=%0d first=0x%08h",

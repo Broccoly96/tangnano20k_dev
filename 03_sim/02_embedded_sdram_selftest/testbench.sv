@@ -6,12 +6,12 @@ module testbench;
   import tb_log_pkg::*;
 
   localparam int unsigned CLK_24M_HZ = 24_000_000;
-  localparam int unsigned CLK_100M_HZ = 100_000_000;
+  localparam int unsigned CLK_100M_HZ = 48_000_000;
   localparam int unsigned BAUD = 115_200;
   localparam int unsigned NUM_SRC = 2;
   localparam int unsigned TESTSRC_PERIOD_CYCLES = 120_000;
   localparam time CLK_24M_PERIOD = 41667ps;
-  localparam time CLK_100M_PERIOD = 10ns;
+  localparam time CLK_100M_PERIOD = 20833ps;
   localparam time UART_BIT_PERIOD = 8681ns;
 
   logic tb_clk_24m;
@@ -101,7 +101,7 @@ module testbench;
   end
 
   initial begin
-    #(20ms);
+    #(50ms);
     $display(
       "timeout debug: sel=%0d src_en=%b init=%0b active=%0b pass=%0b fail=%0b state=%0d busy_n=%0b wr_n=%0b rd_n=%0b wr_ack=%0b rd_valid=%0b addr=%h wr_data=%h rd_data=%h",
       u_uart_log_cli.r_log_src_sel,
@@ -223,7 +223,9 @@ module testbench;
     .I_DST_EVT_READY(tb_src_evt_ready[0])
   );
 
-  sdram_emb_selftest u_sdram_emb_selftest (
+  sdram_emb_selftest #(
+    .MEMTEST_CLEAR_WORDS(1024)
+  ) u_sdram_emb_selftest (
     .I_CLK(tb_clk_100m),
     .I_RST_N(tb_rst_100m_n),
     .O_EVT_VALID(tb_src1_evt_valid_100m),

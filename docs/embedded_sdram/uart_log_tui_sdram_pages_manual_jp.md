@@ -1,265 +1,163 @@
 # UART Log TUI SDRAM Pages Manual
 
-本書は `uart_log_tui` に追加した
-`SDRAM Map` / `SDRAM RW` ページの操作方法と、
-ファイル入出力仕様をまとめたマニュアルです。
+本書は `uart_log_tui` の `SDRAM Map` と `SDRAM RW` の
+現行動作をまとめたマニュアルです。
 
 対象ファイル:
 - `11_app/uart_log_tool/debug_log_tool/uart_log_tui.py`
 
+## 1. 現行 host protocol の状態
 
-## 1. 画面構成
+- 現在正式に有効なのは single access のみです。
+- `Single Address Read` は ASCII `R <addr>` を使います。
+- `Single Address Write` は ASCII `W <addr> <data>` を使います。
+- bulk transfer は host tool 側で無効化されています。
+- `SRAM Map`、`File Select Read`、`File Select Write` の枠は
+  画面上に残ります。
+- ただし、これらのボタンを押しても SDRAM 転送は始まらず、
+  `INOP: bulk path disabled`
+  を表示します。
 
-`uart_log_tui` の左端には縦メニューバーがあります。
-以下の 3 画面を切り替えます。
+## 2. 起動時動作
 
-- `1 Log`
-  既存の UART log 画面です。
-- `2 SDRAM Map`
-  SDRAM の 256-byte 窓を可視化する画面です。
-- `3 SDRAM RW`
-  SDRAM の single read/write と
-  file read/write を行う画面です。
+- FPGA 書き込み後、embedded SDRAM host path は
+  `write pattern -> read verify -> full zero clear`
+  を順に実行します。
+- `SDRAM_TEST_PASS` は、
+  verify 成功に加えて full zero clear 完了まで含みます。
+- そのため、未書き込み領域は self-test pass 後に
+  `0x00000000` を返します。
+- 以前の verify-only 構成よりも、
+  host access が有効になるまでの時間は少し長くなります。
 
+## 3. SDRAM Map 画面
 
-## 2. SDRAM Map 画面
+### 3.1 画面要素
 
-### 2.1 機能
-
-`SDRAM Map` 画面には以下があります。
-
-- ベースアドレス入力欄
+- Base Address 入力欄
 - `Refresh` ボタン
-- マップ表示エリア
+- 64-word 表示エリア
 
-### 2.2 表示範囲
+### 3.2 表示窓
 
-- 1 回の refresh で 64 word, 256 byte を表示します。
-- ベースアドレスを左上起点とします。
-- 横方向は `+0x00, +0x04, +0x08, +0x0C`
-- 縦方向は `+0x00, +0x10, +0x20 ... +0xF0`
+- 1 画面は `64 word = 256 byte` 固定です。
+- アドレス単位は 32-bit word address です。
+- 1 行に 4 word を表示します。
 
-### 2.3 表示形式
+### 3.3 現行動作
 
-`SDRAM Map` は 4 byte を 1 word として固定表示します。
+- 画面レイアウト自体は維持されています。
+- ただし現在の phase では map refresh は無効です。
+- `Refresh` を押すと
+  `INOP: bulk path disabled`
+  を表示します。
+- したがって、現在の `SDRAM Map` は
+  画面枠を残した暫定 UI です。
 
-- 4 byte は little-endian として 32-bit 値へ束ねます。
-- 表示単位は 32-bit hex 8 桁です。
-- 1 行あたり 4 word を表示します。
+## 4. SDRAM RW 画面
 
-例:
-- `base+0x00 = 00`
-- `base+0x01 = 01`
-- `base+0x02 = 02`
-- `base+0x03 = 03`
-
-この場合、表示は
-`03020100`
-になります。
-
-### 2.4 Refresh 動作
-
-`Refresh` 実行時の動作は以下です。
-
-1. 現在の source 選択状態を保存します。
-2. `src_id=0x03` の SDRAM host source に切り替えます。
-3. ベースアドレスから 64 word を順次 read します。
-4. `BR` コマンドで 64 word の bulk read session を開始します。
-5. raw binary block を受信して 256 byte を画面に反映します。
-5. 可能であれば元の source に戻します。
-
-注意:
-- 実装上、read は 32-bit word 単位です。
-- 表示更新も 4 byte 単位の固定フォーマットです。
-
-
-## 3. SDRAM RW 画面
-
-`SDRAM RW` 画面には以下 4 つの枠があります。
+`SDRAM RW` 画面には以下 4 枠があります。
 
 - `Single Address Read`
 - `Single Address Write`
 - `File Select Read`
 - `File Select Write`
 
-各枠の内部処理はすべて `src_id=0x03` の
-SDRAM host interface を利用します。
+このうち、現在有効なのは single read/write のみです。
 
+## 5. Single Address Read
 
-## 4. Single Address Read
-
-### 4.1 行構成
+### 5.1 UI 構成
 
 - `Read` ボタン
 - Address 入力欄
-- Read 内容表示欄
+- 結果表示欄
 
-### 4.2 動作
+### 5.2 動作
 
-- ASCII `R <addr>` を送って 32-bit word read を 1 回実行します。
-- 応答は `READ_RSP` を待って結果欄に表示します。
+- TUI は SDRAM host source `src_id = 0x03` に切り替えます。
+- ASCII `R <addr>` を送信します。
+- `READ_RSP (0x31)` を待って結果を表示します。
 
-### 4.3 表示
-
-結果欄には以下形式で表示します。
+### 5.3 表示形式
 
 - `0xAAAAA -> 0xDDDDDDDD`
 
 ここで
-- `AAAAA` は 21-bit アドレス
+
+- `AAAAA` は 21-bit SDRAM word address
 - `DDDDDDDD` は 32-bit read 値
 
+です。
 
-## 5. Single Address Write
+## 6. Single Address Write
 
-### 5.1 行構成
+### 6.1 UI 構成
 
 - `Write` ボタン
 - Address 入力欄
-- Write 内容入力欄
-
-### 5.2 動作
-
-- ASCII `W <addr> <data>` を送って 32-bit word write を 1 回実行します。
-- 応答は `WRITE_ACK` を待って結果欄に表示します。
-
-### 5.3 表示
-
-結果欄には以下形式で表示します。
-
-- `0xDDDDDDDD -> 0xAAAAA OK`
-
-
-## 6. File Select Read
-
-### 6.1 行構成
-
-- `Read` ボタン
-- File path 入力欄
+- Data 入力欄
+- 結果表示欄
 
 ### 6.2 動作
 
-- 現在 `SDRAM Map` 画面で指定されている
-  ベースアドレスを開始位置として使います。
-- 読み出しサイズは固定で `256 byte` です。
-- 内部では ASCII `BR` で bulk read session を開始します。
-- 続いて raw binary block を受信して保存します。
-- 読み出したデータを raw binary として
-  指定 path に保存します。
+- TUI は SDRAM host source `src_id = 0x03` に切り替えます。
+- ASCII `W <addr> <data>` を送信します。
+- `WRITE_ACK (0x30)` を待って結果を表示します。
 
-### 6.3 出力ファイル形式
+### 6.3 表示形式
 
-保存形式は **生バイナリファイル** です。
+- `0xDDDDDDDD -> 0xAAAAA OK`
 
-- 拡張子は任意です。
-- ヘッダは付きません。
-- read した内容を raw bytes のまま保存します。
+これは host write 要求が完了したことを示します。
 
-### 6.4 byte order
+## 7. File Select Read
 
-- 内部では 32-bit word 単位で read します。
-- 受信した各 word を little-endian byte 列へ戻して
-  出力バッファへ連結します。
+- 枠は残ります。
+- path 入力欄も残ります。
+- ただし現 phase では SDRAM 転送を開始しません。
+- ボタン押下時は
+  `INOP: bulk path disabled`
+  を表示します。
 
-例:
-- read value = `0x03020100`
-- file bytes = `00 01 02 03`
+## 8. File Select Write
 
-### 6.5 実行結果
+- 枠は残ります。
+- Base Address 入力欄と path 入力欄も残ります。
+- ただし現 phase では SDRAM 転送を開始しません。
+- ボタン押下時は
+  `INOP: bulk path disabled`
+  を表示します。
 
-成功時は結果欄に以下形式を表示します。
+## 9. source 切替に関する注意
 
-- `saved 256 bytes to <path>`
+- SDRAM host event は `src_id = 0x03` を使います。
+- heartbeat source は元の source index に残っています。
+- single SDRAM 操作時は、host tool が一時的に SDRAM source に
+  切り替えて command/response をやり取りします。
 
+## 10. event の意味
 
-## 7. File Select Write
+- `SDRAM_INIT_DONE (0x20)`
+  embedded SDRAM controller の初期化完了です。
+- `SDRAM_TEST_START (0x21)`
+  self-test の test words、burst 数、
+  zero clear words を報告します。
+- `SDRAM_TEST_PASS (0x22)`
+  read verify 成功と full zero clear 完了の両方を表します。
+- `SDRAM_TEST_FAIL (0x23)`
+  read verify fail を表し、
+  zero clear は実行されません。
+- `WRITE_ACK (0x30)`
+  single write command 完了応答です。
+- `READ_RSP (0x31)`
+  single read command 応答です。
+- `CMD_ERR (0x3E)`
+  不正または未対応の host command を示します。
 
-### 7.1 行構成
+## 11. 現行制約
 
-- `Write` ボタン
-- Base Address 入力欄
-- File path 入力欄
-
-### 7.2 ベースアドレス
-
-- `File Select Write` 行で入力した
-  ベースアドレスを開始位置として使います。
-
-### 7.3 ファイル形式
-
-入力ファイル形式は **生バイナリファイル** です。
-
-- 拡張子は任意です。
-- ヘッダは不要です。
-- テキスト形式ではなく、raw bytes をそのまま使います。
-
-具体例:
-- `.bin`
-- `.dat`
-- `.img`
-- 拡張子なし
-
-いずれでも中身が raw bytes なら利用可能です。
-
-### 7.4 書き込み単位
-
-- まず ASCII `BW` で bulk write session を開始します。
-- 続いて raw binary block として payload を送ります。
-- SDRAM host IF は 32-bit word 単位で write します。
-- 入力ファイルは 4 byte ごとに 1 word へ変換します。
-- 変換時の byte order は little-endian です。
-
-例:
-- file bytes = `00 01 02 03`
-- write value = `0x03020100`
-
-### 7.5 4 byte 未満の末尾処理
-
-ファイルサイズが 4 byte の倍数でない場合、
-最後の word は **0x00 padding** します。
-
-例:
-- file bytes tail = `AA BB`
-- 実際に書く word bytes = `AA BB 00 00`
-- 実際の write value = `0x0000BBAA`
-
-### 7.6 アドレス進み方
-
-- ベースアドレスを `A` とすると、
-  1 word ごとに `A+0`, `A+1`, `A+2` と進みます。
-- ここでアドレス単位は byte ではなく、
-  host IF の 32-bit word address 単位です。
-
-### 7.7 実行結果
-
-成功時は結果欄に
-`file write complete`
-を表示します。
-
-
-## 8. 制約事項
-
-- 現在の file read/write は raw binary 前提です。
-- Intel HEX, Motorola S-record, ELF, CSV などの
-  構造化フォーマットには未対応です。
-- アドレスは host IF の 21-bit word address です。
-- `File Select Read` の読み出しサイズは固定 `256 byte` です。
-- `File Select Read` の開始アドレスは
-  `SDRAM Map` 画面のベースアドレスを使います。
-- `File Select Write` の開始アドレスは
-  `File Select Write` 行のベースアドレス入力値を使います。
-- single read/write は ASCII 制御です。
-- map refresh / file read / file write は raw bulk path を使います。
-- bulk payload は `0x04`, `0x06`, `0x10`, `0x12`, `0x14`, `0x3F`
-  を含んでも CLI 制御文字として扱われません。
-
-
-## 9. 推奨運用
-
-- バイナリパターンの書き込みには `.bin` を使用
-- 数百 byte から数 KB 程度でまず確認
-- 保存した readback file と元 file を
-  バイナリ比較して一致確認
-
-Windows 例:
-- `fc /b write_data.bin readback.bin`
+- bulk `BR` / `BW` は host tool 側で無効です。
+- `SRAM Map` refresh は現在 intentionally inoperative です。
+- `File Select Read` は現在 intentionally inoperative です。
+- `File Select Write` は現在 intentionally inoperative です。

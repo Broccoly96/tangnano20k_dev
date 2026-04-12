@@ -8,7 +8,13 @@
 //                  top-level SDRAM port names.
 //////////////////////////////////////////////////////////////////////////////////
 
-module sdram_emb_hostif_ctrl (
+module sdram_emb_hostif_ctrl #(
+  parameter int unsigned MEMTEST_BURST_WORDS = 26,
+  parameter int unsigned MEMTEST_BURST_COUNT = 8,
+  parameter int unsigned MEMTEST_POST_INIT_WAIT_CYCLES = 20_000,
+  parameter int unsigned MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES = 4,
+  parameter int unsigned MEMTEST_CLEAR_WORDS = 2_097_152
+) (
   input  logic        I_CLK,
   input  logic        I_RST_N,
   input  logic        I_CLI_RX_VALID,
@@ -78,7 +84,13 @@ module sdram_emb_hostif_ctrl (
   assign O_SDRC_DQM      = l_host_enable ? l_host_dqm      : l_test_dqm;
   assign O_SDRC_WR_DATA  = l_host_enable ? l_host_wr_data  : l_test_wr_data;
 
-  sdram_memtest_ctrl u_sdram_memtest_ctrl (
+  sdram_memtest_ctrl #(
+    .BURST_WORDS(MEMTEST_BURST_WORDS),
+    .BURST_COUNT(MEMTEST_BURST_COUNT),
+    .POST_INIT_WAIT_CYCLES(MEMTEST_POST_INIT_WAIT_CYCLES),
+    .POST_WRITE_TO_READ_GAP_CYCLES(MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES),
+    .CLEAR_WORDS(MEMTEST_CLEAR_WORDS)
+  ) u_sdram_memtest_ctrl (
     .I_CLK           (I_CLK),
     .I_RST_N         (I_RST_N),
     .I_SDRC_INIT_DONE(I_SDRC_INIT_DONE),

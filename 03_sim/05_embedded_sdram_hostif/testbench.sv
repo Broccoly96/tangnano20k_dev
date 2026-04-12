@@ -236,7 +236,7 @@ module testbench;
   end
 
   initial begin
-    #(80ms);
+    #(120ms);
     $fatal(
       1,
       "embedded SDRAM hostif simulation timed out pass=%0b fail=%0b host_busy=%0b sel=%0d cli_rx=%0d host_evt=%0d mirror=%0d last_cli=0x%02h raw_rx_bypass=%0b raw_tx_mode=%0b",
@@ -328,7 +328,9 @@ module testbench;
     .I_DST_READY(1'b1)
   );
 
-  sdram_emb_hostif_ctrl u_sdram_emb_hostif_ctrl (
+  sdram_emb_hostif_ctrl #(
+    .MEMTEST_CLEAR_WORDS(1024)
+  ) u_sdram_emb_hostif_ctrl (
     .I_CLK(tb_clk_96m),
     .I_RST_N(tb_rst_96m_n),
     .I_CLI_RX_VALID(tb_cli_rx_valid_96m),

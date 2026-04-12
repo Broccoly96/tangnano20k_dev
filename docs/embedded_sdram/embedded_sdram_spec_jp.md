@@ -112,6 +112,17 @@ user req/data  <--> |   User Wrapper / Arbiter  |
 - CPU/別クロックドメインから要求が来る場合は、**必ず手前で CDC/FIFO を設ける**
 - SDRAM Controller IP の直近に thin wrapper を置き、上位ロジックからは ready/valid 系に見せるのが望ましい
 
+### 5.5 本リポジトリでの運用メモ
+- 本リポジトリの active な embedded SDRAM 統合では、
+  `I_sdrc_clk` と `I_sdram_clk` の両方に同じ `96MHz` を与える。
+- UART log host path はより低速な system clock 側に残し、
+  SDRAM host IF との間は明示 CDC bridge で接続する。
+- この方針は、生成済み embedded SDRAM IP の simulation と
+  hardware bring-up の観測結果に基づく。
+- 選択した IP 変種で明示検証していない限り、
+  `I_sdrc_clk` と `I_sdram_clk` の任意の周波数比が安全に使える
+  と仮定してはならない。
+
 ---
 
 ## 6. インタフェース定義

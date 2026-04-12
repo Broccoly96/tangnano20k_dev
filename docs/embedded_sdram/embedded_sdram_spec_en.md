@@ -117,6 +117,17 @@ user req/data  <--> |   User Wrapper / Arbiter  |
 - If requests come from another clock domain, insert a CDC bridge or FIFO before the wrapper
 - Place a thin wrapper directly in front of the SDRAM Controller IP and expose a ready/valid style interface to upper logic
 
+### 5.5 Project Note for This Repository
+- In this repository, the active embedded SDRAM integration uses the
+  same `96MHz` clock for both `I_sdrc_clk` and `I_sdram_clk`.
+- The UART log host path remains in a slower system clock domain and
+  crosses into the SDRAM host interface through explicit CDC bridges.
+- This project choice is based on observed behavior of the generated
+  embedded SDRAM IP in simulation and hardware bring-up.
+- Do not assume that a generated embedded SDRAM instance safely supports
+  arbitrary `I_sdrc_clk` / `I_sdram_clk` frequency ratios unless that
+  exact configuration has been verified for the selected IP variant.
+
 ---
 
 ## 6. Interface Definition

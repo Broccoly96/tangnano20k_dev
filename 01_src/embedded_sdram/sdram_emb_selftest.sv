@@ -5,7 +5,13 @@
 //                source output.
 //////////////////////////////////////////////////////////////////////////////////
 
-module sdram_emb_selftest (
+module sdram_emb_selftest #(
+  parameter int unsigned MEMTEST_BURST_WORDS = 26,
+  parameter int unsigned MEMTEST_BURST_COUNT = 8,
+  parameter int unsigned MEMTEST_POST_INIT_WAIT_CYCLES = 20_000,
+  parameter int unsigned MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES = 4,
+  parameter int unsigned MEMTEST_CLEAR_WORDS = 2_097_152
+) (
   input  logic        I_CLK,
   input  logic        I_RST_N,
   output logic        O_EVT_VALID,
@@ -71,7 +77,13 @@ module sdram_emb_selftest (
   assign O_EVT_ARG1  = s_evt_fifo_empty ? 32'h0000_0000 : r_evt_fifo_mem[r_evt_rd_ptr][63:32];
   assign O_EVT_ARG2  = s_evt_fifo_empty ? 32'h0000_0000 : r_evt_fifo_mem[r_evt_rd_ptr][31:0];
 
-  sdram_memtest_ctrl u_sdram_memtest_ctrl (
+  sdram_memtest_ctrl #(
+    .BURST_WORDS(MEMTEST_BURST_WORDS),
+    .BURST_COUNT(MEMTEST_BURST_COUNT),
+    .POST_INIT_WAIT_CYCLES(MEMTEST_POST_INIT_WAIT_CYCLES),
+    .POST_WRITE_TO_READ_GAP_CYCLES(MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES),
+    .CLEAR_WORDS(MEMTEST_CLEAR_WORDS)
+  ) u_sdram_memtest_ctrl (
     .I_CLK            (I_CLK),
     .I_RST_N          (I_RST_N),
     .I_SDRC_INIT_DONE (O_INIT_DONE),

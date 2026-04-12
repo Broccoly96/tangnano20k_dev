@@ -8,7 +8,6 @@ module testbench;
   localparam time CLK_PERIOD = 10ns;
   localparam int unsigned MEM_WORDS = 2048;
   localparam int unsigned BURST_WORDS = 26;
-  localparam int unsigned WRITE_STREAM_CYCLES = BURST_WORDS + 2;
 
   typedef enum logic [2:0] {
     UIF_IDLE,
@@ -41,27 +40,13 @@ module testbench;
   logic [20:0] tb_rsp_addr;
   logic [31:0] tb_rsp_data;
   logic [31:0] tb_rsp_status;
-  logic        tb_dbg_req_valid;
-  logic        tb_dbg_req_is_write;
-  logic [20:0] tb_dbg_req_addr;
-  logic [31:0] tb_dbg_req_data;
-  logic        tb_dbg_issue_valid;
-  logic        tb_dbg_issue_is_write;
-  logic [20:0] tb_dbg_issue_addr;
-  logic [7:0]  tb_dbg_issue_data_len;
-  logic        tb_dbg_wr_ack_valid;
-  logic [20:0] tb_dbg_wr_ack_addr;
-  logic [31:0] tb_dbg_wr_ack_data;
-  logic        tb_dbg_rd0_valid;
-  logic [20:0] tb_dbg_rd0_base_addr;
-  logic [20:0] tb_dbg_rd0_req_addr;
-  logic [31:0] tb_dbg_rd0_data;
-
   logic [31:0] mem_words [0:MEM_WORDS-1];
   uif_state_e  st_uif;
   logic [20:0] r_uif_base_addr;
   logic [7:0]  r_uif_len;
   logic [7:0]  r_uif_count;
+  logic [7:0]  r_uif_phase_count;
+  logic [7:0]  r_uif_busy_count;
   logic [31:0] r_uif_wr_value;
   integer      read_req_count;
   logic        inject_next_wr_timeout;
@@ -88,6 +73,8 @@ module testbench;
     r_uif_base_addr       = '0;
     r_uif_len             = '0;
     r_uif_count           = '0;
+    r_uif_phase_count     = '0;
+    r_uif_busy_count      = '0;
     r_uif_wr_value        = '0;
     read_req_count        = 0;
     inject_next_wr_timeout= 1'b0;
@@ -131,55 +118,47 @@ module testbench;
     .O_RSP_IS_WRITE  (tb_rsp_is_write),
     .O_RSP_ADDR      (tb_rsp_addr),
     .O_RSP_DATA      (tb_rsp_data),
-    .O_RSP_STATUS    (tb_rsp_status),
-    .O_DBG_REQ_VALID      (tb_dbg_req_valid),
-    .O_DBG_REQ_IS_WRITE   (tb_dbg_req_is_write),
-    .O_DBG_REQ_ADDR       (tb_dbg_req_addr),
-    .O_DBG_REQ_DATA       (tb_dbg_req_data),
-    .O_DBG_ISSUE_VALID    (tb_dbg_issue_valid),
-    .O_DBG_ISSUE_IS_WRITE (tb_dbg_issue_is_write),
-    .O_DBG_ISSUE_ADDR     (tb_dbg_issue_addr),
-    .O_DBG_ISSUE_DATA_LEN (tb_dbg_issue_data_len),
-    .O_DBG_WR_ACK_VALID   (tb_dbg_wr_ack_valid),
-    .O_DBG_WR_ACK_ADDR    (tb_dbg_wr_ack_addr),
-    .O_DBG_WR_ACK_DATA    (tb_dbg_wr_ack_data),
-    .O_DBG_RD0_VALID      (tb_dbg_rd0_valid),
-    .O_DBG_RD0_BASE_ADDR  (tb_dbg_rd0_base_addr),
-    .O_DBG_RD0_REQ_ADDR   (tb_dbg_rd0_req_addr),
-    .O_DBG_RD0_DATA       (tb_dbg_rd0_data)
+    .O_RSP_STATUS    (tb_rsp_status)
   );
 
   // Simple SDRC user-interface responder for unit testing.
   always_ff @(posedge tb_clk or negedge tb_rst_n) begin
     if (!tb_rst_n) begin
-      st_uif         <= UIF_IDLE;
-      tb_sdrc_busy_n <= 1'b1;
-      tb_sdrc_rd_valid<= 1'b0;
-      tb_sdrc_rd_data <= 32'h0;
-      r_uif_base_addr<= '0;
-      r_uif_len      <= '0;
-      r_uif_count    <= '0;
-      r_uif_wr_value <= '0;
-      read_req_count <= 0;
+      st_uif            <= UIF_IDLE;
+      tb_sdrc_busy_n    <= 1'b1;
+      tb_sdrc_rd_valid  <= 1'b0;
+      tb_sdrc_rd_data   <= 32'h0;
+      r_uif_base_addr   <= '0;
+      r_uif_len         <= '0;
+      r_uif_count       <= '0;
+      r_uif_phase_count <= '0;
+      r_uif_busy_count  <= '0;
+      r_uif_wr_value    <= '0;
+      read_req_count    <= 0;
     end else begin
       tb_sdrc_rd_valid <= 1'b0;
       tb_sdrc_wrd_ack  <= 1'b0;
 
       case (st_uif)
         UIF_IDLE: begin
-          tb_sdrc_busy_n <= 1'b1;
-          r_uif_count    <= '0;
+          tb_sdrc_busy_n    <= 1'b1;
+          r_uif_count       <= '0;
+          r_uif_phase_count <= '0;
+          r_uif_busy_count  <= '0;
           if (!tb_sdrc_wr_n) begin
             r_uif_base_addr <= tb_sdrc_addr;
             r_uif_len       <= tb_sdrc_data_len + 1'b1;
             mem_words[tb_sdrc_addr] <= tb_sdrc_wr_data;
-            tb_sdrc_wrd_ack <= 1'b1;
-            tb_sdrc_busy_n <= 1'b0;
             if (inject_next_wr_timeout) begin
               inject_next_wr_timeout <= 1'b0;
+              r_uif_count       <= 8'd1;
+              r_uif_phase_count <= 8'd0;
+              r_uif_busy_count  <= 8'd0;
               st_uif <= UIF_WRITE_HANG;
             end else begin
-              r_uif_count <= 8'd1;
+              r_uif_count       <= 8'd1;
+              r_uif_phase_count <= 8'd0;
+              r_uif_busy_count  <= 8'd0;
               st_uif <= UIF_WRITE_BUSY;
             end
             log_debug(
@@ -195,7 +174,8 @@ module testbench;
             r_uif_base_addr <= tb_sdrc_addr;
             r_uif_len       <= tb_sdrc_data_len + 1'b1;
             r_uif_count     <= '0;
-            tb_sdrc_busy_n  <= 1'b0;
+            r_uif_phase_count <= 8'd0;
+            r_uif_busy_count  <= 8'd0;
             read_req_count  <= read_req_count + 1;
             if (inject_next_rd_timeout) begin
               inject_next_rd_timeout <= 1'b0;
@@ -216,20 +196,36 @@ module testbench;
         end
 
         UIF_WRITE_BUSY: begin
-          if (r_uif_count < r_uif_len) begin
+          if (r_uif_phase_count == 8'd1) begin
             tb_sdrc_wrd_ack <= 1'b1;
-            mem_words[r_uif_base_addr + r_uif_count] <= tb_sdrc_wr_data;
-            r_uif_count   <= r_uif_count + 1'b1;
-          end else if (r_uif_count < WRITE_STREAM_CYCLES) begin
-            r_uif_count <= r_uif_count + 1'b1;
+          end
+          if ((r_uif_phase_count >= 8'd2) && (r_uif_busy_count < r_uif_len)) begin
+            tb_sdrc_busy_n   <= 1'b0;
+            r_uif_busy_count <= r_uif_busy_count + 1'b1;
           end else begin
+            tb_sdrc_busy_n <= 1'b1;
+          end
+          if (r_uif_count < r_uif_len) begin
+            mem_words[r_uif_base_addr + r_uif_count] <= tb_sdrc_wr_data;
+            r_uif_count <= r_uif_count + 1'b1;
+          end
+          r_uif_phase_count <= r_uif_phase_count + 1'b1;
+          if ((r_uif_count >= r_uif_len) &&
+              (r_uif_phase_count >= 8'd2) &&
+              (r_uif_busy_count >= r_uif_len)) begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif         <= UIF_IDLE;
           end
         end
 
         UIF_WRITE_HANG: begin
-          tb_sdrc_busy_n <= 1'b0;
+          if (r_uif_phase_count == 8'd1) begin
+            tb_sdrc_wrd_ack <= 1'b1;
+          end
+          if (r_uif_phase_count >= 8'd2) begin
+            tb_sdrc_busy_n <= 1'b0;
+          end
+          r_uif_phase_count <= r_uif_phase_count + 1'b1;
           if (tb_rsp_valid) begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif         <= UIF_IDLE;
@@ -237,18 +233,32 @@ module testbench;
         end
 
         UIF_READ_BUSY: begin
-          if (r_uif_count < r_uif_len) begin
+          if (r_uif_phase_count == 8'd1) begin
+            tb_sdrc_wrd_ack <= 1'b1;
+          end
+          if ((r_uif_phase_count >= 8'd2) && (r_uif_count < r_uif_len)) begin
+            tb_sdrc_busy_n  <= 1'b0;
             tb_sdrc_rd_valid <= 1'b1;
             tb_sdrc_rd_data  <= mem_words[r_uif_base_addr + r_uif_count];
             r_uif_count      <= r_uif_count + 1'b1;
           end else begin
+            tb_sdrc_busy_n <= 1'b1;
+          end
+          r_uif_phase_count <= r_uif_phase_count + 1'b1;
+          if ((r_uif_phase_count >= 8'd2) && (r_uif_count >= r_uif_len)) begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif         <= UIF_IDLE;
           end
         end
 
         UIF_READ_HANG: begin
-          tb_sdrc_busy_n <= 1'b0;
+          if (r_uif_phase_count == 8'd1) begin
+            tb_sdrc_wrd_ack <= 1'b1;
+          end
+          if (r_uif_phase_count >= 8'd2) begin
+            tb_sdrc_busy_n <= 1'b0;
+          end
+          r_uif_phase_count <= r_uif_phase_count + 1'b1;
           if (tb_rsp_valid) begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif         <= UIF_IDLE;

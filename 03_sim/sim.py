@@ -296,11 +296,7 @@ def launch_simulation(
     do_cmds: str
 
     if openwave:
-        wave_do = tb_dir / "wave.do"
-        if wave_do.exists():
-            do_cmds = f'do "{wave_do}"; run -all'
-        else:
-            do_cmds = "run -all"
+        do_cmds = f'do wave.do; run -all'
     else:
         vsim_mode = ["-c"]
         do_cmds = "run -all; quit -code 0"

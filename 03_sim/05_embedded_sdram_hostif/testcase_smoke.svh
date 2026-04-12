@@ -13,6 +13,7 @@
     logic [20:0]  wr_addr_unaligned;
     logic [31:0]  wr_data_unaligned;
     logic [31:0]  wr_data_safe_2;
+    logic [20:0]  zero_addr;
 
     wr_addr_safe = 21'h00030;
     wr_data_safe = 32'h89AB_CDEF;
@@ -21,6 +22,7 @@
     wr_addr_unaligned = 21'h00343;
     wr_data_unaligned = 32'h5566_7788;
     wr_data_safe_2 = 32'hCAFE_BABE;
+    zero_addr = 21'h000A0;
 
     tb_log_pkg::log_info("SDRAM HOSTIF TB", "waiting for self-test PASS");
     wait (tb_sdram_test_pass || tb_sdram_test_fail);
@@ -31,6 +33,22 @@
     send_uart_byte(tb_uart_rx, UART_BIT_PERIOD, 8'h06);
     send_uart_byte(tb_uart_rx, UART_BIT_PERIOD, 8'h06);
     wait (u_uart_log_cli.r_log_src_sel == 2);
+
+    ascii_cmd = $sformatf("R %05X\n", zero_addr);
+    send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
+    repeat (20) begin
+      recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
+      if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_READ_RSP)) begin
+        break;
+      end
+    end
+    arg0 = payload[63:32];
+    arg1 = payload[95:64];
+    arg2 = payload[127:96];
+    if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_READ_RSP) ||
+        (arg0[20:0] != zero_addr) || (arg1 != 32'h0000_0000) || (arg2 != 32'h0)) begin
+      tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "zero-cleared read response mismatch");
+    end
 
     ascii_cmd = $sformatf("W %05X %08X\n", wr_addr_safe, wr_data_safe);
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);

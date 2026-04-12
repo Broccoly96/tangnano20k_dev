@@ -82,11 +82,13 @@ module testbench;
   end
 
   initial begin
-    #(3ms);
+    #(5ms);
     log_fatal(1, "HOSTIF CTRL TB", "simulation timeout");
   end
 
-  sdram_emb_hostif_ctrl u_dut (
+  sdram_emb_hostif_ctrl #(
+    .MEMTEST_CLEAR_WORDS(1024)
+  ) u_dut (
     .I_CLK           (tb_clk),
     .I_RST_N         (tb_rst_n),
     .I_CLI_RX_VALID  (tb_cli_rx_valid),

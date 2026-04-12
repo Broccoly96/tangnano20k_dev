@@ -204,36 +204,11 @@ module testbench;
     int wait_cycles;
     begin
       wait_cycles = 0;
-      while (1) begin
-        while (!tb_evt_valid) begin
-          @(posedge tb_clk);
-          wait_cycles++;
-          if (wait_cycles > 500) begin
-            log_fatal(1, "BRIDGE CTRL TB", {"timeout waiting event: ", label});
-          end
-        end
-
-        if ((tb_evt_id == EVT_DBG_REQ) ||
-            (tb_evt_id == EVT_DBG_ISSUE) ||
-            (tb_evt_id == EVT_DBG_WR_ACK) ||
-            (tb_evt_id == EVT_DBG_RD0)) begin
-          log_debug(
-            "BRIDGE CTRL TB",
-            $sformatf(
-              "skip debug event id=0x%02h arg0=0x%08h arg1=0x%08h arg2=0x%08h",
-              tb_evt_id,
-              tb_evt_arg0,
-              tb_evt_arg1,
-              tb_evt_arg2
-            )
-          );
-          @(posedge tb_clk);
-          tb_evt_ready <= 1'b1;
-          @(posedge tb_clk);
-          tb_evt_ready <= 1'b0;
-          wait_cycles = 0;
-        end else begin
-          break;
+      while (!tb_evt_valid) begin
+        @(posedge tb_clk);
+        wait_cycles++;
+        if (wait_cycles > 500) begin
+          log_fatal(1, "BRIDGE CTRL TB", {"timeout waiting event: ", label});
         end
       end
 
