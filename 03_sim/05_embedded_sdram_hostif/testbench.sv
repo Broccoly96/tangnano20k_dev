@@ -329,7 +329,8 @@ module testbench;
   );
 
   sdram_emb_hostif_ctrl #(
-    .MEMTEST_CLEAR_WORDS(1024)
+    .MEMTEST_BURST_WORDS(256),
+    .MEMTEST_TOTAL_WORDS(1024)
   ) u_sdram_emb_hostif_ctrl (
     .I_CLK(tb_clk_96m),
     .I_RST_N(tb_rst_96m_n),

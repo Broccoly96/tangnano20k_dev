@@ -224,7 +224,8 @@ module testbench;
   );
 
   sdram_emb_selftest #(
-    .MEMTEST_CLEAR_WORDS(1024)
+    .MEMTEST_BURST_WORDS(256),
+    .MEMTEST_TOTAL_WORDS(1024)
   ) u_sdram_emb_selftest (
     .I_CLK(tb_clk_100m),
     .I_RST_N(tb_rst_100m_n),

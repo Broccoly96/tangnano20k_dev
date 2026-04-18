@@ -25,6 +25,21 @@ module testbench;
   logic [20:0] tb_req_addr;
   logic [31:0] tb_req_data;
   logic        tb_sdrc_init_done;
+  logic        tb_exec_req_valid;
+  logic        tb_exec_req_ready;
+  logic        tb_exec_req_is_write;
+  logic [20:0] tb_exec_req_addr;
+  logic [8:0]  tb_exec_req_words;
+  logic [31:0] tb_exec_wr_beat_data;
+  logic        tb_exec_wr_beat_valid;
+  logic [7:0]  tb_exec_wr_beat_index;
+  logic        tb_exec_rsp_valid;
+  logic        tb_exec_rsp_ready;
+  logic [31:0] tb_exec_rsp_status;
+  logic        tb_exec_rd_beat_valid;
+  logic [31:0] tb_exec_rd_beat_data;
+  logic [7:0]  tb_exec_rd_beat_index;
+  logic        tb_exec_rsp_done;
   logic        tb_sdrc_busy_n;
   logic        tb_sdrc_wrd_ack;
   logic        tb_sdrc_rd_valid;
@@ -103,22 +118,59 @@ module testbench;
     .I_REQ_ADDR      (tb_req_addr),
     .I_REQ_DATA      (tb_req_data),
     .I_SDRC_INIT_DONE(tb_sdrc_init_done),
-    .I_SDRC_BUSY_N   (tb_sdrc_busy_n),
-    .I_SDRC_WRD_ACK  (tb_sdrc_wrd_ack),
-    .I_SDRC_RD_VALID (tb_sdrc_rd_valid),
-    .I_SDRC_RD_DATA  (tb_sdrc_rd_data),
-    .O_SDRC_WR_N     (tb_sdrc_wr_n),
-    .O_SDRC_RD_N     (tb_sdrc_rd_n),
-    .O_SDRC_ADDR     (tb_sdrc_addr),
-    .O_SDRC_DATA_LEN (tb_sdrc_data_len),
-    .O_SDRC_DQM      (tb_sdrc_dqm),
-    .O_SDRC_WR_DATA  (tb_sdrc_wr_data),
+    .O_EXEC_REQ_VALID(tb_exec_req_valid),
+    .I_EXEC_REQ_READY(tb_exec_req_ready),
+    .O_EXEC_REQ_IS_WRITE(tb_exec_req_is_write),
+    .O_EXEC_REQ_ADDR  (tb_exec_req_addr),
+    .O_EXEC_REQ_WORDS (tb_exec_req_words),
+    .O_EXEC_WR_BEAT_DATA(tb_exec_wr_beat_data),
+    .O_EXEC_WR_BEAT_VALID(tb_exec_wr_beat_valid),
+    .I_EXEC_WR_BEAT_INDEX(tb_exec_wr_beat_index),
+    .I_EXEC_RSP_VALID (tb_exec_rsp_valid),
+    .O_EXEC_RSP_READY (tb_exec_rsp_ready),
+    .I_EXEC_RSP_STATUS(tb_exec_rsp_status),
+    .I_EXEC_RD_BEAT_VALID(tb_exec_rd_beat_valid),
+    .I_EXEC_RD_BEAT_DATA(tb_exec_rd_beat_data),
+    .I_EXEC_RD_BEAT_INDEX(tb_exec_rd_beat_index),
+    .I_EXEC_RSP_DONE  (tb_exec_rsp_done),
     .O_RSP_VALID     (tb_rsp_valid),
     .I_RSP_READY     (1'b1),
     .O_RSP_IS_WRITE  (tb_rsp_is_write),
     .O_RSP_ADDR      (tb_rsp_addr),
     .O_RSP_DATA      (tb_rsp_data),
     .O_RSP_STATUS    (tb_rsp_status)
+  );
+
+  sdram_sdrc_burst_exec #(
+    .RESP_TIMEOUT_CYCLES(64)
+  ) u_exec (
+    .I_CLK            (tb_clk),
+    .I_RST_N          (tb_rst_n),
+    .I_REQ_VALID      (tb_exec_req_valid),
+    .O_REQ_READY      (tb_exec_req_ready),
+    .I_REQ_IS_WRITE   (tb_exec_req_is_write),
+    .I_REQ_ADDR       (tb_exec_req_addr),
+    .I_REQ_WORDS      (tb_exec_req_words),
+    .I_REQ_WR_BEAT_DATA(tb_exec_wr_beat_data),
+    .I_REQ_WR_BEAT_VALID(tb_exec_wr_beat_valid),
+    .O_REQ_WR_BEAT_INDEX(tb_exec_wr_beat_index),
+    .O_RSP_VALID      (tb_exec_rsp_valid),
+    .I_RSP_READY      (tb_exec_rsp_ready),
+    .O_RSP_STATUS     (tb_exec_rsp_status),
+    .O_RSP_RD_BEAT_VALID(tb_exec_rd_beat_valid),
+    .O_RSP_RD_BEAT_DATA(tb_exec_rd_beat_data),
+    .O_RSP_RD_BEAT_INDEX(tb_exec_rd_beat_index),
+    .O_RSP_DONE       (tb_exec_rsp_done),
+    .I_SDRC_BUSY_N    (tb_sdrc_busy_n),
+    .I_SDRC_WRD_ACK   (tb_sdrc_wrd_ack),
+    .I_SDRC_RD_VALID  (tb_sdrc_rd_valid),
+    .I_SDRC_RD_DATA   (tb_sdrc_rd_data),
+    .O_SDRC_WR_N      (tb_sdrc_wr_n),
+    .O_SDRC_RD_N      (tb_sdrc_rd_n),
+    .O_SDRC_ADDR      (tb_sdrc_addr),
+    .O_SDRC_DATA_LEN  (tb_sdrc_data_len),
+    .O_SDRC_DQM       (tb_sdrc_dqm),
+    .O_SDRC_WR_DATA   (tb_sdrc_wr_data)
   );
 
   // Simple SDRC user-interface responder for unit testing.

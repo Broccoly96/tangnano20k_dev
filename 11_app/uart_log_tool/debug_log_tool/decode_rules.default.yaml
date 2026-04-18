@@ -48,32 +48,22 @@ default:
 "0x02:0x21":
   level: INFO
   title: SDRAM_TEST_START
-  message: "embedded SDRAM self-test start test_words={arg0_u32} bursts={arg1_u32} clear_words={arg2_u32}"
+  message: "embedded SDRAM zero-init test start total_words={arg0_u32} burst_words={arg1_u32} total_bursts={arg2_u32}"
 
 "0x02:0x22":
   level: INFO
   title: SDRAM_TEST_PASS
-  message: "embedded SDRAM self-test pass clear_words={arg0_u32} verified_words={arg1_u32}"
+  message: "embedded SDRAM zero-init test pass verified_words={arg0_u32} burst_words={arg1_u32}"
 
 "0x02:0x23":
   level: ERROR
   title: SDRAM_TEST_FAIL
-  message: "embedded SDRAM self-test fail idx={arg0_u32} expected=0x{arg1_hex} actual=0x{arg2_hex}"
+  message: "embedded SDRAM zero-init test fail beat_idx={arg0_u32} expected=0x{arg1_hex} actual=0x{arg2_hex}"
 
 "0x02:0x24":
   level: DEBUG
   title: SDRAM_TEST_FAIL_CTX
-  message: "embedded SDRAM self-test fail ctx burst_base_idx={arg0_u32} burst_addr=0x{arg1_hex} burst_seed=0x{arg2_hex}"
-
-"0x02:0x25":
-  level: DEBUG
-  title: SDRAM_TEST_FAIL_WR
-  message: "embedded SDRAM self-test fail write beats[22..24]=0x{arg0_hex},0x{arg1_hex},0x{arg2_hex}"
-
-"0x02:0x26":
-  level: DEBUG
-  title: SDRAM_TEST_FAIL_RD
-  message: "embedded SDRAM self-test fail read beats[22..24]=0x{arg0_hex},0x{arg1_hex},0x{arg2_hex}"
+  message: "embedded SDRAM zero-init fail ctx burst_idx={arg0_u32} burst_addr=0x{arg1_hex} fail_addr=0x{arg2_hex}"
 
 "0x03:0x30":
   level: INFO
