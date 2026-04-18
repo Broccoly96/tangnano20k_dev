@@ -24,6 +24,8 @@ module sdram_open_word_ctrl (
   input  logic        I_RSP_READY,
   output logic [31:0] O_RSP_RD_DATA,
   output logic [31:0] O_RSP_STATUS,
+  output logic [31:0] O_DBG_SUMMARY,
+  output logic [31:0] O_DBG_DATA,
 
   output logic        O_BYTE_REQ_VALID,
   input  logic        I_BYTE_REQ_READY,
@@ -161,6 +163,16 @@ module sdram_open_word_ctrl (
   assign O_RSP_VALID = r_rsp_valid;
   assign O_RSP_RD_DATA = r_rsp_rd_data;
   assign O_RSP_STATUS = r_rsp_status;
+  assign O_DBG_SUMMARY = {
+    st_state,
+    r_byte_inflight,
+    r_req_is_write,
+    r_lane_idx,
+    r_req_wr_be,
+    r_rsp_valid,
+    r_req_addr
+  };
+  assign O_DBG_DATA = r_rsp_rd_data;
 
   assign O_BYTE_REQ_VALID = (st_state == ST_BYTE_WAIT) && !r_byte_inflight;
   assign O_BYTE_REQ_IS_WRITE = r_req_is_write;

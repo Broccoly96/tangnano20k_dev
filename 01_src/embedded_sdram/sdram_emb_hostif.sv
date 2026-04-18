@@ -74,6 +74,10 @@ module sdram_emb_hostif #(
   logic [7:0]  l_byte_rsp_rd_data;
   logic [31:0] l_byte_rsp_status;
   logic        l_init_done;
+  logic [31:0] l_word_ctrl_dbg_summary;
+  logic [31:0] l_word_ctrl_dbg_data;
+  logic [31:0] l_byte_ctrl_dbg_summary;
+  logic [31:0] l_byte_ctrl_dbg_detail;
 
   sdram_emb_hostif_ctrl #(
     .MEMTEST_CLK_HZ(MEMTEST_CLK_HZ),
@@ -109,6 +113,10 @@ module sdram_emb_hostif #(
     .O_TEST_PASS  (O_TEST_PASS),
     .O_TEST_FAIL  (O_TEST_FAIL),
     .O_HOST_BUSY  (O_HOST_BUSY),
+    .I_WORD_CTRL_DBG_SUMMARY(l_word_ctrl_dbg_summary),
+    .I_WORD_CTRL_DBG_DATA(l_word_ctrl_dbg_data),
+    .I_BYTE_CTRL_DBG_SUMMARY(l_byte_ctrl_dbg_summary),
+    .I_BYTE_CTRL_DBG_DETAIL(l_byte_ctrl_dbg_detail),
     .O_REQ_VALID  (l_mem_req_valid),
     .I_REQ_READY  (l_mem_req_ready),
     .O_REQ_IS_WRITE(l_mem_req_is_write),
@@ -135,6 +143,8 @@ module sdram_emb_hostif #(
     .I_RSP_READY (l_mem_rsp_ready),
     .O_RSP_RD_DATA(l_mem_rsp_rd_data),
     .O_RSP_STATUS(l_mem_rsp_status),
+    .O_DBG_SUMMARY(l_word_ctrl_dbg_summary),
+    .O_DBG_DATA  (l_word_ctrl_dbg_data),
     .O_BYTE_REQ_VALID(l_byte_req_valid),
     .I_BYTE_REQ_READY(l_byte_req_ready),
     .O_BYTE_REQ_IS_WRITE(l_byte_req_is_write),
@@ -160,6 +170,8 @@ module sdram_emb_hostif #(
     .O_RSP_RD_DATA(l_byte_rsp_rd_data),
     .O_RSP_STATUS(l_byte_rsp_status),
     .O_INIT_DONE (l_init_done),
+    .O_DBG_SUMMARY(l_byte_ctrl_dbg_summary),
+    .O_DBG_DETAIL(l_byte_ctrl_dbg_detail),
     .O_sdram_clk (O_sdram_clk),
     .O_sdram_cke (O_sdram_cke),
     .O_sdram_cs_n(O_sdram_cs_n),

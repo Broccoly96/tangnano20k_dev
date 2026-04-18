@@ -69,6 +69,21 @@ module sdram_emb_selftest #(
   logic        l_byte_rsp_ready;
   logic [7:0]  l_byte_rsp_rd_data;
   logic [31:0] l_byte_rsp_status;
+  logic [31:0] l_memtest_dbg_summary_unused;
+  logic [31:0] l_memtest_dbg_curr_word_addr_unused;
+  logic [31:0] l_memtest_dbg_expected_word_unused;
+  logic [31:0] l_memtest_dbg_last_rd_data_unused;
+  logic [31:0] l_memtest_dbg_last_rsp_status_unused;
+  logic [31:0] l_memtest_dbg_fail_arg0_unused;
+  logic [31:0] l_memtest_dbg_fail_arg1_unused;
+  logic [31:0] l_memtest_dbg_fail_arg2_unused;
+  logic [31:0] l_memtest_dbg_fail_ctx_arg0_unused;
+  logic [31:0] l_memtest_dbg_fail_ctx_arg1_unused;
+  logic [31:0] l_memtest_dbg_fail_ctx_arg2_unused;
+  logic [31:0] l_word_ctrl_dbg_summary_unused;
+  logic [31:0] l_word_ctrl_dbg_data_unused;
+  logic [31:0] l_byte_ctrl_dbg_summary_unused;
+  logic [31:0] l_byte_ctrl_dbg_detail_unused;
 
   logic [103:0] r_evt_fifo_mem [0:EVT_FIFO_DEPTH-1];
   logic [EVT_FIFO_PTR_W-1:0] r_evt_wr_ptr;
@@ -113,6 +128,17 @@ module sdram_emb_selftest #(
     .O_TEST_ACTIVE(O_TEST_ACTIVE),
     .O_TEST_PASS (O_TEST_PASS),
     .O_TEST_FAIL (O_TEST_FAIL),
+    .O_DBG_SUMMARY(l_memtest_dbg_summary_unused),
+    .O_DBG_CURR_WORD_ADDR(l_memtest_dbg_curr_word_addr_unused),
+    .O_DBG_EXPECTED_WORD(l_memtest_dbg_expected_word_unused),
+    .O_DBG_LAST_RD_DATA(l_memtest_dbg_last_rd_data_unused),
+    .O_DBG_LAST_RSP_STATUS(l_memtest_dbg_last_rsp_status_unused),
+    .O_DBG_FAIL_ARG0(l_memtest_dbg_fail_arg0_unused),
+    .O_DBG_FAIL_ARG1(l_memtest_dbg_fail_arg1_unused),
+    .O_DBG_FAIL_ARG2(l_memtest_dbg_fail_arg2_unused),
+    .O_DBG_FAIL_CTX_ARG0(l_memtest_dbg_fail_ctx_arg0_unused),
+    .O_DBG_FAIL_CTX_ARG1(l_memtest_dbg_fail_ctx_arg1_unused),
+    .O_DBG_FAIL_CTX_ARG2(l_memtest_dbg_fail_ctx_arg2_unused),
     .O_EVT_VALID (l_evt_push_valid),
     .O_EVT_ID    (l_evt_push_id),
     .O_EVT_ARG0  (l_evt_push_arg0),
@@ -134,6 +160,8 @@ module sdram_emb_selftest #(
     .I_RSP_READY (l_mem_rsp_ready),
     .O_RSP_RD_DATA(l_mem_rsp_rd_data),
     .O_RSP_STATUS(l_mem_rsp_status),
+    .O_DBG_SUMMARY(l_word_ctrl_dbg_summary_unused),
+    .O_DBG_DATA  (l_word_ctrl_dbg_data_unused),
     .O_BYTE_REQ_VALID(l_byte_req_valid),
     .I_BYTE_REQ_READY(l_byte_req_ready),
     .O_BYTE_REQ_IS_WRITE(l_byte_req_is_write),
@@ -159,6 +187,8 @@ module sdram_emb_selftest #(
     .O_RSP_RD_DATA(l_byte_rsp_rd_data),
     .O_RSP_STATUS(l_byte_rsp_status),
     .O_INIT_DONE (O_INIT_DONE),
+    .O_DBG_SUMMARY(l_byte_ctrl_dbg_summary_unused),
+    .O_DBG_DETAIL(l_byte_ctrl_dbg_detail_unused),
     .O_sdram_clk (O_sdram_clk),
     .O_sdram_cke (O_sdram_cke),
     .O_sdram_cs_n(O_sdram_cs_n),

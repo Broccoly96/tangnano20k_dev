@@ -15,6 +15,7 @@ module sdram_memtest_ctrl #(
   parameter int unsigned MEMTEST_TOTAL_WORDS = 2_097_152,
   parameter int unsigned POST_INIT_WAIT_CYCLES = 20_000,
   parameter int unsigned POST_WRITE_TO_READ_GAP_CYCLES = 4,
+  parameter int unsigned MEMTEST_READBACK_RETRY_COUNT = 3,
   parameter bit          MEMTEST_USE_INCREMENT_PATTERN = 1'b0
 ) (
   input  logic        I_CLK,
@@ -36,6 +37,17 @@ module sdram_memtest_ctrl #(
   output logic        O_TEST_ACTIVE,
   output logic        O_TEST_PASS,
   output logic        O_TEST_FAIL,
+  output logic [31:0] O_DBG_SUMMARY,
+  output logic [31:0] O_DBG_CURR_WORD_ADDR,
+  output logic [31:0] O_DBG_EXPECTED_WORD,
+  output logic [31:0] O_DBG_LAST_RD_DATA,
+  output logic [31:0] O_DBG_LAST_RSP_STATUS,
+  output logic [31:0] O_DBG_FAIL_ARG0,
+  output logic [31:0] O_DBG_FAIL_ARG1,
+  output logic [31:0] O_DBG_FAIL_ARG2,
+  output logic [31:0] O_DBG_FAIL_CTX_ARG0,
+  output logic [31:0] O_DBG_FAIL_CTX_ARG1,
+  output logic [31:0] O_DBG_FAIL_CTX_ARG2,
   output logic        O_EVT_VALID,
   output logic [7:0]  O_EVT_ID,
   output logic [31:0] O_EVT_ARG0,
@@ -58,6 +70,9 @@ module sdram_memtest_ctrl #(
   localparam int unsigned WORD_IDX_W =
     (MEMTEST_TOTAL_WORDS <= 1) ? 1 :
     $clog2(MEMTEST_TOTAL_WORDS + 1);
+  localparam int unsigned RETRY_CNT_W =
+    (MEMTEST_READBACK_RETRY_COUNT <= 1) ? 1 :
+    $clog2(MEMTEST_READBACK_RETRY_COUNT + 1);
   localparam int unsigned FAIL_REPLAY_CYCLES =
     (CLK_HZ <= 1) ? 1 : CLK_HZ;
   localparam int unsigned FAIL_REPLAY_CNT_W =
@@ -92,10 +107,26 @@ module sdram_memtest_ctrl #(
   logic [FAIL_REPLAY_CNT_W-1:0] r_fail_replay_cnt;
   logic                         r_fail_ctx_pending;
   logic                         r_fail_replay_sel;
+  logic [RETRY_CNT_W-1:0]       r_read_retry_count_cur;
+  logic [RETRY_CNT_W-1:0]       r_dbg_retry_count;
+  logic                         r_dbg_retry_active;
+  logic                         r_dbg_retry_recovered;
+  logic                         r_dbg_retry_exhausted;
+  logic                         r_dbg_retry_valid;
+  logic [1:0]                   r_fail_reason_code;
+  logic [31:0]                  r_last_rsp_rd_data;
+  logic [31:0]                  r_last_rsp_status;
 
   logic [31:0] s_expected_word;
   logic        s_last_word;
   logic        s_post_init_wait_done;
+  logic [20:0] s_word_idx_21;
+  logic [5:0]  s_dbg_read_gap_cnt;
+  logic [15:0] s_dbg_post_init_wait_cnt;
+  logic [3:0]  s_dbg_retry_limit;
+  logic [3:0]  s_dbg_retry_count;
+  logic [3:0]  s_dbg_retry_attempts;
+  logic [31:0] s_dbg_retry_summary;
 
   function automatic logic [31:0] memtest_expected_word(
     input logic [20:0] word_addr
@@ -109,7 +140,8 @@ module sdram_memtest_ctrl #(
     end
   endfunction
 
-  assign s_expected_word = memtest_expected_word(r_word_idx[20:0]);
+  assign s_word_idx_21 = 21'(r_word_idx);
+  assign s_expected_word = memtest_expected_word(s_word_idx_21);
   assign s_last_word = (r_word_idx == (MEMTEST_TOTAL_WORDS - 1));
   assign s_post_init_wait_done =
     (POST_INIT_WAIT_CYCLES == 0) ? 1'b1 :
@@ -117,10 +149,50 @@ module sdram_memtest_ctrl #(
 
   assign O_REQ_VALID = (st_state == ST_WRITE_REQ) || (st_state == ST_READ_REQ);
   assign O_REQ_IS_WRITE = (st_state == ST_WRITE_REQ);
-  assign O_REQ_ADDR = r_word_idx[20:0];
+  assign O_REQ_ADDR = s_word_idx_21;
   assign O_REQ_WR_DATA = s_expected_word;
   assign O_REQ_WR_BE = 4'hF;
   assign O_RSP_READY = 1'b1;
+  assign s_dbg_read_gap_cnt = 6'(r_read_gap_cnt);
+  assign s_dbg_post_init_wait_cnt = 16'(r_post_init_wait_cnt);
+  assign s_dbg_retry_limit = 4'(MEMTEST_READBACK_RETRY_COUNT);
+  assign s_dbg_retry_count = 4'(r_dbg_retry_count);
+  assign s_dbg_retry_attempts = 4'(r_dbg_retry_count + r_dbg_retry_valid);
+  assign s_dbg_retry_summary = {
+    s_dbg_retry_limit,
+    s_dbg_retry_count,
+    s_dbg_retry_attempts,
+    4'h0,
+    r_dbg_retry_active,
+    r_dbg_retry_recovered,
+    r_dbg_retry_exhausted,
+    r_dbg_retry_valid,
+    8'h00,
+    2'b00,
+    r_fail_reason_code
+  };
+
+  assign O_DBG_SUMMARY = {
+    st_state,
+    r_init_logged,
+    O_TEST_ACTIVE,
+    O_TEST_PASS,
+    O_TEST_FAIL,
+    r_fail_ctx_pending,
+    r_fail_replay_sel,
+    s_dbg_read_gap_cnt,
+    s_dbg_post_init_wait_cnt
+  };
+  assign O_DBG_CURR_WORD_ADDR  = {11'h000, s_word_idx_21};
+  assign O_DBG_EXPECTED_WORD   = s_expected_word;
+  assign O_DBG_LAST_RD_DATA    = r_last_rsp_rd_data;
+  assign O_DBG_LAST_RSP_STATUS = r_last_rsp_status;
+  assign O_DBG_FAIL_ARG0       = r_fail_arg0;
+  assign O_DBG_FAIL_ARG1       = r_fail_arg1;
+  assign O_DBG_FAIL_ARG2       = r_fail_arg2;
+  assign O_DBG_FAIL_CTX_ARG0   = s_dbg_retry_summary;
+  assign O_DBG_FAIL_CTX_ARG1   = r_fail_ctx_arg1;
+  assign O_DBG_FAIL_CTX_ARG2   = r_fail_ctx_arg2;
 
   // Main self-test flow.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
@@ -185,8 +257,14 @@ module sdram_memtest_ctrl #(
 
         ST_READ_WAIT: begin
           if (I_RSP_VALID) begin
-            if ((I_RSP_STATUS != 32'h0000_0000) ||
-                (I_RSP_RD_DATA != s_expected_word)) begin
+            if (I_RSP_STATUS != 32'h0000_0000) begin
+              st_state      <= ST_FAIL;
+              O_TEST_ACTIVE <= 1'b0;
+              O_TEST_FAIL   <= 1'b1;
+            end else if ((I_RSP_RD_DATA != s_expected_word) &&
+                         (r_read_retry_count_cur < MEMTEST_READBACK_RETRY_COUNT)) begin
+              st_state <= ST_READ_REQ;
+            end else if (I_RSP_RD_DATA != s_expected_word) begin
               st_state      <= ST_FAIL;
               O_TEST_ACTIVE <= 1'b0;
               O_TEST_FAIL   <= 1'b1;
@@ -231,6 +309,15 @@ module sdram_memtest_ctrl #(
       r_fail_replay_cnt    <= '0;
       r_fail_ctx_pending   <= 1'b0;
       r_fail_replay_sel    <= 1'b0;
+      r_read_retry_count_cur<= '0;
+      r_dbg_retry_count    <= '0;
+      r_dbg_retry_active   <= 1'b0;
+      r_dbg_retry_recovered<= 1'b0;
+      r_dbg_retry_exhausted<= 1'b0;
+      r_dbg_retry_valid    <= 1'b0;
+      r_fail_reason_code   <= 2'b00;
+      r_last_rsp_rd_data   <= 32'h0000_0000;
+      r_last_rsp_status    <= 32'h0000_0000;
     end else begin
       case (st_state)
         ST_IDLE: begin
@@ -241,6 +328,15 @@ module sdram_memtest_ctrl #(
           r_fail_replay_cnt    <= '0;
           r_fail_ctx_pending   <= 1'b0;
           r_fail_replay_sel    <= 1'b0;
+          r_read_retry_count_cur<= '0;
+          r_dbg_retry_count    <= '0;
+          r_dbg_retry_active   <= 1'b0;
+          r_dbg_retry_recovered<= 1'b0;
+          r_dbg_retry_exhausted<= 1'b0;
+          r_dbg_retry_valid    <= 1'b0;
+          r_fail_reason_code   <= 2'b00;
+          r_last_rsp_rd_data   <= 32'h0000_0000;
+          r_last_rsp_status    <= 32'h0000_0000;
         end
 
         ST_WAIT_INIT: begin
@@ -258,16 +354,23 @@ module sdram_memtest_ctrl #(
 
         ST_WRITE_WAIT: begin
           if (I_RSP_VALID) begin
+            r_last_rsp_status <= I_RSP_STATUS;
             if (I_RSP_STATUS != 32'h0000_0000) begin
               r_fail_arg0        <= 32'h0000_0000;
               r_fail_arg1        <= 32'h0000_0000;
               r_fail_arg2        <= I_RSP_STATUS;
-              r_fail_ctx_arg0    <= 32'h0000_0000;
-              r_fail_ctx_arg1    <= {11'h000, r_word_idx[20:0]};
-              r_fail_ctx_arg2    <= {11'h000, r_word_idx[20:0]};
+              r_fail_ctx_arg1    <= 32'h0000_0000;
+              r_fail_ctx_arg2    <= 32'h0000_0000;
               r_fail_ctx_pending <= 1'b1;
               r_fail_replay_cnt  <= '0;
               r_fail_replay_sel  <= 1'b0;
+              r_read_retry_count_cur <= '0;
+              r_dbg_retry_count   <= '0;
+              r_dbg_retry_active  <= 1'b0;
+              r_dbg_retry_recovered <= 1'b0;
+              r_dbg_retry_exhausted <= 1'b0;
+              r_dbg_retry_valid   <= 1'b0;
+              r_fail_reason_code  <= 2'd0;
             end else if (s_last_word) begin
               r_word_idx     <= '0;
               r_read_gap_cnt <= POST_WRITE_TO_READ_GAP_CYCLES[GAP_CNT_W-1:0];
@@ -285,28 +388,88 @@ module sdram_memtest_ctrl #(
 
         ST_READ_WAIT: begin
           if (I_RSP_VALID) begin
+            r_last_rsp_rd_data <= I_RSP_RD_DATA;
+            r_last_rsp_status  <= I_RSP_STATUS;
             if (I_RSP_STATUS != 32'h0000_0000) begin
               r_fail_arg0        <= 32'h0000_0000;
               r_fail_arg1        <= 32'h0000_0000;
               r_fail_arg2        <= I_RSP_STATUS;
-              r_fail_ctx_arg0    <= 32'h0000_0001;
-              r_fail_ctx_arg1    <= {11'h000, r_word_idx[20:0]};
-              r_fail_ctx_arg2    <= {11'h000, r_word_idx[20:0]};
+              r_fail_ctx_arg1    <= 32'h0000_0000;
+              r_fail_ctx_arg2    <= 32'h0000_0000;
               r_fail_ctx_pending <= 1'b1;
               r_fail_replay_cnt  <= '0;
               r_fail_replay_sel  <= 1'b0;
+              r_read_retry_count_cur <= '0;
+              r_dbg_retry_count   <= '0;
+              r_dbg_retry_active  <= 1'b0;
+              r_dbg_retry_recovered <= 1'b0;
+              r_dbg_retry_exhausted <= 1'b0;
+              r_dbg_retry_valid   <= 1'b0;
+              r_fail_reason_code  <= 2'd1;
             end else if (I_RSP_RD_DATA != s_expected_word) begin
-              r_fail_arg0        <= {11'h000, r_word_idx[20:0]};
-              r_fail_arg1        <= s_expected_word;
-              r_fail_arg2        <= I_RSP_RD_DATA;
-              r_fail_ctx_arg0    <= 32'h0000_0002;
-              r_fail_ctx_arg1    <= {11'h000, r_word_idx[20:0]};
-              r_fail_ctx_arg2    <= {11'h000, r_word_idx[20:0]};
-              r_fail_ctx_pending <= 1'b1;
-              r_fail_replay_cnt  <= '0;
-              r_fail_replay_sel  <= 1'b0;
+              if (r_read_retry_count_cur == 0) begin
+                r_fail_arg0      <= {11'h000, s_word_idx_21};
+                r_fail_arg1      <= s_expected_word;
+                r_fail_arg2      <= I_RSP_RD_DATA;
+                r_fail_ctx_arg1  <= 32'h0000_0000;
+                r_fail_ctx_arg2  <= 32'h0000_0000;
+                r_dbg_retry_count <= '0;
+              end else if (r_read_retry_count_cur == 1) begin
+                r_fail_ctx_arg1 <= I_RSP_RD_DATA;
+                r_dbg_retry_count <= r_read_retry_count_cur;
+              end else if (r_read_retry_count_cur == 2) begin
+                r_fail_ctx_arg2 <= I_RSP_RD_DATA;
+                r_dbg_retry_count <= r_read_retry_count_cur;
+              end else begin
+                r_dbg_retry_count <= r_read_retry_count_cur;
+              end
+
+              r_dbg_retry_valid    <= 1'b1;
+              r_dbg_retry_recovered<= 1'b0;
+              r_fail_reason_code   <= 2'd2;
+
+              if (r_read_retry_count_cur < MEMTEST_READBACK_RETRY_COUNT) begin
+                r_read_retry_count_cur <= r_read_retry_count_cur + 1'b1;
+                r_dbg_retry_active     <= 1'b1;
+                r_dbg_retry_exhausted  <= 1'b0;
+              end else begin
+                r_fail_ctx_pending     <= 1'b1;
+                r_fail_replay_cnt      <= '0;
+                r_fail_replay_sel      <= 1'b0;
+                r_dbg_retry_active     <= 1'b0;
+                r_dbg_retry_exhausted  <= 1'b1;
+              end
             end else if (!s_last_word) begin
+              if (r_read_retry_count_cur != 0) begin
+                if (r_read_retry_count_cur == 1) begin
+                  r_fail_ctx_arg1 <= I_RSP_RD_DATA;
+                end else if (r_read_retry_count_cur == 2) begin
+                  r_fail_ctx_arg2 <= I_RSP_RD_DATA;
+                end
+                r_dbg_retry_count     <= r_read_retry_count_cur;
+                r_dbg_retry_valid     <= 1'b1;
+                r_dbg_retry_active    <= 1'b0;
+                r_dbg_retry_recovered <= 1'b1;
+                r_dbg_retry_exhausted <= 1'b0;
+                r_fail_reason_code    <= 2'd2;
+              end
+              r_read_retry_count_cur <= '0;
               r_word_idx <= r_word_idx + 1'b1;
+            end else begin
+              if (r_read_retry_count_cur != 0) begin
+                if (r_read_retry_count_cur == 1) begin
+                  r_fail_ctx_arg1 <= I_RSP_RD_DATA;
+                end else if (r_read_retry_count_cur == 2) begin
+                  r_fail_ctx_arg2 <= I_RSP_RD_DATA;
+                end
+                r_dbg_retry_count     <= r_read_retry_count_cur;
+                r_dbg_retry_valid     <= 1'b1;
+                r_dbg_retry_active    <= 1'b0;
+                r_dbg_retry_recovered <= 1'b1;
+                r_dbg_retry_exhausted <= 1'b0;
+                r_fail_reason_code    <= 2'd2;
+              end
+              r_read_retry_count_cur <= '0;
             end
           end
         end
@@ -369,10 +532,11 @@ module sdram_memtest_ctrl #(
         O_EVT_ARG2  <= I_RSP_STATUS;
       end else if ((st_state == ST_READ_WAIT) && I_RSP_VALID &&
                    (I_RSP_STATUS == 32'h0000_0000) &&
-                   (I_RSP_RD_DATA != s_expected_word)) begin
+                   (I_RSP_RD_DATA != s_expected_word) &&
+                   (r_read_retry_count_cur >= MEMTEST_READBACK_RETRY_COUNT)) begin
         O_EVT_VALID <= 1'b1;
         O_EVT_ID    <= EVT_TEST_FAIL;
-        O_EVT_ARG0  <= {11'h000, r_word_idx[20:0]};
+        O_EVT_ARG0  <= {11'h000, s_word_idx_21};
         O_EVT_ARG1  <= s_expected_word;
         O_EVT_ARG2  <= I_RSP_RD_DATA;
       end else if ((st_state == ST_READ_WAIT) && I_RSP_VALID &&

@@ -8,6 +8,7 @@ Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\emb
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_memtest_ctrl.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_status_reg_map.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\reset_mng.sv'
@@ -37,13 +38,14 @@ Extracting RAM for identifier 'r_fifo_mem'("C:\Electronics\GitHubProjects\tangna
 Compiling module 'sdram_emb_hostif(MEMTEST_BURST_WORDS=32'b00000000000000000000000100000000,MEMTEST_TOTAL_WORDS=32'b00000000001000000000000000000000,MEMTEST_POST_INIT_WAIT_CYCLES=32'b00000000001001001001111100000000,MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES=32'b00000000000000000000000000010000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif.sv":10)
 Compiling module 'sdram_emb_hostif_ctrl(MEMTEST_CLK_HZ=32'b00000010110111000110110000000000,MEMTEST_BURST_WORDS=32'b00000000000000000000000100000000,MEMTEST_TOTAL_WORDS=32'b00000000001000000000000000000000,MEMTEST_POST_INIT_WAIT_CYCLES=32'b00000000001001001001111100000000,MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES=32'b00000000000000000000000000010000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv":10)
 Compiling module 'sdram_memtest_ctrl(CLK_HZ=32'b00000010110111000110110000000000,MEMTEST_BURST_WORDS=32'b00000000000000000000000100000000,MEMTEST_TOTAL_WORDS=32'b00000000001000000000000000000000,POST_INIT_WAIT_CYCLES=32'b00000000001001001001111100000000,POST_WRITE_TO_READ_GAP_CYCLES=32'b00000000000000000000000000010000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_memtest_ctrl.sv":12)
-Compiling module 'sdram_uart_bridge_ctrl'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv":11)
+Compiling module 'sdram_uart_bridge_ctrl'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv":14)
+Compiling module 'sdram_status_reg_map'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_status_reg_map.sv":57)
 Compiling module 'sdram_uart_ascii_ctrl'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv":10)
 WARN  (EX3791) : Expression size 8 truncated to fit in target size 4("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_proto_pkg.sv":79)
 WARN  (EX3791) : Expression size 8 truncated to fit in target size 4("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_proto_pkg.sv":81)
 Compiling module 'sdram_open_word_ctrl'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_open_word_ctrl.sv":11)
 Compiling module 'sdram_open_byte_ctrl'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_open_byte_ctrl.sv":17)
-Compiling module 'sdram(FREQ=32'b00000010110111000110110000000000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\sdram-tang-nano-20k\src\sdram.v":28)
+Compiling module 'sdram(FREQ=32'b00000010110111000110110000000000,CAS=4'b0011,T_WR=4'b0010,T_MRD=4'b0010,T_RP=4'b0001,T_RCD=4'b0001,T_RC=4'b0100)'("C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\sdram-tang-nano-20k\src\sdram.v":28)
 WARN  (EX3791) : Expression size 16 truncated to fit in target size 15("C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\sdram-tang-nano-20k\src\sdram.v":262)
 Compiling module 'uart_log_cli(CLK_HZ=32'b00000001011011100011011000000000,BAUD=32'b00000000000000011100001000000000,NUM_SRC=32'b00000000000000000000000000000011)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli.sv":18)
 Compiling module 'uart_rx_stream(C_BAUD_COUNT=32'b00000000000000000000000011010000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_lite\uart_rx_stream.sv":6)

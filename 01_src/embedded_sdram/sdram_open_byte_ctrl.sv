@@ -16,6 +16,12 @@
 
 module sdram_open_byte_ctrl #(
   parameter int unsigned FREQ_HZ = 48_000_000,
+  parameter logic [3:0]  SDRAM_CAS = 4'd3,
+  parameter logic [3:0]  SDRAM_T_WR = 4'd2,
+  parameter logic [3:0]  SDRAM_T_MRD = 4'd2,
+  parameter logic [3:0]  SDRAM_T_RP = 4'd1,
+  parameter logic [3:0]  SDRAM_T_RCD = 4'd1,
+  parameter logic [3:0]  SDRAM_T_RC = 4'd4,
   parameter int unsigned REFRESH_INTERVAL_US = 12,
   parameter int unsigned REFRESH_DEADLINE_US = 15,
   parameter int unsigned RESP_TIMEOUT_CYCLES = 2048
@@ -35,6 +41,8 @@ module sdram_open_byte_ctrl #(
   output logic [7:0]  O_RSP_RD_DATA,
   output logic [31:0] O_RSP_STATUS,
   output logic        O_INIT_DONE,
+  output logic [31:0] O_DBG_SUMMARY,
+  output logic [31:0] O_DBG_DETAIL,
 
   output logic        O_sdram_clk,
   output logic        O_sdram_cke,
@@ -82,6 +90,7 @@ module sdram_open_byte_ctrl #(
   logic        r_rsp_valid;
   logic        r_req_seen_busy;
   logic        r_req_seen_data_ready;
+  logic [31:0] r_last_ctrl_dout32;
   logic [REFRESH_CNT_W-1:0] r_refresh_age;
   logic [TIMEOUT_W-1:0]     r_timeout_cnt;
 
@@ -91,6 +100,7 @@ module sdram_open_byte_ctrl #(
   logic [22:0] l_ctrl_addr;
   logic [7:0]  l_ctrl_din;
   logic [7:0]  l_ctrl_dout;
+  logic [31:0] l_ctrl_dout32;
   logic        l_ctrl_data_ready;
   logic        l_ctrl_busy;
   logic        s_refresh_due;
@@ -99,6 +109,22 @@ module sdram_open_byte_ctrl #(
   logic        s_req_done;
   logic        s_refresh_done;
   logic        s_req_timeout;
+  logic [15:0] s_dbg_timeout_cnt;
+  logic [15:0] s_dbg_refresh_age;
+
+  function automatic logic [7:0] select_byte_from_word(
+    input logic [31:0] word_value,
+    input logic [1:0]  byte_offset
+  );
+    begin
+      case (byte_offset)
+        2'd0: select_byte_from_word = word_value[7:0];
+        2'd1: select_byte_from_word = word_value[15:8];
+        2'd2: select_byte_from_word = word_value[23:16];
+        default: select_byte_from_word = word_value[31:24];
+      endcase
+    end
+  endfunction
 
   assign s_refresh_due = O_INIT_DONE &&
                          (r_refresh_age >= (REFRESH_INTERVAL_CYCLES - 1));
@@ -116,6 +142,25 @@ module sdram_open_byte_ctrl #(
   assign O_RSP_VALID = r_rsp_valid;
   assign O_RSP_RD_DATA = r_rsp_rd_data;
   assign O_RSP_STATUS = r_rsp_status;
+  assign s_dbg_timeout_cnt = 16'(r_timeout_cnt);
+  assign s_dbg_refresh_age = 16'(r_refresh_age);
+  assign O_DBG_SUMMARY = {
+    st_state,
+    O_INIT_DONE,
+    r_req_is_write,
+    r_req_seen_busy,
+    r_req_seen_data_ready,
+    s_refresh_due,
+    l_ctrl_busy,
+    l_ctrl_data_ready,
+    l_ctrl_rd,
+    l_ctrl_wr,
+    l_ctrl_refresh,
+    r_rsp_valid,
+    O_REQ_READY,
+    r_req_addr[16:0]
+  };
+  assign O_DBG_DETAIL = r_last_ctrl_dout32;
 
   // Tracks request ownership, refresh cadence, and byte response completion.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
@@ -129,6 +174,7 @@ module sdram_open_byte_ctrl #(
       r_rsp_valid          <= 1'b0;
       r_req_seen_busy      <= 1'b0;
       r_req_seen_data_ready<= 1'b0;
+      r_last_ctrl_dout32   <= 32'h0000_0000;
       r_refresh_age        <= '0;
       r_timeout_cnt        <= '0;
       O_INIT_DONE          <= 1'b0;
@@ -196,6 +242,8 @@ module sdram_open_byte_ctrl #(
             end
             if (l_ctrl_data_ready) begin
               r_req_seen_data_ready <= 1'b1;
+              r_rsp_rd_data         <= select_byte_from_word(l_ctrl_dout32, r_req_addr[1:0]);
+              r_last_ctrl_dout32    <= l_ctrl_dout32;
             end
             if (r_timeout_cnt < (RESP_TIMEOUT_CYCLES - 1)) begin
               r_timeout_cnt <= r_timeout_cnt + 1'b1;
@@ -217,7 +265,6 @@ module sdram_open_byte_ctrl #(
           end
 
           ST_READ_COMPLETE: begin
-            r_rsp_rd_data <= l_ctrl_dout;
             r_rsp_status  <= 32'h0000_0000;
             r_rsp_valid   <= 1'b1;
             st_state      <= ST_RESPOND;
@@ -265,7 +312,13 @@ module sdram_open_byte_ctrl #(
   end
 
   sdram #(
-    .FREQ(FREQ_HZ)
+    .FREQ(FREQ_HZ),
+    .CAS (SDRAM_CAS),
+    .T_WR(SDRAM_T_WR),
+    .T_MRD(SDRAM_T_MRD),
+    .T_RP (SDRAM_T_RP),
+    .T_RCD(SDRAM_T_RCD),
+    .T_RC (SDRAM_T_RC)
   ) u_sdram (
     .clk        (I_CLK),
     .clk_sdram  (I_CLK_SDRAM),
@@ -276,7 +329,7 @@ module sdram_open_byte_ctrl #(
     .addr       (l_ctrl_addr),
     .din        (l_ctrl_din),
     .dout       (l_ctrl_dout),
-    .dout32     (),
+    .dout32     (l_ctrl_dout32),
     .data_ready (l_ctrl_data_ready),
     .busy       (l_ctrl_busy),
     .SDRAM_DQ   (IO_sdram_dq),

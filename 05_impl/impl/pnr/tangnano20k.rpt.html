@@ -83,7 +83,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td class="label">Created Time</td>
-<td>Sat Apr 18 12:39:16 2026
+<td>Sat Apr 18 17:17:58 2026
 </td>
 </tr>
 <tr>
@@ -97,14 +97,14 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <tr>
 <td class="label">Place & Route Process</td>
 <td>Running placement:
-   Placement Phase 0: CPU time = 0h 0m 0.461s, Elapsed time = 0h 0m 0.462s
-   Placement Phase 1: CPU time = 0h 0m 0.208s, Elapsed time = 0h 0m 0.208s
+   Placement Phase 0: CPU time = 0h 0m 0.556s, Elapsed time = 0h 0m 0.556s
+   Placement Phase 1: CPU time = 0h 0m 0.214s, Elapsed time = 0h 0m 0.214s
    Placement Phase 2: CPU time = 0h 0m 1s, Elapsed time = 0h 0m 1s
    Placement Phase 3: CPU time = 0h 0m 1s, Elapsed time = 0h 0m 1s
-   Total Placement: CPU time = 0h 0m 3s, Elapsed time = 0h 0m 3s
+   Total Placement: CPU time = 0h 0m 4s, Elapsed time = 0h 0m 4s
 Running routing:
    Routing Phase 0: CPU time = 0h 0m 0.003s, Elapsed time = 0h 0m 0.003s
-   Routing Phase 1: CPU time = 0h 0m 0.144s, Elapsed time = 0h 0m 0.143s
+   Routing Phase 1: CPU time = 0h 0m 0.131s, Elapsed time = 0h 0m 0.131s
    Routing Phase 2: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
    Routing Phase 3: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s
    Total Routing: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
@@ -114,7 +114,7 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">Total Time and Memory Usage</td>
-<td>CPU time = 0h 0m 7s, Elapsed time = 0h 0m 7s, Peak memory usage = 609MB</td>
+<td>CPU time = 0h 0m 7s, Elapsed time = 0h 0m 7s, Peak memory usage = 530MB</td>
 </tr>
 </table>
 <br/>
@@ -129,23 +129,23 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">Logic</td>
-<td>4408/20736</td>
-<td>22%</td>
+<td>4905/20736</td>
+<td>24%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --LUT,ALU,ROM16</td>
-<td>3778(3646 LUT, 132 ALU, 0 ROM16)</td>
+<td>4455(4323 LUT, 132 ALU, 0 ROM16)</td>
 <td>-</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --SSRAM(RAM16)</td>
-<td>105</td>
+<td>75</td>
 <td>-</td>
 </tr>
 <tr>
 <td class="label">Register</td>
-<td>2700/15915</td>
-<td>17%</td>
+<td>3264/15915</td>
+<td>21%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --Logic Register as Latch</td>
@@ -154,8 +154,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --Logic Register as FF</td>
-<td>2679/15552</td>
-<td>18%</td>
+<td>3212/15552</td>
+<td>21%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --I/O Register as Latch</td>
@@ -164,13 +164,13 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --I/O Register as FF</td>
-<td>21/363</td>
-<td>6%</td>
+<td>52/363</td>
+<td>15%</td>
 </tr>
 <tr>
 <td class="label">CLS</td>
-<td>3446/10368</td>
-<td>34%</td>
+<td>4044/10368</td>
+<td>39%</td>
 </tr>
 <tr>
 <td class="label">I/O Port</td>
@@ -287,7 +287,7 @@ Generate output files:
 <tr>
 <td class="label">clk_48m_sdram</td>
 <td>PRIMARY</td>
-<td> TR TL BL</td>
+<td> TR TL BR BL</td>
 </tr>
 <tr>
 <td class="label">O_sdram_clk_d</td>
@@ -300,12 +300,12 @@ Generate output files:
 <td> TR TL BR BL</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/g_log_tap[2].u_tap/n2759_3</td>
+<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5997_3</td>
 <td>PRIMARY</td>
-<td> TR TL BR BL</td>
+<td> TL BL</td>
 </tr>
 <tr>
-<td class="label">r_evt_fifo_mem[0]_ER_init</td>
+<td class="label">PIN15_IOL47A_LED0_d_4</td>
 <td>LW</td>
 <td> -</td>
 </tr>
@@ -315,32 +315,32 @@ Generate output files:
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/O_EVT_ARG2_31_4</td>
+<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/r_word_ctrl_dbg_summary_snap_30_13</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_fail_arg0_20_10</td>
+<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/O_EVT_ARG2_31_6</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/r_shared_rd_pending</td>
+<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5685_3</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/g_log_tap[2].u_tap/n2375_3</td>
+<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5789_3</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/g_log_tap[2].u_tap/n2503_3</td>
+<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5893_3</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/g_log_tap[2].u_tap/n2631_3</td>
+<td class="label">u_sdram_emb_hostif/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n6956_5</td>
 <td>LW</td>
 <td> -</td>
 </tr>

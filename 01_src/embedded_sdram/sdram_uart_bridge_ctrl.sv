@@ -1,11 +1,14 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // File         : sdram_uart_bridge_ctrl.sv
-// Description  : SDRAM UART host controller on the native word request
-//                interface.
+// Description  : uart_log_cli status-map bridge.
 //                - Parses ASCII R/W commands.
-//                - Executes one single-word access at a time.
-//                - Rejects BR/BW as unsupported commands.
+//                - Exposes a read-only 64-byte status map.
+//                - Rejects writes and bulk commands as unsupported.
+//
+// Usage example:
+//   - "R 0" reads the 32-bit register image for byte addresses 0x00-0x03.
+//   - "R 4" reads the next 32-bit register image for 0x04-0x07.
 //////////////////////////////////////////////////////////////////////////////////
 
 module sdram_uart_bridge_ctrl (
@@ -19,20 +22,26 @@ module sdram_uart_bridge_ctrl (
   output logic        O_RAW_TX_VALID,
   output logic [7:0]  O_RAW_TX_DATA,
   input  logic        I_RAW_TX_READY,
-  input  logic        I_INIT_DONE,
-
-  output logic        O_REQ_VALID,
-  input  logic        I_REQ_READY,
-  output logic        O_REQ_IS_WRITE,
-  output logic [20:0] O_REQ_ADDR,
-  output logic [31:0] O_REQ_WR_DATA,
-  output logic [3:0]  O_REQ_WR_BE,
-
-  input  logic        I_RSP_VALID,
-  output logic        O_RSP_READY,
-  input  logic [31:0] I_RSP_RD_DATA,
-  input  logic [31:0] I_RSP_STATUS,
-
+  input  logic        I_STATUS_INIT_DONE,
+  input  logic        I_STATUS_TEST_ACTIVE,
+  input  logic        I_STATUS_TEST_PASS,
+  input  logic        I_STATUS_TEST_FAIL,
+  input  logic        I_STATUS_HOST_BUSY,
+  input  logic [31:0] I_STATUS_MEMTEST_SUMMARY,
+  input  logic [31:0] I_STATUS_MEMTEST_CURR_WORD_ADDR,
+  input  logic [31:0] I_STATUS_MEMTEST_EXPECTED_WORD,
+  input  logic [31:0] I_STATUS_MEMTEST_LAST_RD_DATA,
+  input  logic [31:0] I_STATUS_MEMTEST_LAST_RSP_STATUS,
+  input  logic [31:0] I_STATUS_MEMTEST_FAIL_ARG0,
+  input  logic [31:0] I_STATUS_MEMTEST_FAIL_ARG1,
+  input  logic [31:0] I_STATUS_MEMTEST_FAIL_ARG2,
+  input  logic [31:0] I_STATUS_MEMTEST_FAIL_CTX_ARG0,
+  input  logic [31:0] I_STATUS_MEMTEST_FAIL_CTX_ARG1,
+  input  logic [31:0] I_STATUS_MEMTEST_FAIL_CTX_ARG2,
+  input  logic [31:0] I_STATUS_WORD_CTRL_SUMMARY,
+  input  logic [31:0] I_STATUS_WORD_CTRL_DATA,
+  input  logic [31:0] I_STATUS_BYTE_CTRL_SUMMARY,
+  input  logic [31:0] I_STATUS_BYTE_CTRL_DETAIL,
   output logic        O_EVT_VALID,
   output logic [7:0]  O_EVT_ID,
   output logic [31:0] O_EVT_ARG0,
@@ -57,13 +66,9 @@ module sdram_uart_bridge_ctrl (
   logic        s_ascii_err_valid;
   logic [31:0] s_ascii_err_code;
   logic [31:0] s_ascii_err_detail;
+  logic [31:0] s_status_rd_data;
 
   logic        r_ascii_cmd_ready;
-  logic        r_req_valid;
-  logic        r_req_is_write;
-  logic [20:0] r_req_addr;
-  logic [31:0] r_req_data;
-  logic        r_req_inflight;
   logic [103:0] r_evt_fifo_mem [0:EVT_FIFO_DEPTH-1];
   logic [EVT_FIFO_PTR_W-1:0] r_evt_wr_ptr;
   logic [EVT_FIFO_PTR_W-1:0] r_evt_rd_ptr;
@@ -99,14 +104,7 @@ module sdram_uart_bridge_ctrl (
   assign O_RAW_TX_MODE   = 1'b0;
   assign O_RAW_TX_VALID  = 1'b0;
   assign O_RAW_TX_DATA   = 8'h00;
-
-  assign O_REQ_VALID    = r_req_valid;
-  assign O_REQ_IS_WRITE = r_req_is_write;
-  assign O_REQ_ADDR     = r_req_addr;
-  assign O_REQ_WR_DATA  = r_req_data;
-  assign O_REQ_WR_BE    = 4'hF;
-  assign O_RSP_READY    = 1'b1;
-  assign O_CMD_BUSY     = r_req_valid || r_req_inflight;
+  assign O_CMD_BUSY      = 1'b0;
 
   assign s_evt_fifo_full  = (r_evt_count == EVT_FIFO_DEPTH);
   assign s_evt_fifo_empty = (r_evt_count == 0);
@@ -118,6 +116,31 @@ module sdram_uart_bridge_ctrl (
   assign O_EVT_ARG0  = s_evt_fifo_empty ? 32'h0 : r_evt_fifo_mem[r_evt_rd_ptr][95:64];
   assign O_EVT_ARG1  = s_evt_fifo_empty ? 32'h0 : r_evt_fifo_mem[r_evt_rd_ptr][63:32];
   assign O_EVT_ARG2  = s_evt_fifo_empty ? 32'h0 : r_evt_fifo_mem[r_evt_rd_ptr][31:0];
+
+  sdram_status_reg_map u_sdram_status_reg_map (
+    .I_ADDR                   (s_ascii_cmd_addr[15:0]),
+    .I_INIT_DONE              (I_STATUS_INIT_DONE),
+    .I_TEST_ACTIVE            (I_STATUS_TEST_ACTIVE),
+    .I_TEST_PASS              (I_STATUS_TEST_PASS),
+    .I_TEST_FAIL              (I_STATUS_TEST_FAIL),
+    .I_HOST_BUSY              (I_STATUS_HOST_BUSY),
+    .I_MEMTEST_SUMMARY        (I_STATUS_MEMTEST_SUMMARY),
+    .I_MEMTEST_CURR_WORD_ADDR (I_STATUS_MEMTEST_CURR_WORD_ADDR),
+    .I_MEMTEST_EXPECTED_WORD  (I_STATUS_MEMTEST_EXPECTED_WORD),
+    .I_MEMTEST_LAST_RD_DATA   (I_STATUS_MEMTEST_LAST_RD_DATA),
+    .I_MEMTEST_LAST_RSP_STATUS(I_STATUS_MEMTEST_LAST_RSP_STATUS),
+    .I_MEMTEST_FAIL_ARG0      (I_STATUS_MEMTEST_FAIL_ARG0),
+    .I_MEMTEST_FAIL_ARG1      (I_STATUS_MEMTEST_FAIL_ARG1),
+    .I_MEMTEST_FAIL_ARG2      (I_STATUS_MEMTEST_FAIL_ARG2),
+    .I_MEMTEST_FAIL_CTX_ARG0  (I_STATUS_MEMTEST_FAIL_CTX_ARG0),
+    .I_MEMTEST_FAIL_CTX_ARG1  (I_STATUS_MEMTEST_FAIL_CTX_ARG1),
+    .I_MEMTEST_FAIL_CTX_ARG2  (I_STATUS_MEMTEST_FAIL_CTX_ARG2),
+    .I_WORD_CTRL_SUMMARY      (I_STATUS_WORD_CTRL_SUMMARY),
+    .I_WORD_CTRL_DATA         (I_STATUS_WORD_CTRL_DATA),
+    .I_BYTE_CTRL_SUMMARY      (I_STATUS_BYTE_CTRL_SUMMARY),
+    .I_BYTE_CTRL_DETAIL       (I_STATUS_BYTE_CTRL_DETAIL),
+    .O_RD_DATA                (s_status_rd_data)
+  );
 
   sdram_uart_ascii_ctrl u_sdram_uart_ascii_ctrl (
     .I_CLK             (I_CLK),
@@ -137,15 +160,11 @@ module sdram_uart_bridge_ctrl (
     .O_ERR_DETAIL      (s_ascii_err_detail)
   );
 
-  // Owns one outstanding host request and preserves command/result events.
+  // Decodes ASCII commands into immediate register-map events.
+  // Reads are served locally. Writes and bulk commands are rejected.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
       r_ascii_cmd_ready <= 1'b0;
-      r_req_valid       <= 1'b0;
-      r_req_is_write    <= 1'b0;
-      r_req_addr        <= '0;
-      r_req_data        <= 32'h0000_0000;
-      r_req_inflight    <= 1'b0;
       r_evt_push_valid  <= 1'b0;
       r_evt_push_id     <= 8'h00;
       r_evt_push_arg0   <= 32'h0;
@@ -155,11 +174,6 @@ module sdram_uart_bridge_ctrl (
       r_ascii_cmd_ready <= 1'b0;
       r_evt_push_valid  <= 1'b0;
 
-      if (r_req_valid && I_REQ_READY) begin
-        r_req_valid    <= 1'b0;
-        r_req_inflight <= 1'b1;
-      end
-
       if (s_ascii_err_valid) begin
         push_event(EVT_CMD_ERR, s_ascii_err_code, s_ascii_err_detail, 32'h0000_0000);
       end
@@ -167,8 +181,10 @@ module sdram_uart_bridge_ctrl (
       if (s_ascii_cmd_valid && !r_ascii_cmd_ready) begin
         r_ascii_cmd_ready <= 1'b1;
 
-        if (!I_ENABLE || !I_INIT_DONE || r_req_valid || r_req_inflight) begin
+        if (!I_ENABLE) begin
           push_event(EVT_CMD_ERR, ERR_BUSY, {11'h000, s_ascii_cmd_addr}, 32'h0000_0000);
+        end else if (|s_ascii_cmd_addr[20:6]) begin
+          push_event(EVT_CMD_ERR, ERR_ADDR_RANGE, {11'h000, s_ascii_cmd_addr}, 32'h0000_0000);
         end else if (s_ascii_cmd_op == ASCII_OP_BULK) begin
           push_event(
             EVT_CMD_ERR,
@@ -176,33 +192,28 @@ module sdram_uart_bridge_ctrl (
             {11'h000, s_ascii_cmd_addr},
             {11'h000, s_ascii_cmd_words}
           );
-        end else if ((s_ascii_cmd_op == ASCII_OP_READ) || (s_ascii_cmd_op == ASCII_OP_WRITE)) begin
-          r_req_valid    <= 1'b1;
-          r_req_is_write <= (s_ascii_cmd_op == ASCII_OP_WRITE);
-          r_req_addr     <= s_ascii_cmd_addr;
-          r_req_data     <= s_ascii_cmd_data;
-        end else begin
-          push_event(EVT_CMD_ERR, ERR_BAD_ASCII_CMD, 32'h0000_0000, 32'h0000_0000);
-        end
-      end
-
-      if (I_RSP_VALID && r_req_inflight) begin
-        r_req_inflight <= 1'b0;
-        if (I_RSP_STATUS == 32'h0000_0000) begin
+        end else if (s_ascii_cmd_op == ASCII_OP_WRITE) begin
           push_event(
-            r_req_is_write ? EVT_WRITE_ACK : EVT_READ_RSP,
-            {11'h000, r_req_addr},
-            r_req_is_write ? r_req_data : I_RSP_RD_DATA,
+            EVT_CMD_ERR,
+            ERR_UNSUPPORTED,
+            {11'h000, s_ascii_cmd_addr},
+            s_ascii_cmd_data
+          );
+        end else if (s_ascii_cmd_op == ASCII_OP_READ) begin
+          push_event(
+            EVT_READ_RSP,
+            {11'h000, s_ascii_cmd_addr},
+            s_status_rd_data,
             32'h0000_0000
           );
         end else begin
-          push_event(EVT_CMD_ERR, I_RSP_STATUS, {11'h000, r_req_addr}, 32'h0000_0000);
+          push_event(EVT_CMD_ERR, ERR_BAD_ASCII_CMD, 32'h0000_0000, 32'h0000_0000);
         end
       end
     end
   end
 
-  // Event FIFO shared with uart_log_cli.
+  // Stores host-visible events until uart_log_cli accepts them.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
       r_evt_wr_ptr <= '0;
