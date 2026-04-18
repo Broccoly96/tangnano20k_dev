@@ -1,30 +1,37 @@
   initial begin : tc_smoke
-    logic [20:0] wr_addr;
-    logic [31:0] wr_data;
-    logic [20:0] zero_addr;
-
-    wr_addr = 21'h00012;
-    wr_data = 32'h0012_A55A;
-    zero_addr = 21'h000A0;
+    logic [31:0] summary_word;
 
     @(posedge tb_rst_n);
+    log_info("HOSTIF CTRL TB", "case: summary read is available before init");
+    send_text("R 00000\n");
+    expect_host_event(EVT_READ_RSP, 32'h0000_0000, 32'h0300_0080, 32'h0, "pre-init summary");
+
     log_info("HOSTIF CTRL TB", "waiting for self-test completion");
     wait (tb_test_pass || tb_test_fail);
     if (tb_test_fail) begin
       log_fatal(1, "HOSTIF CTRL TB", "self-test finished with FAIL");
     end
 
-    log_info("HOSTIF CTRL TB", "case: untouched location is zero after clear");
-    send_text($sformatf("R %05X\n", zero_addr));
-    expect_host_event(EVT_READ_RSP, {11'h0, zero_addr}, 32'h0000_0000, 32'h0, "zero-cleared read rsp");
+    summary_word = 32'h030D_00A8;
+    log_info("HOSTIF CTRL TB", "case: final summary reflects PASS");
+    send_text("R 00000\n");
+    expect_host_event(EVT_READ_RSP, 32'h0000_0000, summary_word, 32'h0, "final summary");
 
-    log_info("HOSTIF CTRL TB", "case: host single write after memtest");
-    send_text($sformatf("W %05X %08X\n", wr_addr, wr_data));
-    expect_host_event(EVT_WRITE_ACK, {11'h0, wr_addr}, wr_data, 32'h0, "write ack");
+    log_info("HOSTIF CTRL TB", "case: retry summary stays zero on PASS");
+    send_text("R 00024\n");
+    expect_host_event(EVT_READ_RSP, 32'h0000_0024, 32'h0300_0000, 32'h0, "retry summary");
 
-    log_info("HOSTIF CTRL TB", "case: host single read after memtest");
-    send_text($sformatf("R %05X\n", wr_addr));
-    expect_host_event(EVT_READ_RSP, {11'h0, wr_addr}, wr_data, 32'h0, "read rsp");
+    log_info("HOSTIF CTRL TB", "case: retry data #1 stays zero on PASS");
+    send_text("R 00028\n");
+    expect_host_event(EVT_READ_RSP, 32'h0000_0028, 32'h0000_0000, 32'h0, "retry data1");
+
+    log_info("HOSTIF CTRL TB", "case: retry data #2 stays zero on PASS");
+    send_text("R 0002C\n");
+    expect_host_event(EVT_READ_RSP, 32'h0000_002C, 32'h0000_0000, 32'h0, "retry data2");
+
+    log_info("HOSTIF CTRL TB", "case: host write is unsupported");
+    send_text("W 00010 12345678\n");
+    expect_host_event(EVT_CMD_ERR, ERR_UNSUPPORTED, 32'h0000_0010, 32'h1234_5678, "write unsupported");
 
     log_info("HOSTIF CTRL TB", "case: unsupported bulk");
     send_text("BR 00040 00001\n");

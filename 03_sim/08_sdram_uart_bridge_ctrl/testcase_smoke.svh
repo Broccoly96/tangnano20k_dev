@@ -1,20 +1,26 @@
   initial begin : tc_smoke
-    logic [20:0] wr_addr;
-    logic [31:0] wr_data;
-
-    wr_addr = 21'h00030;
-    wr_data = 32'h89AB_CDEF;
-
     @(posedge tb_rst_n);
     repeat (4) @(posedge tb_clk);
 
-    log_info("BRIDGE CTRL TB", "case: ascii write");
-    send_text($sformatf("W %05X %08X\n", wr_addr, wr_data));
-    expect_event(EVT_WRITE_ACK, {11'h0, wr_addr}, wr_data, 32'h0, "write ack");
+    log_info("BRIDGE CTRL TB", "case: aligned status read");
+    send_text("R 00000\n");
+    expect_event(EVT_READ_RSP, 32'h0000_0000, 32'h0300_0008, 32'h0, "summary read rsp");
 
-    log_info("BRIDGE CTRL TB", "case: ascii read");
-    send_text($sformatf("R %05X\n", wr_addr));
-    expect_event(EVT_READ_RSP, {11'h0, wr_addr}, wr_data, 32'h0, "read rsp");
+    log_info("BRIDGE CTRL TB", "case: second status word read");
+    send_text("R 00004\n");
+    expect_event(EVT_READ_RSP, 32'h0000_0004, 32'hABCD_1234, 32'h0, "summary2 read rsp");
+
+    log_info("BRIDGE CTRL TB", "case: unaligned read is rejected");
+    send_text("R 00002\n");
+    expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_0002, 32'h0000_0040, "unaligned read");
+
+    log_info("BRIDGE CTRL TB", "case: out-of-range read is rejected");
+    send_text("R 00040\n");
+    expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_0040, 32'h0000_0040, "range read");
+
+    log_info("BRIDGE CTRL TB", "case: ascii write is unsupported");
+    send_text("W 00010 12345678\n");
+    expect_event(EVT_CMD_ERR, ERR_UNSUPPORTED, 32'h0000_0010, 32'h1234_5678, "write unsupported");
 
     log_info("BRIDGE CTRL TB", "case: invalid command");
     send_text("X\n");

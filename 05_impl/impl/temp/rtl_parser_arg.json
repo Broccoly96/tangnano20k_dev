@@ -2,11 +2,23 @@
  "Device" : "GW2AR-18C",
  "Files" : [
   {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/embedded_sdram/embedded_sdram.v",
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/sdram-tang-nano-20k/src/sdram.v",
    "Type" : "verilog"
   },
   {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_pll/gowin_pll.v",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_proto_pkg.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_open_byte_ctrl.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_open_word_ctrl.sv",
    "Type" : "verilog"
   },
   {
@@ -18,10 +30,6 @@
    "Type" : "verilog"
   },
   {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
-   "Type" : "verilog"
-  },
-  {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv",
    "Type" : "verilog"
   },
@@ -30,7 +38,7 @@
    "Type" : "verilog"
   },
   {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_proto_pkg.sv",
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif.sv",
    "Type" : "verilog"
   },
   {

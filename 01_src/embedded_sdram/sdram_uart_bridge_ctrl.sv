@@ -1,10 +1,10 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // File         : sdram_uart_bridge_ctrl.sv
-// Description  : SDRAM UART host controller, single-access-only edition.
-//                - Parses ASCII R/W commands.
-//                - Executes one single-word SDRAM access at a time.
-//                - Rejects BR/BW with CMD_ERR/ERR_UNSUPPORTED.
+// Description  : Read-only SDRAM debug register-map bridge for uart_log_cli.
+//                - Parses ASCII host commands.
+//                - Allows only 32-bit status-map reads from the 64-byte debug map.
+//                - Rejects writes and bulk transfers with ERR_UNSUPPORTED.
 //////////////////////////////////////////////////////////////////////////////////
 
 module sdram_uart_bridge_ctrl (
@@ -23,6 +23,8 @@ module sdram_uart_bridge_ctrl (
   input  logic        I_SDRC_WRD_ACK,
   input  logic        I_SDRC_RD_VALID,
   input  logic [31:0] I_SDRC_RD_DATA,
+  input  logic [31:0] I_STATUS_RD_DATA,
+  output logic [15:0] O_STATUS_ADDR,
   output logic        O_SDRC_WR_N,
   output logic        O_SDRC_RD_N,
   output logic [20:0] O_SDRC_ADDR,
@@ -40,19 +42,10 @@ module sdram_uart_bridge_ctrl (
 
   import sdram_uart_proto_pkg::*;
 
-  `define SDRAM_BRIDGE_LOG_DEBUG(MSG)
-  `define SDRAM_BRIDGE_LOG_TRACE(MSG)
-// synthesis translate_off
-`undef SDRAM_BRIDGE_LOG_DEBUG
-`undef SDRAM_BRIDGE_LOG_TRACE
-  import tb_log_pkg::*;
-  `define SDRAM_BRIDGE_LOG_DEBUG(MSG) tb_log_pkg::log_debug("SDRAM UART BRIDGE", MSG)
-  `define SDRAM_BRIDGE_LOG_TRACE(MSG) tb_log_pkg::log_trace("SDRAM UART BRIDGE", MSG)
-// synthesis translate_on
-
   localparam int unsigned EVT_FIFO_DEPTH = 8;
   localparam int unsigned EVT_FIFO_PTR_W = $clog2(EVT_FIFO_DEPTH);
   localparam int unsigned EVT_FIFO_CNT_W = $clog2(EVT_FIFO_DEPTH + 1);
+  localparam logic [20:0] STATUS_ADDR_MAX = 21'h0003F;
 
   logic        s_ascii_cmd_valid;
   logic [1:0]  s_ascii_cmd_op;
@@ -65,18 +58,10 @@ module sdram_uart_bridge_ctrl (
   logic [31:0] s_ascii_err_detail;
 
   logic        r_ascii_cmd_ready;
-  logic        r_req_valid;
-  logic        r_req_is_write;
-  logic [20:0] r_req_addr;
-  logic [31:0] r_req_data;
-  logic        r_single_inflight;
+  logic        r_cmd_busy;
+  logic        r_read_rsp_pending;
+  logic [20:0] r_read_addr;
 
-  logic        s_req_ready;
-  logic        s_access_rsp_valid;
-  logic        s_access_rsp_is_write;
-  logic [20:0] s_access_rsp_addr;
-  logic [31:0] s_access_rsp_data;
-  logic [31:0] s_access_rsp_status;
   logic [103:0] r_evt_fifo_mem [0:EVT_FIFO_DEPTH-1];
   logic [EVT_FIFO_PTR_W-1:0] r_evt_wr_ptr;
   logic [EVT_FIFO_PTR_W-1:0] r_evt_rd_ptr;
@@ -95,8 +80,17 @@ module sdram_uart_bridge_ctrl (
   assign O_RAW_TX_MODE   = 1'b0;
   assign O_RAW_TX_VALID  = 1'b0;
   assign O_RAW_TX_DATA   = 8'h00;
-  assign O_CMD_BUSY      = r_req_valid || r_single_inflight;
 
+  assign O_STATUS_ADDR   = r_read_addr[15:0];
+
+  assign O_SDRC_WR_N     = 1'b1;
+  assign O_SDRC_RD_N     = 1'b1;
+  assign O_SDRC_ADDR     = 21'h00000;
+  assign O_SDRC_DATA_LEN = 8'h00;
+  assign O_SDRC_DQM      = 4'h0;
+  assign O_SDRC_WR_DATA  = 32'h0000_0000;
+
+  assign O_CMD_BUSY      = r_cmd_busy || r_read_rsp_pending;
   assign s_evt_fifo_full  = (r_evt_count == EVT_FIFO_DEPTH);
   assign s_evt_fifo_empty = (r_evt_count == 0);
   assign s_evt_push       = r_evt_push_valid && !s_evt_fifo_full;
@@ -126,33 +120,6 @@ module sdram_uart_bridge_ctrl (
     .O_ERR_DETAIL      (s_ascii_err_detail)
   );
 
-  sdram_uart_access_engine u_sdram_uart_access_engine (
-    .I_CLK            (I_CLK),
-    .I_RST_N          (I_RST_N),
-    .I_REQ_VALID      (r_req_valid),
-    .O_REQ_READY      (s_req_ready),
-    .I_REQ_IS_WRITE   (r_req_is_write),
-    .I_REQ_ADDR       (r_req_addr),
-    .I_REQ_DATA       (r_req_data),
-    .I_SDRC_INIT_DONE (I_SDRC_INIT_DONE),
-    .I_SDRC_BUSY_N    (I_SDRC_BUSY_N),
-    .I_SDRC_WRD_ACK   (I_SDRC_WRD_ACK),
-    .I_SDRC_RD_VALID  (I_SDRC_RD_VALID),
-    .I_SDRC_RD_DATA   (I_SDRC_RD_DATA),
-    .O_SDRC_WR_N      (O_SDRC_WR_N),
-    .O_SDRC_RD_N      (O_SDRC_RD_N),
-    .O_SDRC_ADDR      (O_SDRC_ADDR),
-    .O_SDRC_DATA_LEN  (O_SDRC_DATA_LEN),
-    .O_SDRC_DQM       (O_SDRC_DQM),
-    .O_SDRC_WR_DATA   (O_SDRC_WR_DATA),
-    .O_RSP_VALID      (s_access_rsp_valid),
-    .I_RSP_READY      (1'b1),
-    .O_RSP_IS_WRITE   (s_access_rsp_is_write),
-    .O_RSP_ADDR       (s_access_rsp_addr),
-    .O_RSP_DATA       (s_access_rsp_data),
-    .O_RSP_STATUS     (s_access_rsp_status)
-  );
-
   task automatic push_event(
     input logic [7:0] evt_id,
     input logic [31:0] arg0,
@@ -166,31 +133,11 @@ module sdram_uart_bridge_ctrl (
         r_evt_push_arg0  <= arg0;
         r_evt_push_arg1  <= arg1;
         r_evt_push_arg2  <= arg2;
-        `SDRAM_BRIDGE_LOG_DEBUG(
-          $sformatf(
-            "queue_event id=0x%02h arg0=0x%08h arg1=0x%08h arg2=0x%08h depth=%0d",
-            evt_id,
-            arg0,
-            arg1,
-            arg2,
-            r_evt_count
-          )
-        );
-      end else begin
-        `SDRAM_BRIDGE_LOG_DEBUG(
-          $sformatf(
-            "drop_event_fifo_full id=0x%02h arg0=0x%08h arg1=0x%08h arg2=0x%08h",
-            evt_id,
-            arg0,
-            arg1,
-            arg2
-          )
-        );
       end
     end
   endtask
 
-  // Preserves host events until uart_log_cli drains them.
+  // Preserves status-map response events until uart_log_cli drains them.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
       r_evt_wr_ptr <= '0;
@@ -207,26 +154,10 @@ module sdram_uart_bridge_ctrl (
           r_evt_push_arg1,
           r_evt_push_arg2
         };
-        `SDRAM_BRIDGE_LOG_TRACE(
-          $sformatf(
-            "fifo_push wr_ptr=%0d id=0x%02h depth_next=%0d",
-            r_evt_wr_ptr,
-            r_evt_push_id,
-            r_evt_count + 1'b1
-          )
-        );
         r_evt_wr_ptr <= (r_evt_wr_ptr == EVT_FIFO_DEPTH - 1) ? '0 : (r_evt_wr_ptr + 1'b1);
       end
 
       if (s_evt_pop) begin
-        `SDRAM_BRIDGE_LOG_TRACE(
-          $sformatf(
-            "fifo_pop rd_ptr=%0d id=0x%02h depth_next=%0d",
-            r_evt_rd_ptr,
-            O_EVT_ID,
-            (r_evt_count == 0) ? 0 : (r_evt_count - 1'b1)
-          )
-        );
         r_evt_rd_ptr <= (r_evt_rd_ptr == EVT_FIFO_DEPTH - 1) ? '0 : (r_evt_rd_ptr + 1'b1);
       end
 
@@ -238,124 +169,69 @@ module sdram_uart_bridge_ctrl (
     end
   end
 
-  // Main single-access command/control path.
+  // Decodes host commands and turns them into read-only status-map events.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
-      r_ascii_cmd_ready <= 1'b0;
-      r_req_valid       <= 1'b0;
-      r_req_is_write    <= 1'b0;
-      r_req_addr        <= '0;
-      r_req_data        <= '0;
-      r_single_inflight <= 1'b0;
-      r_evt_push_valid  <= 1'b0;
-      r_evt_push_id     <= 8'h00;
-      r_evt_push_arg0   <= 32'h0;
-      r_evt_push_arg1   <= 32'h0;
-      r_evt_push_arg2   <= 32'h0;
+      r_ascii_cmd_ready  <= 1'b0;
+      r_cmd_busy         <= 1'b0;
+      r_read_rsp_pending <= 1'b0;
+      r_read_addr        <= '0;
+      r_evt_push_valid   <= 1'b0;
+      r_evt_push_id      <= 8'h00;
+      r_evt_push_arg0    <= 32'h0;
+      r_evt_push_arg1    <= 32'h0;
+      r_evt_push_arg2    <= 32'h0;
     end else begin
       r_ascii_cmd_ready <= 1'b0;
       r_evt_push_valid  <= 1'b0;
 
-      if (r_req_valid && s_req_ready) begin
-        `SDRAM_BRIDGE_LOG_DEBUG(
-          $sformatf(
-            "req_accept type=%s addr=0x%05h data=0x%08h",
-            r_req_is_write ? "WRITE" : "READ",
-            r_req_addr,
-            r_req_data
-          )
+      if (r_read_rsp_pending) begin
+        push_event(
+          EVT_READ_RSP,
+          {11'h000, r_read_addr},
+          I_STATUS_RD_DATA,
+          32'h0000_0000
         );
-        r_req_valid       <= 1'b0;
-        r_single_inflight <= 1'b1;
+        r_read_rsp_pending <= 1'b0;
+        r_cmd_busy         <= 1'b0;
       end
 
       if (s_ascii_err_valid) begin
-        `SDRAM_BRIDGE_LOG_DEBUG(
-          $sformatf(
-            "ascii_err code=0x%08h detail=0x%08h",
-            s_ascii_err_code,
-            s_ascii_err_detail
-          )
-        );
-        push_event(EVT_CMD_ERR, s_ascii_err_code, s_ascii_err_detail, 32'h0);
+        push_event(EVT_CMD_ERR, s_ascii_err_code, s_ascii_err_detail, 32'h0000_0000);
       end
 
       if (s_ascii_cmd_valid && !r_ascii_cmd_ready) begin
         r_ascii_cmd_ready <= 1'b1;
-        `SDRAM_BRIDGE_LOG_DEBUG(
-          $sformatf(
-            "ascii_cmd op=%0d bulk_read=%0b addr=0x%05h data=0x%08h words=0x%05h enable=%0b req_valid=%0b inflight=%0b",
-            s_ascii_cmd_op,
-            s_ascii_cmd_bulk_is_read,
-            s_ascii_cmd_addr,
-            s_ascii_cmd_data,
-            s_ascii_cmd_words,
-            I_ENABLE,
-            r_req_valid,
-            r_single_inflight
-          )
-        );
-        if (!I_ENABLE || r_req_valid || r_single_inflight) begin
-          push_event(EVT_CMD_ERR, ERR_BUSY, {11'h0, s_ascii_cmd_addr}, 32'h0);
-        end else if (s_ascii_cmd_op == ASCII_OP_BULK) begin
-          `SDRAM_BRIDGE_LOG_DEBUG(
-            $sformatf(
-              "reject_bulk single_only bulk_is_read=%0b addr=0x%05h words=0x%05h",
-              s_ascii_cmd_bulk_is_read,
-              s_ascii_cmd_addr,
-              s_ascii_cmd_words
-            )
-          );
+
+        if (!I_ENABLE || r_cmd_busy || r_read_rsp_pending) begin
+          push_event(EVT_CMD_ERR, ERR_BUSY, {11'h000, s_ascii_cmd_addr}, 32'h0000_0000);
+        end else if (s_ascii_cmd_op == ASCII_OP_READ) begin
+          if ((s_ascii_cmd_addr > STATUS_ADDR_MAX) || (s_ascii_cmd_addr[1:0] != 2'b00)) begin
+            push_event(EVT_CMD_ERR, ERR_ADDR_RANGE, {11'h000, s_ascii_cmd_addr}, 32'h0000_0040);
+          end else begin
+            r_read_addr        <= s_ascii_cmd_addr;
+            r_read_rsp_pending <= 1'b1;
+            r_cmd_busy         <= 1'b1;
+          end
+        end else if (s_ascii_cmd_op == ASCII_OP_WRITE) begin
           push_event(
             EVT_CMD_ERR,
             ERR_UNSUPPORTED,
-            {11'h0, s_ascii_cmd_addr},
-            {11'h0, s_ascii_cmd_words}
+            {11'h000, s_ascii_cmd_addr},
+            s_ascii_cmd_data
           );
-        end else if ((s_ascii_cmd_op == ASCII_OP_READ) || (s_ascii_cmd_op == ASCII_OP_WRITE)) begin
-          r_req_valid    <= 1'b1;
-          r_req_is_write <= (s_ascii_cmd_op == ASCII_OP_WRITE);
-          r_req_addr     <= s_ascii_cmd_addr;
-          r_req_data     <= s_ascii_cmd_data;
-          `SDRAM_BRIDGE_LOG_TRACE(
-            $sformatf(
-              "issue_single_req type=%s addr=0x%05h data=0x%08h",
-              (s_ascii_cmd_op == ASCII_OP_WRITE) ? "WRITE" : "READ",
-              s_ascii_cmd_addr,
-              s_ascii_cmd_data
-            )
-          );
-        end else begin
-          push_event(EVT_CMD_ERR, ERR_BAD_ASCII_CMD, 32'h0, 32'h0);
-        end
-      end
-
-      if (s_access_rsp_valid && r_single_inflight) begin
-        `SDRAM_BRIDGE_LOG_DEBUG(
-          $sformatf(
-            "access_rsp type=%s addr=0x%05h data=0x%08h status=0x%08h",
-            s_access_rsp_is_write ? "WRITE" : "READ",
-            s_access_rsp_addr,
-            s_access_rsp_data,
-            s_access_rsp_status
-          )
-        );
-        r_single_inflight <= 1'b0;
-        if (s_access_rsp_status == 32'h0) begin
+        end else if (s_ascii_cmd_op == ASCII_OP_BULK) begin
           push_event(
-            s_access_rsp_is_write ? EVT_WRITE_ACK : EVT_READ_RSP,
-            {11'h0, s_access_rsp_addr},
-            s_access_rsp_is_write ? r_req_data : s_access_rsp_data,
-            32'h0
+            EVT_CMD_ERR,
+            ERR_UNSUPPORTED,
+            {11'h000, s_ascii_cmd_addr},
+            {11'h000, s_ascii_cmd_words}
           );
         end else begin
-          push_event(EVT_CMD_ERR, s_access_rsp_status, {11'h0, s_access_rsp_addr}, 32'h0);
+          push_event(EVT_CMD_ERR, ERR_BAD_ASCII_CMD, 32'h0000_0000, 32'h0000_0000);
         end
       end
     end
   end
 
 endmodule
-
-`undef SDRAM_BRIDGE_LOG_DEBUG
-`undef SDRAM_BRIDGE_LOG_TRACE

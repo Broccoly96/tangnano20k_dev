@@ -12,27 +12,27 @@
   <Part Number>: GW2AR-LV18QN88C8/I7
   <Device>: GW2AR-18
   <Device Version>: C
-  <Created Time>:Sun Apr 12 08:29:33 2026
+  <Created Time>:Sat Apr 18 17:57:08 2026
 
 
 2. PnR Details
 
   Running placement:
-    Placement Phase 0: CPU time = 0h 0m 1s, Elapsed time = 0h 0m 1s
-    Placement Phase 1: CPU time = 0h 0m 0.24s, Elapsed time = 0h 0m 0.24s
-    Placement Phase 2: CPU time = 0h 0m 3s, Elapsed time = 0h 0m 3s
+    Placement Phase 0: CPU time = 0h 0m 0.62s, Elapsed time = 0h 0m 0.62s
+    Placement Phase 1: CPU time = 0h 0m 0.244s, Elapsed time = 0h 0m 0.244s
+    Placement Phase 2: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
     Placement Phase 3: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
-    Total Placement: CPU time = 0h 0m 7s, Elapsed time = 0h 0m 7s
+    Total Placement: CPU time = 0h 0m 5s, Elapsed time = 0h 0m 5s
  Running routing:
-    Routing Phase 0: CPU time = 0h 0m 0.005s, Elapsed time = 0h 0m 0.005s
-    Routing Phase 1: CPU time = 0h 0m 0.202s, Elapsed time = 0h 0m 0.202s
-    Routing Phase 2: CPU time = 0h 0m 4s, Elapsed time = 0h 0m 4s
+    Routing Phase 0: CPU time = 0h 0m 0.004s, Elapsed time = 0h 0m 0.004s
+    Routing Phase 1: CPU time = 0h 0m 0.151s, Elapsed time = 0h 0m 0.151s
+    Routing Phase 2: CPU time = 0h 0m 3s, Elapsed time = 0h 0m 3s
     Routing Phase 3: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s
-    Total Routing: CPU time = 0h 0m 4s, Elapsed time = 0h 0m 4s
+    Total Routing: CPU time = 0h 0m 3s, Elapsed time = 0h 0m 3s
  Generate output files:
     CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
 
- Total Time and Memory Usage: CPU time = 0h 0m 13s, Elapsed time = 0h 0m 13s, Peak memory usage = 569MB
+ Total Time and Memory Usage: CPU time = 0h 0m 10s, Elapsed time = 0h 0m 10s, Peak memory usage = 540MB
 
 
 3. Resource Usage Summary
@@ -40,15 +40,15 @@
   --------------------------------------------------------------------------------
   Resources                   | Usage                               | Utilization
   --------------------------------------------------------------------------------
-  Logic                       | 8639/20736                          |  42%
-    --LUT,ALU,ROM16           | 7985(7544 LUT, 441 ALU, 0 ROM16)    | -
+  Logic                       | 6080/20736                          |  30%
+    --LUT,ALU,ROM16           | 5426(4979 LUT, 447 ALU, 0 ROM16)    | -
     --SSRAM(RAM16)            | 109                                 | -
-  Register                    | 4326/15915                          |  28%
+  Register                    | 3462/15915                          |  22%
     --Logic Register as Latch | 0/15552                             |  0%
-    --Logic Register as FF    | 4243/15552                          |  28%
+    --Logic Register as FF    | 3379/15552                          |  22%
     --I/O Register as Latch   | 0/363                               |  0%
     --I/O Register as FF      | 83/363                              |  23%
-  CLS                         | 6043/10368                          |  59%
+  CLS                         | 4499/10368                          |  44%
   I/O Port                    | 53/66                               |  81%
   I/O Buf                     | 7                                   | -
     --Input Buf               | 2                                   | -
@@ -95,16 +95,16 @@
   -------------------------------------------
   PIN04_IOL07A_LPLL1_d| PRIMARY        |  BL
   O_sdram_clk_d  | PRIMARY        |  TR TL BR BL
-  clk_24m_sys    | PRIMARY        |  TL BR BL
-  u_uart_log_cli/g_log_tap[2].u_tap/n2375_3| PRIMARY        |  TL BL
+  clk_24m_sys    | PRIMARY        |  TR TL BR BL
+  u_uart_log_cli/r_shared_rd_pending| PRIMARY        |  BR
   rst_fpga_48m_n | LW             |  -
   r_evt_fifo_mem[0]_ER_init| LW             |  -
   r_fifo_mem[0]_ER_init| LW             |  -
-  u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/O_EVT_ARG2_21_4| LW             |  -
-  u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_fail_arg2_31_7| LW             |  -
-  u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n14615_10| LW             |  -
+  u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/O_EVT_ARG0_21_4| LW             |  -
+  u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_fail_reason_1_7| LW             |  -
+  u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_fail_addr_20_9| LW             |  -
+  u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/u_sdram_uart_ascii_ctrl/r_cmd_data_31_7| LW             |  -
   u_embedded_sdram/sdrc_top_inst/U0/Ctrl_wr_data_valid| LW             |  -
-  u_uart_log_cli/r_shared_rd_pending| LW             |  -
   ===========================================
 
 

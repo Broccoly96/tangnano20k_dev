@@ -26,6 +26,8 @@ module testbench;
   logic        tb_sdrc_wrd_ack;
   logic        tb_sdrc_rd_valid;
   logic [31:0] tb_sdrc_rd_data;
+  logic [15:0] tb_status_addr;
+  logic [31:0] tb_status_rd_data;
   logic        tb_sdrc_wr_n;
   logic        tb_sdrc_rd_n;
   logic [20:0] tb_sdrc_addr;
@@ -41,10 +43,6 @@ module testbench;
   logic        tb_cmd_busy;
 
   logic [31:0] mem_words [0:MEM_WORDS-1];
-  uif_state_e  st_uif;
-  logic [20:0] r_uif_base_addr;
-  logic [7:0]  r_uif_len;
-  logic [7:0]  r_uif_count;
 
   initial begin
     configure_logging(LOG_DEBUG);
@@ -63,10 +61,6 @@ module testbench;
     tb_sdrc_rd_valid = 1'b0;
     tb_sdrc_rd_data  = 32'h0;
     tb_evt_ready     = 1'b0;
-    st_uif           = UIF_IDLE;
-    r_uif_base_addr  = '0;
-    r_uif_len        = '0;
-    r_uif_count      = '0;
     for (int idx = 0; idx < MEM_WORDS; idx++) begin
       mem_words[idx] = 32'h2000_0000 + idx;
     end
@@ -96,6 +90,8 @@ module testbench;
     .I_SDRC_WRD_ACK  (tb_sdrc_wrd_ack),
     .I_SDRC_RD_VALID (tb_sdrc_rd_valid),
     .I_SDRC_RD_DATA  (tb_sdrc_rd_data),
+    .I_STATUS_RD_DATA(tb_status_rd_data),
+    .O_STATUS_ADDR   (tb_status_addr),
     .O_SDRC_WR_N     (tb_sdrc_wr_n),
     .O_SDRC_RD_N     (tb_sdrc_rd_n),
     .O_SDRC_ADDR     (tb_sdrc_addr),
@@ -111,67 +107,15 @@ module testbench;
     .O_CMD_BUSY      (tb_cmd_busy)
   );
 
-  always_ff @(posedge tb_clk or negedge tb_rst_n) begin
-    if (!tb_rst_n) begin
-      st_uif          <= UIF_IDLE;
-      tb_sdrc_busy_n  <= 1'b1;
-      tb_sdrc_rd_valid<= 1'b0;
-      tb_sdrc_rd_data <= 32'h0;
-      r_uif_base_addr <= '0;
-      r_uif_len       <= '0;
-      r_uif_count     <= '0;
-    end else begin
-      tb_sdrc_rd_valid <= 1'b0;
-      tb_sdrc_wrd_ack  <= 1'b0;
-      case (st_uif)
-        UIF_IDLE: begin
-          tb_sdrc_busy_n <= 1'b1;
-          r_uif_count    <= '0;
-          if (!tb_sdrc_wr_n) begin
-            r_uif_base_addr <= tb_sdrc_addr;
-            r_uif_len       <= tb_sdrc_data_len + 1'b1;
-            mem_words[tb_sdrc_addr] <= tb_sdrc_wr_data;
-            tb_sdrc_wrd_ack <= 1'b1;
-            tb_sdrc_busy_n <= 1'b0;
-            r_uif_count    <= 8'd1;
-            st_uif         <= UIF_WRITE_BUSY;
-          end else if (!tb_sdrc_rd_n) begin
-            r_uif_base_addr <= tb_sdrc_addr;
-            r_uif_len       <= tb_sdrc_data_len + 1'b1;
-            tb_sdrc_busy_n  <= 1'b0;
-            st_uif          <= UIF_READ_BUSY;
-          end
-        end
-
-        UIF_WRITE_BUSY: begin
-          if (r_uif_count < r_uif_len) begin
-            tb_sdrc_wrd_ack <= 1'b1;
-            mem_words[r_uif_base_addr + r_uif_count] <= tb_sdrc_wr_data;
-            r_uif_count <= r_uif_count + 1'b1;
-          end else if (r_uif_count < WRITE_STREAM_CYCLES) begin
-            r_uif_count <= r_uif_count + 1'b1;
-          end else begin
-            tb_sdrc_busy_n <= 1'b1;
-            st_uif         <= UIF_IDLE;
-          end
-        end
-
-        UIF_READ_BUSY: begin
-          if (r_uif_count < r_uif_len) begin
-            tb_sdrc_rd_valid <= 1'b1;
-            tb_sdrc_rd_data  <= mem_words[r_uif_base_addr + r_uif_count];
-            r_uif_count      <= r_uif_count + 1'b1;
-          end else begin
-            tb_sdrc_busy_n <= 1'b1;
-            st_uif         <= UIF_IDLE;
-          end
-        end
-
-        default: begin
-          st_uif <= UIF_IDLE;
-        end
-      endcase
-    end
+  always_comb begin
+    tb_status_rd_data = 32'h0000_0000;
+    case (tb_status_addr[5:2])
+      4'h0: tb_status_rd_data = 32'h0300_0008;
+      4'h1: tb_status_rd_data = 32'hABCD_1234;
+      4'h2: tb_status_rd_data = 32'h0000_0010;
+      4'h9: tb_status_rd_data = 32'h0300_0000;
+      default: tb_status_rd_data = mem_words[tb_status_addr[9:2]];
+    endcase
   end
 
   task automatic send_byte(input logic [7:0] byte_value);

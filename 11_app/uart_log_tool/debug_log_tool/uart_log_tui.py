@@ -10,7 +10,7 @@ import os
 import time
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 
 from sdram_uart_protocol import (
@@ -45,6 +45,10 @@ CMD_NEXT_SRC = 0x06
 MAP_BYTE_COUNT = 256
 MAP_WORD_COUNT = MAP_BYTE_COUNT // 4
 MAP_RESPONSE_TIMEOUT_S = 1.0
+STATUS_BASE_ADDR = 0x00000
+STATUS_BYTE_COUNT = 64
+STATUS_WORD_COUNT = STATUS_BYTE_COUNT // 4
+STATUS_RESPONSE_TIMEOUT_S = 1.0
 
 
 @dataclass(frozen=True)
@@ -109,6 +113,186 @@ def format_sdram_map_text(base_addr: int, map_bytes: bytes) -> str:
     return "\n".join(lines)
 
 
+def _pad_status_bytes(status_bytes: bytes) -> bytes:
+    if len(status_bytes) >= STATUS_BYTE_COUNT:
+        return status_bytes[:STATUS_BYTE_COUNT]
+    padded = bytearray(STATUS_BYTE_COUNT)
+    padded[: len(status_bytes)] = status_bytes
+    return bytes(padded)
+
+
+def _status_word(status_bytes: bytes, offset: int) -> int:
+    return int.from_bytes(status_bytes[offset : offset + 4], "little", signed=False)
+
+
+def _status_state_name(state: int) -> str:
+    return {
+        0x0: "IDLE",
+        0x1: "WRITE_WAIT",
+        0x2: "WRITE_REQ",
+        0x3: "WRITE_RUN",
+        0x4: "READ_WAIT",
+        0x5: "READ_REQ",
+        0x6: "READ_RUN",
+        0x7: "RETRY_WAIT",
+        0x8: "RETRY_REQ",
+        0x9: "RETRY_RUN",
+        0xA: "CLEAR_WAIT",
+        0xB: "CLEAR_REQ",
+        0xC: "CLEAR_RUN",
+        0xD: "PASS",
+        0xE: "FAIL",
+    }.get(state, f"STATE_{state:02X}")
+
+
+def _status_fail_reason_name(reason: int) -> str:
+    return {
+        0x00: "NONE",
+        0x01: "TIMEOUT",
+        0x03: "MISMATCH",
+    }.get(reason, f"REASON_{reason:02X}")
+
+
+def format_sdram_status_text(status_bytes: bytes) -> str:
+    status_bytes = _pad_status_bytes(status_bytes)
+
+    summary = _status_word(status_bytes, 0x00)
+    mem_summary = _status_word(status_bytes, 0x04)
+    current_addr = _status_word(status_bytes, 0x08)
+    expected_word = _status_word(status_bytes, 0x0C)
+    last_read = _status_word(status_bytes, 0x10)
+    last_status = _status_word(status_bytes, 0x14)
+    fail_addr = _status_word(status_bytes, 0x18)
+    fail_expected = _status_word(status_bytes, 0x1C)
+    fail_actual = _status_word(status_bytes, 0x20)
+    retry_summary = _status_word(status_bytes, 0x24)
+    retry_data1 = _status_word(status_bytes, 0x28)
+    retry_data2 = _status_word(status_bytes, 0x2C)
+    ctrl_summary = _status_word(status_bytes, 0x30)
+    ctrl_detail = _status_word(status_bytes, 0x34)
+    handshake = _status_word(status_bytes, 0x38)
+    latest_rd = _status_word(status_bytes, 0x3C)
+
+    summary_version = (summary >> 24) & 0xFF
+    summary_state = (summary >> 16) & 0xFF
+    summary_reason = (summary >> 8) & 0xFF
+
+    mem_base_idx = (mem_summary >> 24) & 0xFF
+    mem_rd_seen = (mem_summary >> 16) & 0xFF
+    mem_wr_count = (mem_summary >> 8) & 0xFF
+    mem_cycle = mem_summary & 0xFF
+
+    retry_limit = (retry_summary >> 24) & 0xFF
+    retry_used = (retry_summary >> 16) & 0xFF
+    retry_total = (retry_summary >> 8) & 0xFF
+
+    ctrl_state = (ctrl_summary >> 28) & 0xF
+    ctrl_read_count = (ctrl_summary >> 8) & 0xFF
+    ctrl_write_count = ctrl_summary & 0xFF
+
+    lines = [
+        "Base: 0x00000  Size: 64 bytes  Mode: read-only status map",
+        "",
+        f"0x00 SUMMARY        = 0x{summary:08X}",
+        f"  map_version       : 0x{summary_version:02X}",
+        f"  memtest_state     : {_status_state_name(summary_state)} (0x{summary_state:02X})",
+        f"  fail_reason       : {_status_fail_reason_name(summary_reason)} (0x{summary_reason:02X})",
+        f"  host_busy         : {(summary >> 7) & 0x1}",
+        f"  test_active       : {(summary >> 6) & 0x1}",
+        f"  test_pass         : {(summary >> 5) & 0x1}",
+        f"  test_fail         : {(summary >> 4) & 0x1}",
+        f"  init_done         : {(summary >> 3) & 0x1}",
+        "",
+        f"0x04 MEM_SUMMARY    = 0x{mem_summary:08X}",
+        f"  burst_base_idx    : {mem_base_idx} (0x{mem_base_idx:02X})",
+        f"  read_words_seen   : {mem_rd_seen}",
+        f"  write_word_count  : {mem_wr_count}",
+        f"  cycle_count       : {mem_cycle}",
+        "",
+        f"0x08 CURRENT_ADDR   = 0x{current_addr:08X}",
+        f"0x0C EXPECTED_WORD  = 0x{expected_word:08X}",
+        f"0x10 LAST_READ      = 0x{last_read:08X}",
+        f"0x14 LAST_STATUS    = 0x{last_status:08X}",
+        f"  fail_reason       : {_status_fail_reason_name((last_status >> 24) & 0xFF)}",
+        f"  rd_seen_words     : {(last_status >> 16) & 0xFF}",
+        f"  cycle_count       : {(last_status >> 8) & 0xFF}",
+        f"  retry_path        : {(last_status >> 7) & 0x1}",
+        f"  busy_n            : {(last_status >> 6) & 0x1}",
+        f"  rd_valid          : {(last_status >> 5) & 0x1}",
+        f"  wrd_ack           : {(last_status >> 4) & 0x1}",
+        f"  init_done         : {(last_status >> 3) & 0x1}",
+        f"  retry_count       : {last_status & 0x7}",
+        "",
+        f"0x18 FAIL_ADDR      = 0x{fail_addr:08X}",
+        f"0x1C FAIL_EXPECTED  = 0x{fail_expected:08X}",
+        f"0x20 FAIL_ACTUAL    = 0x{fail_actual:08X}",
+        "",
+        f"0x24 RETRY_SUMMARY  = 0x{retry_summary:08X}",
+        f"  retry_limit       : {retry_limit}",
+        f"  retries_used      : {retry_used}",
+        f"  total_attempts    : {retry_total}",
+        f"  recovered         : {(retry_summary >> 7) & 0x1}",
+        f"  exhausted         : {(retry_summary >> 6) & 0x1}",
+        f"  valid             : {(retry_summary >> 5) & 0x1}",
+        f"  fail_reason       : {_status_fail_reason_name(retry_summary & 0x1F)}",
+        f"0x28 RETRY_DATA1    = 0x{retry_data1:08X}",
+        f"0x2C RETRY_DATA2    = 0x{retry_data2:08X}",
+        "",
+        f"0x30 CTRL_SUMMARY   = 0x{ctrl_summary:08X}",
+        f"  state             : {_status_state_name(ctrl_state)} (0x{ctrl_state:X})",
+        f"  wr_launch         : {(ctrl_summary >> 27) & 0x1}",
+        f"  rd_launch         : {(ctrl_summary >> 26) & 0x1}",
+        f"  busy_n            : {(ctrl_summary >> 25) & 0x1}",
+        f"  rd_valid          : {(ctrl_summary >> 24) & 0x1}",
+        f"  wrd_ack           : {(ctrl_summary >> 23) & 0x1}",
+        f"  init_done         : {(ctrl_summary >> 22) & 0x1}",
+        f"  retry_state       : {(ctrl_summary >> 21) & 0x1}",
+        f"  retry_valid       : {(ctrl_summary >> 20) & 0x1}",
+        f"  retry_recovered   : {(ctrl_summary >> 19) & 0x1}",
+        f"  retry_exhausted   : {(ctrl_summary >> 18) & 0x1}",
+        f"  retry_count_lsb2  : {(ctrl_summary >> 16) & 0x3}",
+        f"  read_word_count   : {ctrl_read_count}",
+        f"  write_word_count  : {ctrl_write_count}",
+        f"0x34 CTRL_DETAIL    = 0x{ctrl_detail:08X}",
+        "",
+        f"0x38 HANDSHAKE      = 0x{handshake:08X}",
+        f"  magic             : 0x{(handshake >> 24) & 0xFF:02X}",
+        f"  busy_n            : {(handshake >> 23) & 0x1}",
+        f"  rd_valid          : {(handshake >> 22) & 0x1}",
+        f"  wrd_ack           : {(handshake >> 21) & 0x1}",
+        f"  init_done         : {(handshake >> 20) & 0x1}",
+        f"  test_active       : {(handshake >> 19) & 0x1}",
+        f"  test_pass         : {(handshake >> 18) & 0x1}",
+        f"  test_fail         : {(handshake >> 17) & 0x1}",
+        f"  host_busy         : {(handshake >> 16) & 0x1}",
+        f"  sampled_addr      : 0x{handshake & 0xFFFF:04X}",
+        "",
+        f"0x3C LATEST_RD_DATA = 0x{latest_rd:08X}",
+        "",
+        "Raw words:",
+    ]
+
+    for offset in range(0, STATUS_BYTE_COUNT, 4):
+        lines.append(f"  0x{offset:02X}: 0x{_status_word(status_bytes, offset):08X}")
+
+    return "\n".join(lines)
+
+
+def format_sdram_status_raw_text(status_bytes: bytes) -> str:
+    status_bytes = _pad_status_bytes(status_bytes)
+    lines = [
+        "Base: 0x00000  Size: 64 bytes  Mode: raw 32-bit words",
+        "      00        04        08        0C",
+    ]
+    for row_base in range(0, STATUS_BYTE_COUNT, 16):
+        cells = []
+        for col in range(0, 16, 4):
+            offset = row_base + col
+            cells.append(f"{_status_word(status_bytes, offset):08X}")
+        lines.append(f"{row_base:02X} | " + "  ".join(cells))
+    return "\n".join(lines)
+
+
 class UARTLogApp(App[None]):
     CSS = """
     #top_bar { height: 3; layout: horizontal; margin: 0 1; }
@@ -138,6 +322,11 @@ class UARTLogApp(App[None]):
     #rw_grid .toolbar { margin-bottom: 0; }
     #map_base_input { width: 18; }
     #btn_map_refresh { width: 12; }
+    #btn_status_refresh { width: 16; }
+    #btn_status_mode { width: 14; }
+    #status_summary { height: 5; border: round; padding: 0 1; margin-bottom: 1; }
+    #status_scroll { height: 1fr; border: round; padding: 0 1; }
+    #status_view { width: 1fr; height: auto; }
     #single_read_addr_input { width: 18; }
     #single_read_result { width: 28; content-align: left middle; }
     #single_write_addr_input { width: 18; }
@@ -151,7 +340,8 @@ class UARTLogApp(App[None]):
     BINDINGS = [
         ("1", "show_log", "Log"),
         ("2", "show_map", "SDRAM Map"),
-        ("3", "show_rw", "SDRAM RW"),
+        ("3", "show_status", "SDRAM Status"),
+        ("4", "show_rw", "SDRAM RW"),
         ("p", "rescan", "Rescan Ports"),
         ("c", "toggle_connect", "Connect/Disconnect"),
         ("m", "toggle_mode", "Raw/Decode"),
@@ -207,6 +397,14 @@ class UARTLogApp(App[None]):
         self._map_inflight_addr: int | None = None
         self._map_received_words: dict[int, int] = {}
         self._map_summary_text = "idle"
+        self._status_bytes = bytearray(STATUS_BYTE_COUNT)
+        self._status_refresh_active = False
+        self._status_select_deadline = 0.0
+        self._status_rsp_deadline = 0.0
+        self._status_pending_queue: list[int] = []
+        self._status_inflight_addr: int | None = None
+        self._status_summary_text = "idle"
+        self._status_mode = "decode"
         self._rw_summary_text = "idle"
         self._rw_single_read_result = "-"
         self._rw_single_write_result = "-"
@@ -241,6 +439,9 @@ class UARTLogApp(App[None]):
         self._map_summary: Static | None = None
         self._map_view: Static | None = None
         self._map_base_input: Input | None = None
+        self._status_summary: Static | None = None
+        self._status_view: Static | None = None
+        self._status_mode_button: Button | None = None
         self._rw_summary: Static | None = None
         self._single_read_addr_input: Input | None = None
         self._single_read_result: Static | None = None
@@ -268,7 +469,8 @@ class UARTLogApp(App[None]):
                 with Vertical(id="nav"):
                     yield Button("1 Log", id="nav_log")
                     yield Button("2 SDRAM Map", id="nav_map")
-                    yield Button("3 SDRAM RW", id="nav_rw")
+                    yield Button("3 SDRAM Status", id="nav_status")
+                    yield Button("4 SDRAM RW", id="nav_rw")
                 with Vertical(id="screen_host"):
                     with Vertical(id="log_screen", classes="screen"):
                         with Horizontal(id="log_main_row"):
@@ -280,6 +482,13 @@ class UARTLogApp(App[None]):
                             yield Button("Refresh", id="btn_map_refresh")
                         yield Static("", id="map_summary")
                         yield Static("", id="map_view")
+                    with Vertical(id="status_screen", classes="screen hidden"):
+                        with Horizontal(classes="toolbar"):
+                            yield Button("Refresh Status", id="btn_status_refresh")
+                            yield Button("Mode: Decode", id="btn_status_mode")
+                        yield Static("", id="status_summary")
+                        with VerticalScroll(id="status_scroll"):
+                            yield Static("", id="status_view")
                     with Vertical(id="rw_screen", classes="screen hidden"):
                         yield Static("", id="rw_summary", classes="panel")
                         with Vertical(id="rw_grid"):
@@ -309,7 +518,7 @@ class UARTLogApp(App[None]):
                                     yield Input(value="0x00000", id="file_write_addr_input", placeholder="base addr")
                                     yield Input(value="", id="file_write_path_input", placeholder="file path")
                                 yield Static("-", id="file_write_result")
-            yield Static("keys: 1=log 2=map 3=rw p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
+            yield Static("keys: 1=log 2=map 3=status 4=rw p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -325,6 +534,9 @@ class UARTLogApp(App[None]):
         self._map_summary = self.query_one("#map_summary", Static)
         self._map_view = self.query_one("#map_view", Static)
         self._map_base_input = self.query_one("#map_base_input", Input)
+        self._status_summary = self.query_one("#status_summary", Static)
+        self._status_view = self.query_one("#status_view", Static)
+        self._status_mode_button = self.query_one("#btn_status_mode", Button)
         self._rw_summary = self.query_one("#rw_summary", Static)
         self._single_read_addr_input = self.query_one("#single_read_addr_input", Input)
         self._single_read_result = self.query_one("#single_read_result", Static)
@@ -340,6 +552,7 @@ class UARTLogApp(App[None]):
         self._table.add_columns("Time", "SEQ", "SRC", "EVT", "TS", "ARG0", "ARG1", "ARG2", "CRC", "Mode", "Text")
         self._reload_decoder(force=True, manual=False)
         self._refresh_map_view()
+        self._refresh_status_view()
         self._refresh_rw_view()
         self._show_screen("log")
         if self._replay_file_path is not None:
@@ -373,6 +586,7 @@ class UARTLogApp(App[None]):
             if self._log_fp is not None:
                 self._log_meta("logging started")
         self.set_interval(0.05, self._poll_map_refresh)
+        self.set_interval(0.05, self._poll_status_refresh)
         self.set_interval(0.05, self._poll_rw_task)
         self.set_interval(0.5, self._watch_decoder)
         self._update_stats()
@@ -397,10 +611,16 @@ class UARTLogApp(App[None]):
             self.action_show_log()
         elif button_id == "nav_map":
             self.action_show_map()
+        elif button_id == "nav_status":
+            self.action_show_status()
         elif button_id == "nav_rw":
             self.action_show_rw()
         elif button_id == "btn_map_refresh":
             self.action_refresh_map()
+        elif button_id == "btn_status_refresh":
+            self.action_refresh_status()
+        elif button_id == "btn_status_mode":
+            self.action_toggle_status_mode()
         elif button_id == "btn_single_read":
             self._start_single_read()
         elif button_id == "btn_single_write":
@@ -421,6 +641,9 @@ class UARTLogApp(App[None]):
 
     def action_show_map(self) -> None:
         self._show_screen("map")
+
+    def action_show_status(self) -> None:
+        self._show_screen("status")
 
     def action_show_rw(self) -> None:
         self._show_screen("rw")
@@ -481,15 +704,28 @@ class UARTLogApp(App[None]):
         self._send_reset()
 
     def action_refresh_map(self) -> None:
-        self._start_map_refresh()
+        if self._active_screen == "status":
+            self._start_status_refresh()
+        else:
+            self._start_map_refresh()
+
+    def action_refresh_status(self) -> None:
+        self._start_status_refresh()
+
+    def action_toggle_status_mode(self) -> None:
+        self._status_mode = "raw" if self._status_mode == "decode" else "decode"
+        self._refresh_status_view()
+        self._set_status(f"sdram status mode={self._status_mode}")
 
     def _show_screen(self, screen_name: str) -> None:
         self._active_screen = screen_name
         log_screen = self.query_one("#log_screen", Vertical)
         map_screen = self.query_one("#map_screen", Vertical)
+        status_screen = self.query_one("#status_screen", Vertical)
         rw_screen = self.query_one("#rw_screen", Vertical)
         log_screen.set_class(screen_name != "log", "hidden")
         map_screen.set_class(screen_name != "map", "hidden")
+        status_screen.set_class(screen_name != "status", "hidden")
         rw_screen.set_class(screen_name != "rw", "hidden")
 
     def _watch_decoder(self) -> None:
@@ -670,7 +906,64 @@ class UARTLogApp(App[None]):
         return True
 
     def _host_task_busy(self) -> bool:
-        return self._map_refresh_active or self._rw_task_active
+        return self._map_refresh_active or self._status_refresh_active or self._rw_task_active
+
+    def _refresh_status_view(self) -> None:
+        mode_label = "Decode" if self._status_mode == "decode" else "Raw"
+        if self._status_mode_button is not None:
+            self._status_mode_button.label = f"Mode: {mode_label}"
+        if self._status_summary is not None:
+            self._status_summary.update(
+                "\n".join(
+                    [
+                        "[SDRAM Status]",
+                        "base       : 0x00000",
+                        "size       : 64 bytes",
+                        f"view       : {self._status_mode}",
+                        f"state      : {'refreshing' if self._status_refresh_active else 'idle'}",
+                        f"detail     : {self._status_summary_text}",
+                    ]
+                )
+            )
+        if self._status_view is not None:
+            if self._status_mode == "raw":
+                self._status_view.update(format_sdram_status_raw_text(bytes(self._status_bytes)))
+            else:
+                self._status_view.update(format_sdram_status_text(bytes(self._status_bytes)))
+
+    def _start_status_refresh(self) -> None:
+        if self._replay_file_path is not None:
+            self._status_summary_text = "replay mode: SDRAM Status disabled"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+        if not self._active_connected():
+            self._status_summary_text = "not connected"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+        if self._host_task_busy():
+            self._status_summary_text = "host task busy"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+
+        self._status_refresh_active = True
+        self._status_select_deadline = 0.0
+        self._status_rsp_deadline = 0.0
+        self._status_inflight_addr = None
+        self._status_pending_queue = [STATUS_BASE_ADDR + idx * 4 for idx in range(STATUS_WORD_COUNT)]
+        self._status_summary_text = f"queued {STATUS_WORD_COUNT} status reads"
+        self._refresh_status_view()
+        self._set_status(self._status_summary_text)
+
+    def _finish_status_refresh(self, detail: str) -> None:
+        self._status_refresh_active = False
+        self._status_inflight_addr = None
+        self._status_rsp_deadline = 0.0
+        self._status_summary_text = detail
+        self._refresh_status_view()
+        self._set_status(detail)
 
     def _refresh_rw_view(self) -> None:
         if self._rw_summary is not None:
@@ -867,6 +1160,23 @@ class UARTLogApp(App[None]):
                 self._refresh_map_view()
                 self._set_status(self._map_summary_text)
 
+        if not self._status_refresh_active or event.src_id != HOST_SRC_ID:
+            pass
+        else:
+            if event.event_id == HOST_EVT_READ_RSP and self._status_inflight_addr is not None and event.arg0 == self._status_inflight_addr:
+                offset = event.arg0 - STATUS_BASE_ADDR
+                if 0 <= offset < STATUS_BYTE_COUNT:
+                    self._status_bytes[offset : offset + 4] = event.arg1.to_bytes(4, "little")
+                self._status_inflight_addr = None
+                self._status_rsp_deadline = 0.0
+                self._refresh_status_view()
+                if not self._status_pending_queue:
+                    self._finish_status_refresh("status refresh complete")
+            elif event.event_id == HOST_EVT_CMD_ERR and self._status_inflight_addr is not None:
+                self._finish_status_refresh(
+                    f"status refresh failed at 0x{self._status_inflight_addr:05X}: cmd_err 0x{event.arg0:08X}"
+                )
+
         if not self._rw_task_active or event.src_id != HOST_SRC_ID:
             return
         if self._rw_task_inflight is None:
@@ -977,6 +1287,36 @@ class UARTLogApp(App[None]):
         self._map_rsp_deadline = now + MAP_RESPONSE_TIMEOUT_S
         self._map_summary_text = f"reading 0x{next_addr:05X} ({len(self._map_received_words)+1}/{MAP_WORD_COUNT})"
         self._refresh_map_view()
+
+    def _poll_status_refresh(self) -> None:
+        if not self._status_refresh_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._status_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_status_refresh("failed to select host source")
+                    return
+                self._status_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._status_select_deadline = now + 0.35
+                self._refresh_status_view()
+            return
+        if self._status_inflight_addr is not None and now > self._status_rsp_deadline:
+            self._finish_status_refresh(f"timeout waiting for 0x{self._status_inflight_addr:05X}")
+            return
+        if self._status_inflight_addr is not None or now < self._status_select_deadline or not self._status_pending_queue:
+            return
+
+        next_addr = self._status_pending_queue.pop(0)
+        payload = make_read_packet(next_addr)
+        if self._send_bytes(payload) != len(payload):
+            self._finish_status_refresh(f"short write for 0x{next_addr:05X}")
+            return
+        self._status_inflight_addr = next_addr
+        self._status_rsp_deadline = now + STATUS_RESPONSE_TIMEOUT_S
+        completed = STATUS_WORD_COUNT - len(self._status_pending_queue)
+        self._status_summary_text = f"reading 0x{next_addr:05X} ({completed}/{STATUS_WORD_COUNT})"
+        self._refresh_status_view()
 
     def _poll_rw_task(self) -> None:
         if not self._rw_task_active:

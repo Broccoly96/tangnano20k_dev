@@ -19,6 +19,7 @@
 ..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv
 ..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv
 ..\01_src\embedded_sdram\sdram_uart_access_engine.sv
+..\01_src\embedded_sdram\sdram_status_reg_map.sv
 ..\01_src\embedded_sdram\sdram_memtest_ctrl.sv
 ..\01_src\embedded_sdram\sdram_emb_selftest.sv
 ..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv

@@ -77,6 +77,33 @@ def wait_for_host_event(
     )
 
 
+def wait_for_host_result(
+    client: ByteClient,
+    parser: FrameParser,
+    timeout_s: float,
+    ok_event_id: int,
+    *,
+    addr: int | None = None,
+) -> Frame:
+    """Wait for a command result, accepting either success or CMD_ERR."""
+    return wait_for_frame(
+        lambda: client.read_bytes(),
+        parser,
+        timeout_s,
+        lambda frame: frame.event.src_id == 0x03
+        and (
+            (
+                frame.event.event_id == ok_event_id
+                and (addr is None or (frame.event.arg0 & 0x1F_FFFF) == addr)
+            )
+            or (
+                frame.event.event_id == HOST_EVT_CMD_ERR
+                and (addr is None or (frame.event.arg1 & 0x1F_FFFF) == addr)
+            )
+        ),
+    )
+
+
 def wait_for_bulk_terminal_event(
     client: ByteClient,
     parser: FrameParser,
@@ -167,13 +194,19 @@ def main() -> int:
 
       if args.command == "write":
         write_exact(client.write_bytes, build_write_command(args.addr, args.data))
-        frame = wait_for_host_event(
+        frame = wait_for_host_result(
             client,
             parser,
             args.timeout_s,
             HOST_EVT_WRITE_ACK,
             addr=args.addr,
         )
+        if frame.event.event_id == HOST_EVT_CMD_ERR:
+            print(
+                f"CMD_ERR reason=0x{frame.event.arg0:08X} addr=0x{frame.event.arg1:05X} "
+                f"detail=0x{frame.event.arg2:08X}"
+            )
+            return 1
         print(
             f"WRITE_ACK addr=0x{frame.event.arg0:05X} data=0x{frame.event.arg1:08X} "
             f"status=0x{frame.event.arg2:08X}"
@@ -182,13 +215,19 @@ def main() -> int:
 
       if args.command == "read":
         write_exact(client.write_bytes, build_read_command(args.addr))
-        frame = wait_for_host_event(
+        frame = wait_for_host_result(
             client,
             parser,
             args.timeout_s,
             HOST_EVT_READ_RSP,
             addr=args.addr,
         )
+        if frame.event.event_id == HOST_EVT_CMD_ERR:
+            print(
+                f"CMD_ERR reason=0x{frame.event.arg0:08X} addr=0x{frame.event.arg1:05X} "
+                f"detail=0x{frame.event.arg2:08X}"
+            )
+            return 1
         print(
             f"READ_RSP addr=0x{frame.event.arg0:05X} data=0x{frame.event.arg1:08X} "
             f"status=0x{frame.event.arg2:08X}"

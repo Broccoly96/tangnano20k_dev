@@ -1,0 +1,48 @@
+  initial begin : tc_smoke
+    tb_addr                  = 16'h0000;
+    tb_init_done             = 1'b1;
+    tb_test_active           = 1'b0;
+    tb_test_pass             = 1'b1;
+    tb_test_fail             = 1'b0;
+    tb_host_busy             = 1'b1;
+    tb_sdrc_busy_n           = 1'b1;
+    tb_sdrc_rd_valid         = 1'b0;
+    tb_sdrc_wrd_ack          = 1'b1;
+    tb_sdrc_rd_data          = 32'h89AB_CDEF;
+    tb_memtest_summary       = 32'h1122_3344;
+    tb_memtest_state         = 8'h0D;
+    tb_memtest_fail_reason   = 8'h03;
+    tb_memtest_curr_addr     = 21'h12345;
+    tb_memtest_expected      = 32'h0102_0304;
+    tb_memtest_last_read     = 32'h0506_0708;
+    tb_memtest_last_status   = 32'h090A_0B0C;
+    tb_memtest_fail_addr     = 32'h0001_2345;
+    tb_memtest_fail_expected = 32'h1111_2222;
+    tb_memtest_fail_actual   = 32'h3333_4444;
+    tb_memtest_retry_summary = 32'h0303_0463;
+    tb_memtest_retry_data1   = 32'hAAAA_5555;
+    tb_memtest_retry_data2   = 32'h5555_AAAA;
+    tb_memtest_ctrl_summary  = 32'hDEAD_BEEF;
+    tb_memtest_ctrl_detail   = 32'hCAFE_BABE;
+
+    expect_word(16'h0000, 32'h030D_03A8, "summary");
+    expect_word(16'h0004, 32'h1122_3344, "memtest summary");
+    expect_word(16'h0008, 32'h0001_2345, "current addr");
+    expect_word(16'h000C, 32'h0102_0304, "expected");
+    expect_word(16'h0010, 32'h0506_0708, "last read");
+    expect_word(16'h0014, 32'h090A_0B0C, "last status");
+    expect_word(16'h0018, 32'h0001_2345, "fail addr");
+    expect_word(16'h001C, 32'h1111_2222, "fail expected");
+    expect_word(16'h0020, 32'h3333_4444, "fail actual");
+    expect_word(16'h0024, 32'h0303_0463, "retry summary");
+    expect_word(16'h0028, 32'hAAAA_5555, "retry data1");
+    expect_word(16'h002C, 32'h5555_AAAA, "retry data2");
+    expect_word(16'h0030, 32'hDEAD_BEEF, "ctrl summary");
+    expect_word(16'h0034, 32'hCAFE_BABE, "ctrl detail");
+    expect_word(16'h0038, 32'h47B5_0038, "handshake summary");
+    expect_word(16'h003C, 32'h89AB_CDEF, "latest rd data");
+    expect_word(16'h0040, 32'h030D_03A8, "wraps by low map bits");
+
+    log_info("STATUS MAP TB", "sdram_status_reg_map smoke test passed");
+    $finish;
+  end
