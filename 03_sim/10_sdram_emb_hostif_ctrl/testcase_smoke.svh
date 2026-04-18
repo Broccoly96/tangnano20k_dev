@@ -4,7 +4,7 @@
     @(posedge tb_rst_n);
     log_info("HOSTIF CTRL TB", "case: summary read is available before init");
     send_text("R 00000\n");
-    expect_host_event(EVT_READ_RSP, 32'h0000_0000, 32'h0300_0080, 32'h0, "pre-init summary");
+    expect_host_event(EVT_READ_RSP, 32'h0000_0000, 32'h0400_0080, 32'h0, "pre-init summary");
 
     log_info("HOSTIF CTRL TB", "waiting for self-test completion");
     wait (tb_test_pass || tb_test_fail);
@@ -12,10 +12,33 @@
       log_fatal(1, "HOSTIF CTRL TB", "self-test finished with FAIL");
     end
 
-    summary_word = 32'h030D_00A8;
+    summary_word = 32'h040D_00A8;
     log_info("HOSTIF CTRL TB", "case: final summary reflects PASS");
     send_text("R 00000\n");
     expect_host_event(EVT_READ_RSP, 32'h0000_0000, summary_word, 32'h0, "final summary");
+
+    log_info("HOSTIF CTRL TB", "case: control write resets SDRC and reruns self-test");
+    send_text("W 0003C 00000001\n");
+    expect_host_event(EVT_WRITE_ACK, 32'h0000_003C, 32'h0000_0001, 32'h0, "restart write ack");
+    repeat (2) @(posedge tb_clk);
+    if (!tb_test_active || tb_test_pass || tb_test_fail) begin
+      log_fatal(
+        1,
+        "HOSTIF CTRL TB",
+        "manual restart did not force active=1/pass=0/fail=0"
+      );
+    end
+    wait (!tb_sdrc_rst_n);
+    wait (tb_sdrc_rst_n);
+    wait (tb_test_active);
+    wait (tb_test_pass || tb_test_fail);
+    if (tb_test_fail) begin
+      log_fatal(1, "HOSTIF CTRL TB", "manual restart self-test finished with FAIL");
+    end
+
+    log_info("HOSTIF CTRL TB", "case: final summary reflects PASS after manual restart");
+    send_text("R 00000\n");
+    expect_host_event(EVT_READ_RSP, 32'h0000_0000, summary_word, 32'h0, "post-restart summary");
 
     log_info("HOSTIF CTRL TB", "case: retry summary stays zero on PASS");
     send_text("R 00024\n");

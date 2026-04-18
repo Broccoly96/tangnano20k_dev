@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module testbench;
+module testbench #(
+  parameter bit USE_FIXED_WINDOW_ADDR = 1'b0
+);
 
   import tb_log_pkg::*;
 
@@ -10,7 +12,7 @@ module testbench;
   localparam int unsigned BURST_COUNT = 2;
   localparam int unsigned CLEAR_WORDS = 16;
   localparam logic [31:0] CORRUPT_DATA = 32'hDEAD_BEEF;
-  localparam logic [20:0] FIRST_WORD_ADDR = {2'd2, 11'd2, 8'd5};
+  localparam logic [20:0] FIRST_WORD_ADDR = 21'h00000;
 
   localparam int unsigned SC_PASS    = 0;
   localparam int unsigned SC_RECOVER = 1;
@@ -78,6 +80,8 @@ module testbench;
   sdram_memtest_ctrl #(
     .BURST_WORDS(BURST_WORDS),
     .BURST_COUNT(BURST_COUNT),
+    .TEST_WORDS(BURST_WORDS * BURST_COUNT),
+    .USE_FIXED_WINDOW_ADDR(USE_FIXED_WINDOW_ADDR),
     .POST_INIT_WAIT_CYCLES(4),
     .POST_WRITE_TO_READ_GAP_CYCLES(1),
     .CLEAR_WORDS(CLEAR_WORDS)
@@ -127,7 +131,7 @@ module testbench;
     logic [31:0] data_word;
     begin
       data_word = mem_words[(addr_word + word_index) & 21'h3F];
-      if ((addr_word == FIRST_WORD_ADDR) && (word_index == 0) && (r_corrupt_reads_remaining > 0)) begin
+      if ((word_index == 0) && (r_corrupt_reads_remaining > 0)) begin
         data_word = CORRUPT_DATA;
       end
       next_read_data = data_word;
@@ -153,6 +157,12 @@ module testbench;
           tb_sdrc_busy_n <= 1'b1;
           r_count        <= '0;
           if (!tb_sdrc_wr_n) begin
+            log_debug("MEMTEST UIF", $sformatf(
+              "accept write addr=0x%05h len=%0d data0=0x%08h",
+              tb_sdrc_addr,
+              tb_sdrc_data_len + 1'b1,
+              tb_sdrc_wr_data
+            ));
             r_base_addr    <= tb_sdrc_addr;
             r_len_words    <= tb_sdrc_data_len + 1'b1;
             mem_words[tb_sdrc_addr & 21'h3F] <= tb_sdrc_wr_data;
@@ -161,11 +171,18 @@ module testbench;
             r_count         <= 8'd1;
             st_uif          <= UIF_WRITE;
           end else if (!tb_sdrc_rd_n) begin
+            log_debug("MEMTEST UIF", $sformatf(
+              "accept read addr=0x%05h len=%0d timeout_budget=%0d corrupt_budget=%0d",
+              tb_sdrc_addr,
+              tb_sdrc_data_len + 1'b1,
+              r_timeout_reads_remaining,
+              r_corrupt_reads_remaining
+            ));
             r_base_addr    <= tb_sdrc_addr;
             r_len_words    <= tb_sdrc_data_len + 1'b1;
             tb_sdrc_busy_n <= 1'b0;
             r_count        <= '0;
-            if ((tb_sdrc_addr == FIRST_WORD_ADDR) && (tb_sdrc_data_len != 0) && (r_timeout_reads_remaining > 0)) begin
+            if ((tb_sdrc_data_len != 0) && (r_timeout_reads_remaining > 0)) begin
               r_timeout_reads_remaining <= r_timeout_reads_remaining - 1;
             end
             st_uif <= UIF_READ;
@@ -174,6 +191,13 @@ module testbench;
 
         UIF_WRITE: begin
           if (r_count < r_len_words) begin
+            log_debug("MEMTEST UIF", $sformatf(
+              "write beat addr=0x%05h beat=%0d/%0d data=0x%08h",
+              r_base_addr,
+              r_count,
+              r_len_words,
+              tb_sdrc_wr_data
+            ));
             mem_words[(r_base_addr + r_count) & 21'h3F] <= tb_sdrc_wr_data;
             tb_sdrc_wrd_ack <= 1'b1;
             r_count <= r_count + 1'b1;
@@ -184,17 +208,25 @@ module testbench;
         end
 
         UIF_READ: begin
-          if ((r_scenario == SC_TIMEOUT) && (r_base_addr == FIRST_WORD_ADDR) && (r_len_words != 1) && (r_timeout_reads_remaining < 0)) begin
+          if ((r_scenario == SC_TIMEOUT) && (r_len_words != 1) && (r_timeout_reads_remaining < 0)) begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif <= UIF_IDLE;
-          end else if ((r_scenario == SC_TIMEOUT) && (r_base_addr == FIRST_WORD_ADDR) && (r_len_words != 1) && (r_timeout_reads_remaining == 0)) begin
+          end else if ((r_scenario == SC_TIMEOUT) && (r_len_words != 1) && (r_timeout_reads_remaining == 0)) begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif <= UIF_IDLE;
             r_timeout_reads_remaining <= -1;
           end else if (r_count < r_len_words) begin
             tb_sdrc_rd_valid <= 1'b1;
             tb_sdrc_rd_data  <= next_read_data(r_base_addr, r_count);
-            if ((r_base_addr == FIRST_WORD_ADDR) && (r_count == 0) && (r_corrupt_reads_remaining > 0)) begin
+            log_debug("MEMTEST UIF", $sformatf(
+              "return read addr=0x%05h beat=%0d/%0d data=0x%08h corrupt_budget=%0d",
+              r_base_addr,
+              r_count,
+              r_len_words,
+              next_read_data(r_base_addr, r_count),
+              r_corrupt_reads_remaining
+            ));
+            if ((r_count == 0) && (r_corrupt_reads_remaining > 0)) begin
               r_corrupt_reads_remaining <= r_corrupt_reads_remaining - 1;
             end
             r_count <= r_count + 1'b1;

@@ -28,6 +28,7 @@ module testbench;
   logic [31:0] tb_sdrc_rd_data;
   logic [15:0] tb_status_addr;
   logic [31:0] tb_status_rd_data;
+  logic        tb_selftest_restart_req;
   logic        tb_sdrc_wr_n;
   logic        tb_sdrc_rd_n;
   logic [20:0] tb_sdrc_addr;
@@ -41,6 +42,7 @@ module testbench;
   logic [31:0] tb_evt_arg2;
   logic        tb_evt_ready;
   logic        tb_cmd_busy;
+  integer      tb_restart_count;
 
   logic [31:0] mem_words [0:MEM_WORDS-1];
 
@@ -69,6 +71,14 @@ module testbench;
     tb_sdrc_init_done = 1'b1;
   end
 
+  always_ff @(posedge tb_clk or negedge tb_rst_n) begin
+    if (!tb_rst_n) begin
+      tb_restart_count <= 0;
+    end else if (tb_selftest_restart_req) begin
+      tb_restart_count <= tb_restart_count + 1;
+    end
+  end
+
   initial begin
     #(200us);
     log_fatal(1, "BRIDGE CTRL TB", "simulation timeout");
@@ -92,6 +102,7 @@ module testbench;
     .I_SDRC_RD_DATA  (tb_sdrc_rd_data),
     .I_STATUS_RD_DATA(tb_status_rd_data),
     .O_STATUS_ADDR   (tb_status_addr),
+    .O_SELFTEST_RESTART_REQ(tb_selftest_restart_req),
     .O_SDRC_WR_N     (tb_sdrc_wr_n),
     .O_SDRC_RD_N     (tb_sdrc_rd_n),
     .O_SDRC_ADDR     (tb_sdrc_addr),
@@ -179,6 +190,16 @@ module testbench;
       tb_evt_ready <= 1'b1;
       @(posedge tb_clk);
       tb_evt_ready <= 1'b0;
+    end
+  endtask
+
+  task automatic expect_restart_count_changed(input int previous_count, input string label);
+    begin
+      @(posedge tb_clk);
+      if (tb_restart_count <= previous_count) begin
+        log_fatal(1, "BRIDGE CTRL TB", {"restart pulse was not observed: ", label});
+      end
+      log_info("BRIDGE CTRL TB", {"restart pulse ok: ", label});
     end
   endtask
 

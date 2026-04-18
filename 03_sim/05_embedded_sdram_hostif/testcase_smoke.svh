@@ -29,7 +29,7 @@
     arg1 = payload[95:64];
     arg2 = payload[127:96];
     if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_READ_RSP) ||
-        (arg0 != 32'h0000_0000) || (arg1 != 32'h030D_00A8) || (arg2 != 32'h0000_0000)) begin
+        (arg0 != 32'h0000_0000) || (arg1 != 32'h040D_00A8) || (arg2 != 32'h0000_0000)) begin
       tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "final summary read response mismatch");
     end
 

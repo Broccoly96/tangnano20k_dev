@@ -1,10 +1,12 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // File         : sdram_status_reg_map.sv
-// Description  : Read-only SDRAM debug register map for uart_log_cli host access.
+// Description  : SDRAM debug register map for uart_log_cli host access.
 //                - 64-byte map, byte addressed, 32-bit word reads at 4-byte steps.
 //                - Exposes self-test progress, fail context, retry results, and
-//                  live Gowin SDRC handshake status without allowing host writes.
+//                  live Gowin SDRC handshake status.
+//                - Address 0x003C is also a write-only control register:
+//                  write bit0=1 to reset the SDRC and rerun the selftest.
 //////////////////////////////////////////////////////////////////////////////////
 
 module sdram_status_reg_map (
@@ -14,6 +16,7 @@ module sdram_status_reg_map (
   input  logic        I_TEST_PASS,
   input  logic        I_TEST_FAIL,
   input  logic        I_HOST_BUSY,
+  input  logic        I_SDRC_RESET_ACTIVE,
   input  logic        I_SDRC_BUSY_N,
   input  logic        I_SDRC_RD_VALID,
   input  logic        I_SDRC_WRD_ACK,
@@ -36,7 +39,7 @@ module sdram_status_reg_map (
   output logic [31:0] O_RD_DATA
 );
 
-  localparam logic [7:0] MAP_VERSION = 8'h03;
+  localparam logic [7:0] MAP_VERSION = 8'h04;
 
   logic [31:0] s_summary_word;
   logic [31:0] s_handshake_word;
@@ -51,6 +54,7 @@ module sdram_status_reg_map (
     s_summary_word[5]     = I_TEST_PASS;
     s_summary_word[4]     = I_TEST_FAIL;
     s_summary_word[3]     = I_INIT_DONE;
+    s_summary_word[2]     = I_SDRC_RESET_ACTIVE;
   end
 
   always_comb begin

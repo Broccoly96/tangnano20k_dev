@@ -268,7 +268,7 @@ package embedded_sdram_tb_pkg;
     ref logic        clk,
     ref logic        rd_valid,
     ref logic [31:0] rd_data,
-    input logic [31:0] exp_words [0:25],
+    input logic [31:0] exp_words [],
     input int unsigned exp_beats,
     input int unsigned timeout_cycles,
     input string     log_context

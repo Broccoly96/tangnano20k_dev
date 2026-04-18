@@ -5,6 +5,7 @@
     tb_test_pass             = 1'b1;
     tb_test_fail             = 1'b0;
     tb_host_busy             = 1'b1;
+    tb_sdrc_reset_active     = 1'b0;
     tb_sdrc_busy_n           = 1'b1;
     tb_sdrc_rd_valid         = 1'b0;
     tb_sdrc_wrd_ack          = 1'b1;
@@ -25,7 +26,10 @@
     tb_memtest_ctrl_summary  = 32'hDEAD_BEEF;
     tb_memtest_ctrl_detail   = 32'hCAFE_BABE;
 
-    expect_word(16'h0000, 32'h030D_03A8, "summary");
+    expect_word(16'h0000, 32'h040D_03A8, "summary");
+    tb_sdrc_reset_active = 1'b1;
+    expect_word(16'h0000, 32'h040D_03AC, "summary reset active");
+    tb_sdrc_reset_active = 1'b0;
     expect_word(16'h0004, 32'h1122_3344, "memtest summary");
     expect_word(16'h0008, 32'h0001_2345, "current addr");
     expect_word(16'h000C, 32'h0102_0304, "expected");
@@ -41,7 +45,7 @@
     expect_word(16'h0034, 32'hCAFE_BABE, "ctrl detail");
     expect_word(16'h0038, 32'h47B5_0038, "handshake summary");
     expect_word(16'h003C, 32'h89AB_CDEF, "latest rd data");
-    expect_word(16'h0040, 32'h030D_03A8, "wraps by low map bits");
+    expect_word(16'h0040, 32'h040D_03A8, "wraps by low map bits");
 
     log_info("STATUS MAP TB", "sdram_status_reg_map smoke test passed");
     $finish;

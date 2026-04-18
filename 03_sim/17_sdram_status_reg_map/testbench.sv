@@ -10,6 +10,7 @@ module testbench;
   logic        tb_test_pass;
   logic        tb_test_fail;
   logic        tb_host_busy;
+  logic        tb_sdrc_reset_active;
   logic        tb_sdrc_busy_n;
   logic        tb_sdrc_rd_valid;
   logic        tb_sdrc_wrd_ack;
@@ -42,6 +43,7 @@ module testbench;
     .I_TEST_PASS             (tb_test_pass),
     .I_TEST_FAIL             (tb_test_fail),
     .I_HOST_BUSY             (tb_host_busy),
+    .I_SDRC_RESET_ACTIVE     (tb_sdrc_reset_active),
     .I_SDRC_BUSY_N           (tb_sdrc_busy_n),
     .I_SDRC_RD_VALID         (tb_sdrc_rd_valid),
     .I_SDRC_WRD_ACK          (tb_sdrc_wrd_ack),

@@ -49,6 +49,8 @@ STATUS_BASE_ADDR = 0x00000
 STATUS_BYTE_COUNT = 64
 STATUS_WORD_COUNT = STATUS_BYTE_COUNT // 4
 STATUS_RESPONSE_TIMEOUT_S = 1.0
+STATUS_SELFTEST_ADDR = 0x0003C
+STATUS_SELFTEST_DATA = 0x0000_0001
 
 
 @dataclass(frozen=True)
@@ -191,7 +193,8 @@ def format_sdram_status_text(status_bytes: bytes) -> str:
     ctrl_write_count = ctrl_summary & 0xFF
 
     lines = [
-        "Base: 0x00000  Size: 64 bytes  Mode: read-only status map",
+        "Base: 0x00000  Size: 64 bytes  Mode: status + write-only control",
+        "Control: W 0003C 00000001 resets SDRC and reruns selftest",
         "",
         f"0x00 SUMMARY        = 0x{summary:08X}",
         f"  map_version       : 0x{summary_version:02X}",
@@ -202,6 +205,7 @@ def format_sdram_status_text(status_bytes: bytes) -> str:
         f"  test_pass         : {(summary >> 5) & 0x1}",
         f"  test_fail         : {(summary >> 4) & 0x1}",
         f"  init_done         : {(summary >> 3) & 0x1}",
+        f"  sdrc_reset_active : {(summary >> 2) & 0x1}",
         "",
         f"0x04 MEM_SUMMARY    = 0x{mem_summary:08X}",
         f"  burst_base_idx    : {mem_base_idx} (0x{mem_base_idx:02X})",
@@ -324,6 +328,7 @@ class UARTLogApp(App[None]):
     #btn_map_refresh { width: 12; }
     #btn_status_refresh { width: 16; }
     #btn_status_mode { width: 14; }
+    #btn_status_selftest { width: 14; }
     #status_summary { height: 5; border: round; padding: 0 1; margin-bottom: 1; }
     #status_scroll { height: 1fr; border: round; padding: 0 1; }
     #status_view { width: 1fr; height: auto; }
@@ -405,6 +410,10 @@ class UARTLogApp(App[None]):
         self._status_inflight_addr: int | None = None
         self._status_summary_text = "idle"
         self._status_mode = "decode"
+        self._status_selftest_active = False
+        self._status_selftest_inflight = False
+        self._status_selftest_select_deadline = 0.0
+        self._status_selftest_rsp_deadline = 0.0
         self._rw_summary_text = "idle"
         self._rw_single_read_result = "-"
         self._rw_single_write_result = "-"
@@ -442,6 +451,7 @@ class UARTLogApp(App[None]):
         self._status_summary: Static | None = None
         self._status_view: Static | None = None
         self._status_mode_button: Button | None = None
+        self._status_selftest_button: Button | None = None
         self._rw_summary: Static | None = None
         self._single_read_addr_input: Input | None = None
         self._single_read_result: Static | None = None
@@ -486,6 +496,7 @@ class UARTLogApp(App[None]):
                         with Horizontal(classes="toolbar"):
                             yield Button("Refresh Status", id="btn_status_refresh")
                             yield Button("Mode: Decode", id="btn_status_mode")
+                            yield Button("Selftest", id="btn_status_selftest")
                         yield Static("", id="status_summary")
                         with VerticalScroll(id="status_scroll"):
                             yield Static("", id="status_view")
@@ -537,6 +548,7 @@ class UARTLogApp(App[None]):
         self._status_summary = self.query_one("#status_summary", Static)
         self._status_view = self.query_one("#status_view", Static)
         self._status_mode_button = self.query_one("#btn_status_mode", Button)
+        self._status_selftest_button = self.query_one("#btn_status_selftest", Button)
         self._rw_summary = self.query_one("#rw_summary", Static)
         self._single_read_addr_input = self.query_one("#single_read_addr_input", Input)
         self._single_read_result = self.query_one("#single_read_result", Static)
@@ -587,6 +599,7 @@ class UARTLogApp(App[None]):
                 self._log_meta("logging started")
         self.set_interval(0.05, self._poll_map_refresh)
         self.set_interval(0.05, self._poll_status_refresh)
+        self.set_interval(0.05, self._poll_status_selftest)
         self.set_interval(0.05, self._poll_rw_task)
         self.set_interval(0.5, self._watch_decoder)
         self._update_stats()
@@ -621,6 +634,8 @@ class UARTLogApp(App[None]):
             self.action_refresh_status()
         elif button_id == "btn_status_mode":
             self.action_toggle_status_mode()
+        elif button_id == "btn_status_selftest":
+            self.action_status_selftest()
         elif button_id == "btn_single_read":
             self._start_single_read()
         elif button_id == "btn_single_write":
@@ -716,6 +731,9 @@ class UARTLogApp(App[None]):
         self._status_mode = "raw" if self._status_mode == "decode" else "decode"
         self._refresh_status_view()
         self._set_status(f"sdram status mode={self._status_mode}")
+
+    def action_status_selftest(self) -> None:
+        self._start_status_selftest()
 
     def _show_screen(self, screen_name: str) -> None:
         self._active_screen = screen_name
@@ -906,7 +924,12 @@ class UARTLogApp(App[None]):
         return True
 
     def _host_task_busy(self) -> bool:
-        return self._map_refresh_active or self._status_refresh_active or self._rw_task_active
+        return (
+            self._map_refresh_active
+            or self._status_refresh_active
+            or self._status_selftest_active
+            or self._rw_task_active
+        )
 
     def _refresh_status_view(self) -> None:
         mode_label = "Decode" if self._status_mode == "decode" else "Raw"
@@ -920,7 +943,7 @@ class UARTLogApp(App[None]):
                         "base       : 0x00000",
                         "size       : 64 bytes",
                         f"view       : {self._status_mode}",
-                        f"state      : {'refreshing' if self._status_refresh_active else 'idle'}",
+                        f"state      : {self._status_operation_state()}",
                         f"detail     : {self._status_summary_text}",
                     ]
                 )
@@ -964,6 +987,48 @@ class UARTLogApp(App[None]):
         self._status_summary_text = detail
         self._refresh_status_view()
         self._set_status(detail)
+
+    def _status_operation_state(self) -> str:
+        if self._status_refresh_active:
+            return "refreshing"
+        if self._status_selftest_active:
+            return "selftest"
+        return "idle"
+
+    def _start_status_selftest(self) -> None:
+        if self._replay_file_path is not None:
+            self._status_summary_text = "replay mode: selftest disabled"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+        if not self._active_connected():
+            self._status_summary_text = "not connected"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+        if self._host_task_busy():
+            self._status_summary_text = "host task busy"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+
+        self._status_selftest_active = True
+        self._status_selftest_inflight = False
+        self._status_selftest_select_deadline = 0.0
+        self._status_selftest_rsp_deadline = 0.0
+        self._status_summary_text = "queued selftest trigger"
+        self._refresh_status_view()
+        self._set_status(self._status_summary_text)
+
+    def _finish_status_selftest(self, detail: str, *, refresh_after_ack: bool = False) -> None:
+        self._status_selftest_active = False
+        self._status_selftest_inflight = False
+        self._status_selftest_rsp_deadline = 0.0
+        self._status_summary_text = detail
+        self._refresh_status_view()
+        self._set_status(detail)
+        if refresh_after_ack:
+            self._start_status_refresh()
 
     def _refresh_rw_view(self) -> None:
         if self._rw_summary is not None:
@@ -1177,6 +1242,23 @@ class UARTLogApp(App[None]):
                     f"status refresh failed at 0x{self._status_inflight_addr:05X}: cmd_err 0x{event.arg0:08X}"
                 )
 
+        if not self._status_selftest_active or event.src_id != HOST_SRC_ID:
+            pass
+        else:
+            if (
+                event.event_id == HOST_EVT_WRITE_ACK
+                and self._status_selftest_inflight
+                and event.arg0 == STATUS_SELFTEST_ADDR
+            ):
+                self._finish_status_selftest(
+                    "selftest trigger acknowledged; refreshing status",
+                    refresh_after_ack=True,
+                )
+            elif event.event_id == HOST_EVT_CMD_ERR and self._status_selftest_inflight:
+                self._finish_status_selftest(
+                    f"selftest trigger failed: cmd_err 0x{event.arg0:08X}"
+                )
+
         if not self._rw_task_active or event.src_id != HOST_SRC_ID:
             return
         if self._rw_task_inflight is None:
@@ -1316,6 +1398,40 @@ class UARTLogApp(App[None]):
         self._status_rsp_deadline = now + STATUS_RESPONSE_TIMEOUT_S
         completed = STATUS_WORD_COUNT - len(self._status_pending_queue)
         self._status_summary_text = f"reading 0x{next_addr:05X} ({completed}/{STATUS_WORD_COUNT})"
+        self._refresh_status_view()
+
+    def _poll_status_selftest(self) -> None:
+        if not self._status_selftest_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._status_selftest_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_status_selftest("failed to select host source")
+                    return
+                self._status_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._status_selftest_select_deadline = now + 0.35
+                self._refresh_status_view()
+            return
+        if self._status_selftest_inflight and now > self._status_selftest_rsp_deadline:
+            self._finish_status_selftest(
+                f"timeout waiting for selftest ack at 0x{STATUS_SELFTEST_ADDR:05X}"
+            )
+            return
+        if self._status_selftest_inflight or now < self._status_selftest_select_deadline:
+            return
+
+        payload = make_write_packet(STATUS_SELFTEST_ADDR, STATUS_SELFTEST_DATA)
+        if self._send_bytes(payload) != len(payload):
+            self._finish_status_selftest(
+                f"short write for selftest trigger at 0x{STATUS_SELFTEST_ADDR:05X}"
+            )
+            return
+        self._status_selftest_inflight = True
+        self._status_selftest_rsp_deadline = now + STATUS_RESPONSE_TIMEOUT_S
+        self._status_summary_text = (
+            f"triggering selftest W 0x{STATUS_SELFTEST_ADDR:05X} 0x{STATUS_SELFTEST_DATA:08X}"
+        )
         self._refresh_status_view()
 
     def _poll_rw_task(self) -> None:

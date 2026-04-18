@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // File         : sdram_uart_bridge_ctrl.sv
-// Description  : Read-only SDRAM debug register-map bridge for uart_log_cli.
+// Description  : SDRAM debug register-map bridge for uart_log_cli.
 //                - Parses ASCII host commands.
 //                - Allows only 32-bit status-map reads from the 64-byte debug map.
-//                - Rejects writes and bulk transfers with ERR_UNSUPPORTED.
+//                - Allows one write-only control register for selftest restart.
+//                - Rejects all other writes and bulk transfers with ERR_UNSUPPORTED.
 //////////////////////////////////////////////////////////////////////////////////
 
 module sdram_uart_bridge_ctrl (
@@ -25,6 +26,7 @@ module sdram_uart_bridge_ctrl (
   input  logic [31:0] I_SDRC_RD_DATA,
   input  logic [31:0] I_STATUS_RD_DATA,
   output logic [15:0] O_STATUS_ADDR,
+  output logic        O_SELFTEST_RESTART_REQ,
   output logic        O_SDRC_WR_N,
   output logic        O_SDRC_RD_N,
   output logic [20:0] O_SDRC_ADDR,
@@ -46,6 +48,7 @@ module sdram_uart_bridge_ctrl (
   localparam int unsigned EVT_FIFO_PTR_W = $clog2(EVT_FIFO_DEPTH);
   localparam int unsigned EVT_FIFO_CNT_W = $clog2(EVT_FIFO_DEPTH + 1);
   localparam logic [20:0] STATUS_ADDR_MAX = 21'h0003F;
+  localparam logic [20:0] STATUS_CTRL_ADDR = 21'h0003C;
 
   logic        s_ascii_cmd_valid;
   logic [1:0]  s_ascii_cmd_op;
@@ -181,9 +184,11 @@ module sdram_uart_bridge_ctrl (
       r_evt_push_arg0    <= 32'h0;
       r_evt_push_arg1    <= 32'h0;
       r_evt_push_arg2    <= 32'h0;
+      O_SELFTEST_RESTART_REQ <= 1'b0;
     end else begin
-      r_ascii_cmd_ready <= 1'b0;
-      r_evt_push_valid  <= 1'b0;
+      r_ascii_cmd_ready       <= 1'b0;
+      r_evt_push_valid        <= 1'b0;
+      O_SELFTEST_RESTART_REQ  <= 1'b0;
 
       if (r_read_rsp_pending) begin
         push_event(
@@ -214,12 +219,24 @@ module sdram_uart_bridge_ctrl (
             r_cmd_busy         <= 1'b1;
           end
         end else if (s_ascii_cmd_op == ASCII_OP_WRITE) begin
-          push_event(
-            EVT_CMD_ERR,
-            ERR_UNSUPPORTED,
-            {11'h000, s_ascii_cmd_addr},
-            s_ascii_cmd_data
-          );
+          if (s_ascii_cmd_addr == STATUS_CTRL_ADDR) begin
+            if (s_ascii_cmd_data[0]) begin
+              O_SELFTEST_RESTART_REQ <= 1'b1;
+            end
+            push_event(
+              EVT_WRITE_ACK,
+              {11'h000, s_ascii_cmd_addr},
+              s_ascii_cmd_data,
+              32'h0000_0000
+            );
+          end else begin
+            push_event(
+              EVT_CMD_ERR,
+              ERR_UNSUPPORTED,
+              {11'h000, s_ascii_cmd_addr},
+              s_ascii_cmd_data
+            );
+          end
         end else if (s_ascii_cmd_op == ASCII_OP_BULK) begin
           push_event(
             EVT_CMD_ERR,

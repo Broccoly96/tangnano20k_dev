@@ -96,6 +96,7 @@ module testbench;
 
   logic                    tb_sdrc_wr_n;
   logic                    tb_sdrc_rd_n;
+  logic                    tb_sdrc_rst_n;
   logic [20:0]             tb_sdrc_addr;
   logic [7:0]              tb_sdrc_data_len;
   logic [3:0]              tb_sdrc_dqm;
@@ -362,6 +363,7 @@ module testbench;
     .O_TEST_PASS(tb_sdram_test_pass),
     .O_TEST_FAIL(tb_sdram_test_fail),
     .O_HOST_BUSY(tb_sdram_host_busy),
+    .O_SDRC_RST_N(tb_sdrc_rst_n),
     .O_SDRC_WR_N(tb_sdrc_wr_n),
     .O_SDRC_RD_N(tb_sdrc_rd_n),
     .O_SDRC_ADDR(tb_sdrc_addr),
@@ -381,7 +383,7 @@ module testbench;
     .O_sdram_addr(tb_sdram_addr),
     .O_sdram_ba(tb_sdram_ba),
     .IO_sdram_dq(tb_sdram_dq),
-    .I_sdrc_rst_n(tb_rst_96m_n),
+    .I_sdrc_rst_n(tb_sdrc_rst_n),
     .I_sdrc_clk(tb_clk_96m),
     .I_sdram_clk(tb_clk_96m),
     .I_sdrc_selfrefresh(1'b0),

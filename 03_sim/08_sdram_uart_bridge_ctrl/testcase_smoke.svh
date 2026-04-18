@@ -1,4 +1,6 @@
   initial begin : tc_smoke
+    int restart_count_before;
+
     @(posedge tb_rst_n);
     repeat (4) @(posedge tb_clk);
 
@@ -17,6 +19,12 @@
     log_info("BRIDGE CTRL TB", "case: out-of-range read is rejected");
     send_text("R 00040\n");
     expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_0040, 32'h0000_0040, "range read");
+
+    log_info("BRIDGE CTRL TB", "case: control write restarts selftest");
+    restart_count_before = tb_restart_count;
+    send_text("W 0003C 00000001\n");
+    expect_event(EVT_WRITE_ACK, 32'h0000_003C, 32'h0000_0001, 32'h0, "restart write ack");
+    expect_restart_count_changed(restart_count_before, "restart write");
 
     log_info("BRIDGE CTRL TB", "case: ascii write is unsupported");
     send_text("W 00010 12345678\n");

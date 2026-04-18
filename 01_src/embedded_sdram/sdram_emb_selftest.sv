@@ -8,6 +8,7 @@
 module sdram_emb_selftest #(
   parameter int unsigned MEMTEST_BURST_WORDS = 26,
   parameter int unsigned MEMTEST_BURST_COUNT = 8,
+  parameter int unsigned MEMTEST_TEST_WORDS = MEMTEST_BURST_WORDS * MEMTEST_BURST_COUNT,
   parameter int unsigned MEMTEST_POST_INIT_WAIT_CYCLES = 20_000,
   parameter int unsigned MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES = 4,
   parameter int unsigned MEMTEST_CLEAR_WORDS = 2_097_152
@@ -80,6 +81,7 @@ module sdram_emb_selftest #(
   sdram_memtest_ctrl #(
     .BURST_WORDS(MEMTEST_BURST_WORDS),
     .BURST_COUNT(MEMTEST_BURST_COUNT),
+    .TEST_WORDS(MEMTEST_TEST_WORDS),
     .POST_INIT_WAIT_CYCLES(MEMTEST_POST_INIT_WAIT_CYCLES),
     .POST_WRITE_TO_READ_GAP_CYCLES(MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES),
     .CLEAR_WORDS(MEMTEST_CLEAR_WORDS)

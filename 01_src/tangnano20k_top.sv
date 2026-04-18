@@ -93,6 +93,12 @@ module tangnano20k_top(
   localparam int unsigned SOFT_RESET_CNT_W       = $clog2(SOFT_RESET_HOLD_CYCLES + 1);
   localparam int unsigned TESTSRC_CLK_HZ         = 24_000_000;
   localparam int unsigned TESTSRC_PERIOD_CYCLES  = TESTSRC_CLK_HZ * 10;
+  localparam bit          SDRAM_MEMTEST_USE_FIXED_WINDOW_ADDR = 1'b0;
+  localparam logic [1:0]  SDRAM_MEMTEST_FIXED_BANK_ADDR = 2'd2;
+  localparam logic [10:0] SDRAM_MEMTEST_FIXED_ROW_ADDR = 11'd2;
+  localparam logic [7:0]  SDRAM_MEMTEST_FIXED_COL_START = 8'd5;
+  localparam int unsigned SDRAM_MEMTEST_BURST_WORDS = 1;
+  localparam int unsigned SDRAM_MEMTEST_TEST_WORDS  = 2097152;
 
 
   // PLL
@@ -184,6 +190,7 @@ module tangnano20k_top(
   logic                          O_sdrc_wrd_ack;
   logic                          l_hostif_sdrc_wr_n;
   logic                          l_hostif_sdrc_rd_n;
+  logic                          l_hostif_sdrc_rst_n;
   logic [20:0]                   l_hostif_sdrc_addr;
   logic [7:0]                    l_hostif_sdrc_data_len;
   logic [3:0]                    l_hostif_sdrc_dqm;
@@ -214,7 +221,7 @@ module tangnano20k_top(
   );
 
   assign soft_rst_req_24m   = 1'b0;
-  assign I_sdrc_rst_n       = rst_fpga_48m_n;
+  assign I_sdrc_rst_n       = l_hostif_sdrc_rst_n;
   assign I_sdrc_clk         = clk_48m_sdram;
   assign I_sdram_clk        = clk_48m_sdram;
   assign I_sdrc_selfrefresh = 1'b0;
@@ -356,6 +363,12 @@ module tangnano20k_top(
   );
 
   sdram_emb_hostif_ctrl #(
+    .MEMTEST_USE_FIXED_WINDOW_ADDR (SDRAM_MEMTEST_USE_FIXED_WINDOW_ADDR),
+    .MEMTEST_FIXED_BANK_ADDR (SDRAM_MEMTEST_FIXED_BANK_ADDR),
+    .MEMTEST_FIXED_ROW_ADDR (SDRAM_MEMTEST_FIXED_ROW_ADDR),
+    .MEMTEST_FIXED_COL_START (SDRAM_MEMTEST_FIXED_COL_START),
+    .MEMTEST_BURST_WORDS (SDRAM_MEMTEST_BURST_WORDS),
+    .MEMTEST_TEST_WORDS (SDRAM_MEMTEST_TEST_WORDS),
     .MEMTEST_POST_INIT_WAIT_CYCLES (2_400_000),
     .MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES (16)
   ) u_sdram_emb_hostif_ctrl (
@@ -385,6 +398,7 @@ module tangnano20k_top(
     .O_TEST_PASS      (l_sdram_test_pass),
     .O_TEST_FAIL      (l_sdram_test_fail),
     .O_HOST_BUSY      (l_sdram_host_busy),
+    .O_SDRC_RST_N     (l_hostif_sdrc_rst_n),
     .I_SDRC_RD_DATA   (O_sdrc_data),
     .I_SDRC_BUSY_N    (O_sdrc_busy_n),
     .I_SDRC_RD_VALID  (O_sdrc_rd_valid),

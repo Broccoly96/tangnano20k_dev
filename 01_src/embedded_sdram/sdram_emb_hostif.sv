@@ -52,6 +52,7 @@ module sdram_emb_hostif (
   logic        l_sdrc_rd_valid;
   logic        l_sdrc_wrd_ack;
   logic        l_sdrc_init_done;
+  logic        l_sdrc_rst_n;
   logic        l_sdrc_wr_n;
   logic        l_sdrc_rd_n;
   logic [20:0] l_sdrc_addr;
@@ -108,6 +109,7 @@ module sdram_emb_hostif (
     .O_TEST_PASS     (O_TEST_PASS),
     .O_TEST_FAIL     (O_TEST_FAIL),
     .O_HOST_BUSY     (O_HOST_BUSY),
+    .O_SDRC_RST_N    (l_sdrc_rst_n),
     .O_SDRC_WR_N     (l_sdrc_wr_n),
     .O_SDRC_RD_N     (l_sdrc_rd_n),
     .O_SDRC_ADDR     (l_sdrc_addr),

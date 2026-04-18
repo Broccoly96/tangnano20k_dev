@@ -80,6 +80,7 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.query_one("#btn_map_refresh", Button).label.plain, "Refresh")
             self.assertEqual(app.query_one("#btn_status_refresh", Button).label.plain, "Refresh Status")
             self.assertEqual(app.query_one("#btn_status_mode", Button).label.plain, "Mode: Decode")
+            self.assertEqual(app.query_one("#btn_status_selftest", Button).label.plain, "Selftest")
             self.assertEqual(app.query_one("#nav_status", Button).label.plain, "3 SDRAM Status")
             self.assertEqual(app.query_one("#nav_rw", Button).label.plain, "4 SDRAM RW")
             self.assertIsNotNone(app.query_one("#status_scroll", VerticalScroll))
@@ -122,6 +123,24 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             app._start_status_refresh()
             self.assertEqual(app._status_summary_text, "not connected")
             self.assertFalse(app._status_refresh_active)
+
+    async def test_status_selftest_requires_connection(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._start_status_selftest()
+            self.assertEqual(app._status_summary_text, "not connected")
+            self.assertFalse(app._status_selftest_active)
 
     async def test_status_mode_toggle_switches_raw_and_back(self) -> None:
         app = UARTLogApp(
