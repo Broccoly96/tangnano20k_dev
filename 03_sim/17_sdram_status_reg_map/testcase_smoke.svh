@@ -25,10 +25,16 @@
     tb_memtest_retry_data2   = 32'h5555_AAAA;
     tb_memtest_ctrl_summary  = 32'hDEAD_BEEF;
     tb_memtest_ctrl_detail   = 32'hCAFE_BABE;
+    tb_host_dbg_summary      = 32'h480F_1A19;
+    tb_host_dbg_detail       = 32'h0000_A123;
+    tb_host_dbg_rd_beats     = '0;
+    for (int idx = 0; idx < 26; idx++) begin
+      tb_host_dbg_rd_beats[idx*32 +: 32] = 32'hBA00_0000 + idx;
+    end
 
-    expect_word(16'h0000, 32'h040D_03A8, "summary");
+    expect_word(16'h0000, 32'h050D_03A8, "summary");
     tb_sdrc_reset_active = 1'b1;
-    expect_word(16'h0000, 32'h040D_03AC, "summary reset active");
+    expect_word(16'h0000, 32'h050D_03AC, "summary reset active");
     tb_sdrc_reset_active = 1'b0;
     expect_word(16'h0004, 32'h1122_3344, "memtest summary");
     expect_word(16'h0008, 32'h0001_2345, "current addr");
@@ -45,7 +51,12 @@
     expect_word(16'h0034, 32'hCAFE_BABE, "ctrl detail");
     expect_word(16'h0038, 32'h47B5_0038, "handshake summary");
     expect_word(16'h003C, 32'h89AB_CDEF, "latest rd data");
-    expect_word(16'h0040, 32'h040D_03A8, "wraps by low map bits");
+    expect_word(16'h0040, 32'h480F_1A19, "host debug summary");
+    expect_word(16'h0044, 32'h0000_A123, "host debug detail");
+    expect_word(16'h0048, 32'hBA00_0000, "host debug beat0");
+    expect_word(16'h004C, 32'hBA00_0001, "host debug beat1");
+    expect_word(16'h00AC, 32'hBA00_0019, "host debug beat25");
+    expect_word(16'h00B0, 32'h0000_0000, "host debug outside range");
 
     log_info("STATUS MAP TB", "sdram_status_reg_map smoke test passed");
     $finish;

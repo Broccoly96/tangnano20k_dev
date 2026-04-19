@@ -41,6 +41,9 @@ module testbench;
   logic [31:0] tb_rsp_data;
   logic [31:0] tb_rsp_status;
   logic        tb_busy;
+  logic [31:0] tb_dbg_host_summary;
+  logic [31:0] tb_dbg_host_detail;
+  logic [(BURST_WORDS*32)-1:0] tb_dbg_host_rd_beats;
   logic [31:0] mem_words [0:MEM_WORDS-1];
   uif_state_e  st_uif;
   logic [20:0] r_uif_base_addr;
@@ -122,7 +125,10 @@ module testbench;
     .O_RSP_ADDR      (tb_rsp_addr),
     .O_RSP_DATA      (tb_rsp_data),
     .O_RSP_STATUS    (tb_rsp_status),
-    .O_BUSY          (tb_busy)
+    .O_BUSY          (tb_busy),
+    .O_DBG_HOST_SUMMARY(tb_dbg_host_summary),
+    .O_DBG_HOST_DETAIL (tb_dbg_host_detail),
+    .O_DBG_HOST_RD_BEATS(tb_dbg_host_rd_beats)
   );
 
   // Simple SDRC user-interface responder for unit testing.
@@ -212,7 +218,7 @@ module testbench;
           end else begin
             tb_sdrc_busy_n <= 1'b1;
           end
-          if (r_uif_count < r_uif_len) begin
+          if ((r_uif_phase_count >= 8'd3) && (r_uif_count < r_uif_len)) begin
             mem_words[r_uif_base_addr + r_uif_count] <= tb_sdrc_wr_data;
             r_uif_count <= r_uif_count + 1'b1;
           end

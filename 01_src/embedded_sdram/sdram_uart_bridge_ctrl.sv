@@ -35,6 +35,9 @@ module sdram_uart_bridge_ctrl (
   output logic [3:0]  O_SDRC_DQM,
   output logic [31:0] O_SDRC_WR_DATA,
   output logic        O_SDRC_ACTIVE,
+  output logic [31:0] O_HOST_DBG_SUMMARY,
+  output logic [31:0] O_HOST_DBG_DETAIL,
+  output logic [831:0] O_HOST_DBG_RD_BEATS,
   output logic        O_EVT_VALID,
   output logic [7:0]  O_EVT_ID,
   output logic [31:0] O_EVT_ARG0,
@@ -49,7 +52,7 @@ module sdram_uart_bridge_ctrl (
   localparam int unsigned EVT_FIFO_DEPTH = 8;
   localparam int unsigned EVT_FIFO_PTR_W = $clog2(EVT_FIFO_DEPTH);
   localparam int unsigned EVT_FIFO_CNT_W = $clog2(EVT_FIFO_DEPTH + 1);
-  localparam logic [20:0] STATUS_ADDR_MAX = 21'h0003F;
+  localparam logic [20:0] STATUS_ADDR_MAX = 21'h000AF;
   localparam logic [20:0] STATUS_CTRL_ADDR = 21'h0003C;
 
   logic        s_ascii_cmd_valid;
@@ -161,7 +164,10 @@ module sdram_uart_bridge_ctrl (
     .O_RSP_ADDR      (l_access_rsp_addr),
     .O_RSP_DATA      (l_access_rsp_data),
     .O_RSP_STATUS    (l_access_rsp_status),
-    .O_BUSY          (l_access_busy)
+    .O_BUSY          (l_access_busy),
+    .O_DBG_HOST_SUMMARY(O_HOST_DBG_SUMMARY),
+    .O_DBG_HOST_DETAIL (O_HOST_DBG_DETAIL),
+    .O_DBG_HOST_RD_BEATS(O_HOST_DBG_RD_BEATS)
   );
 
   task automatic push_event(
@@ -265,7 +271,7 @@ module sdram_uart_bridge_ctrl (
           push_event(EVT_CMD_ERR, ERR_BUSY, {11'h000, s_ascii_cmd_addr}, 32'h0000_0000);
         end else if (s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_READ)) begin
           if ((s_ascii_cmd_addr > STATUS_ADDR_MAX) || (s_ascii_cmd_addr[1:0] != 2'b00)) begin
-            push_event(EVT_CMD_ERR, ERR_ADDR_RANGE, {11'h000, s_ascii_cmd_addr}, 32'h0000_0040);
+            push_event(EVT_CMD_ERR, ERR_ADDR_RANGE, {11'h000, s_ascii_cmd_addr}, 32'h0000_00B0);
           end else begin
             r_read_addr        <= s_ascii_cmd_addr;
             r_read_rsp_pending <= 1'b1;

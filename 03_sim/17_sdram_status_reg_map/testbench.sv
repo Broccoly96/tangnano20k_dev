@@ -30,6 +30,9 @@ module testbench;
   logic [31:0] tb_memtest_retry_data2;
   logic [31:0] tb_memtest_ctrl_summary;
   logic [31:0] tb_memtest_ctrl_detail;
+  logic [31:0] tb_host_dbg_summary;
+  logic [31:0] tb_host_dbg_detail;
+  logic [831:0] tb_host_dbg_rd_beats;
   logic [31:0] tb_rd_data;
 
   initial begin
@@ -63,6 +66,9 @@ module testbench;
     .I_MEMTEST_RETRY_DATA2   (tb_memtest_retry_data2),
     .I_MEMTEST_CTRL_SUMMARY  (tb_memtest_ctrl_summary),
     .I_MEMTEST_CTRL_DETAIL   (tb_memtest_ctrl_detail),
+    .I_HOST_DBG_SUMMARY      (tb_host_dbg_summary),
+    .I_HOST_DBG_DETAIL       (tb_host_dbg_detail),
+    .I_HOST_DBG_RD_BEATS     (tb_host_dbg_rd_beats),
     .O_RD_DATA               (tb_rd_data)
   );
 

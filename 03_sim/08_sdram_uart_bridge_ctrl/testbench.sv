@@ -37,6 +37,9 @@ module testbench;
   logic [3:0]  tb_sdrc_dqm;
   logic [31:0] tb_sdrc_wr_data;
   logic        tb_sdrc_active;
+  logic [31:0] tb_host_dbg_summary;
+  logic [31:0] tb_host_dbg_detail;
+  logic [831:0] tb_host_dbg_rd_beats;
   logic        tb_evt_valid;
   logic [7:0]  tb_evt_id;
   logic [31:0] tb_evt_arg0;
@@ -47,6 +50,11 @@ module testbench;
   integer      tb_restart_count;
 
   logic [31:0] mem_words [0:MEM_WORDS-1];
+  uif_state_e  st_uif;
+  logic [20:0] r_uif_base_addr;
+  logic [7:0]  r_uif_len;
+  logic [7:0]  r_uif_count;
+  logic [7:0]  r_uif_phase_count;
 
   initial begin
     configure_logging(LOG_DEBUG);
@@ -66,6 +74,11 @@ module testbench;
     tb_sdrc_rd_valid = 1'b0;
     tb_sdrc_rd_data  = 32'h0;
     tb_evt_ready     = 1'b0;
+    st_uif           = UIF_IDLE;
+    r_uif_base_addr  = '0;
+    r_uif_len        = '0;
+    r_uif_count      = '0;
+    r_uif_phase_count= '0;
     for (int idx = 0; idx < MEM_WORDS; idx++) begin
       mem_words[idx] = 32'h2000_0000 + idx;
     end
@@ -114,6 +127,9 @@ module testbench;
     .O_SDRC_DQM      (tb_sdrc_dqm),
     .O_SDRC_WR_DATA  (tb_sdrc_wr_data),
     .O_SDRC_ACTIVE   (tb_sdrc_active),
+    .O_HOST_DBG_SUMMARY(tb_host_dbg_summary),
+    .O_HOST_DBG_DETAIL (tb_host_dbg_detail),
+    .O_HOST_DBG_RD_BEATS(tb_host_dbg_rd_beats),
     .O_EVT_VALID     (tb_evt_valid),
     .O_EVT_ID        (tb_evt_id),
     .O_EVT_ARG0      (tb_evt_arg0),
@@ -136,24 +152,69 @@ module testbench;
 
   always_ff @(posedge tb_clk or negedge tb_rst_n) begin
     if (!tb_rst_n) begin
-      tb_sdrc_busy_n  <= 1'b1;
-      tb_sdrc_rd_valid<= 1'b0;
-      tb_sdrc_rd_data <= 32'h0;
-      tb_sdrc_wrd_ack <= 1'b0;
+      st_uif            <= UIF_IDLE;
+      tb_sdrc_busy_n    <= 1'b1;
+      tb_sdrc_rd_valid  <= 1'b0;
+      tb_sdrc_rd_data   <= 32'h0;
+      tb_sdrc_wrd_ack   <= 1'b0;
+      r_uif_base_addr   <= '0;
+      r_uif_len         <= '0;
+      r_uif_count       <= '0;
+      r_uif_phase_count <= '0;
     end else begin
       tb_sdrc_rd_valid <= 1'b0;
       tb_sdrc_wrd_ack  <= 1'b0;
-      if (!tb_sdrc_wr_n) begin
-        tb_sdrc_busy_n  <= 1'b0;
-        tb_sdrc_wrd_ack <= 1'b1;
-        mem_words[tb_sdrc_addr] <= tb_sdrc_wr_data;
-      end else if (!tb_sdrc_rd_n) begin
-        tb_sdrc_busy_n   <= 1'b0;
-        tb_sdrc_rd_valid <= 1'b1;
-        tb_sdrc_rd_data  <= mem_words[tb_sdrc_addr];
-      end else begin
-        tb_sdrc_busy_n <= 1'b1;
-      end
+      case (st_uif)
+        UIF_IDLE: begin
+          tb_sdrc_busy_n    <= 1'b1;
+          r_uif_count       <= '0;
+          r_uif_phase_count <= '0;
+
+          if (!tb_sdrc_wr_n) begin
+            r_uif_base_addr <= tb_sdrc_addr;
+            r_uif_len       <= tb_sdrc_data_len + 1'b1;
+            tb_sdrc_busy_n  <= 1'b0;
+            tb_sdrc_wrd_ack <= 1'b1;
+            mem_words[tb_sdrc_addr] <= tb_sdrc_wr_data;
+            r_uif_count     <= 8'd1;
+            st_uif          <= UIF_WRITE_BUSY;
+          end else if (!tb_sdrc_rd_n) begin
+            r_uif_base_addr <= tb_sdrc_addr;
+            r_uif_len       <= tb_sdrc_data_len + 1'b1;
+            tb_sdrc_busy_n  <= 1'b0;
+            st_uif          <= UIF_READ_BUSY;
+          end
+        end
+
+        UIF_WRITE_BUSY: begin
+          tb_sdrc_busy_n <= 1'b0;
+          if ((r_uif_phase_count >= 8'd1) && (r_uif_count < r_uif_len)) begin
+            mem_words[r_uif_base_addr + r_uif_count] <= tb_sdrc_wr_data;
+            r_uif_count <= r_uif_count + 1'b1;
+          end
+          r_uif_phase_count <= r_uif_phase_count + 1'b1;
+          if ((r_uif_count >= r_uif_len) && (r_uif_phase_count >= r_uif_len)) begin
+            tb_sdrc_busy_n <= 1'b1;
+            st_uif         <= UIF_IDLE;
+          end
+        end
+
+        UIF_READ_BUSY: begin
+          if (r_uif_count < r_uif_len) begin
+            tb_sdrc_busy_n   <= 1'b0;
+            tb_sdrc_rd_valid <= 1'b1;
+            tb_sdrc_rd_data  <= mem_words[r_uif_base_addr + r_uif_count];
+            r_uif_count      <= r_uif_count + 1'b1;
+          end else begin
+            tb_sdrc_busy_n <= 1'b1;
+            st_uif         <= UIF_IDLE;
+          end
+        end
+
+        default: begin
+          st_uif <= UIF_IDLE;
+        end
+      endcase
     end
   end
 

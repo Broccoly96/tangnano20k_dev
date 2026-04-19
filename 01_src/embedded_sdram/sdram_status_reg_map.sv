@@ -2,14 +2,19 @@
 //////////////////////////////////////////////////////////////////////////////////
 // File         : sdram_status_reg_map.sv
 // Description  : SDRAM debug register map for uart_log_cli host access.
-//                - 64-byte map, byte addressed, 32-bit word reads at 4-byte steps.
+//                - Base map uses 64 bytes, byte addressed, 32-bit word reads
+//                  at 4-byte steps.
+//                - Temporary host debug window starts at 0x0040 and exposes
+//                  the latest 26-beat host read capture.
 //                - Exposes self-test progress, fail context, retry results, and
 //                  live Gowin SDRC handshake status.
 //                - Address 0x003C is also a write-only control register:
 //                  write bit0=1 to reset the SDRC and rerun the selftest.
 //////////////////////////////////////////////////////////////////////////////////
 
-module sdram_status_reg_map (
+module sdram_status_reg_map #(
+  parameter int unsigned HOST_DBG_BURST_WORDS = 26
+) (
   input  logic [15:0] I_ADDR,
   input  logic        I_INIT_DONE,
   input  logic        I_TEST_ACTIVE,
@@ -36,13 +41,22 @@ module sdram_status_reg_map (
   input  logic [31:0] I_MEMTEST_RETRY_DATA2,
   input  logic [31:0] I_MEMTEST_CTRL_SUMMARY,
   input  logic [31:0] I_MEMTEST_CTRL_DETAIL,
+  input  logic [31:0] I_HOST_DBG_SUMMARY,
+  input  logic [31:0] I_HOST_DBG_DETAIL,
+  input  logic [(HOST_DBG_BURST_WORDS*32)-1:0] I_HOST_DBG_RD_BEATS,
   output logic [31:0] O_RD_DATA
 );
 
-  localparam logic [7:0] MAP_VERSION = 8'h04;
+  localparam logic [7:0] MAP_VERSION = 8'h05;
+  localparam logic [5:0] HOST_DBG_BEAT_BASE_WORD = 6'h12;
 
   logic [31:0] s_summary_word;
   logic [31:0] s_handshake_word;
+  logic [5:0]  s_word_addr;
+  logic [5:0]  s_host_dbg_beat_idx;
+
+  assign s_word_addr = I_ADDR[7:2];
+  assign s_host_dbg_beat_idx = s_word_addr - HOST_DBG_BEAT_BASE_WORD;
 
   always_comb begin
     s_summary_word = 32'h0000_0000;
@@ -72,28 +86,38 @@ module sdram_status_reg_map (
   end
 
   // Maps each 32-bit status word onto a 4-byte aligned byte address.
+  // 0x00..0x3C is the stable selftest/status map.
+  // 0x40..0x44 is host access-engine debug summary/detail.
+  // 0x48..0xAC is the latest host read burst capture, beat0..beat25.
   always_comb begin
     O_RD_DATA = 32'h0000_0000;
 
-    case (I_ADDR[5:2])
-      4'h0: O_RD_DATA = s_summary_word;
-      4'h1: O_RD_DATA = I_MEMTEST_SUMMARY;
-      4'h2: O_RD_DATA = {11'h000, I_MEMTEST_CURR_ADDR};
-      4'h3: O_RD_DATA = I_MEMTEST_EXPECTED;
-      4'h4: O_RD_DATA = I_MEMTEST_LAST_READ;
-      4'h5: O_RD_DATA = I_MEMTEST_LAST_STATUS;
-      4'h6: O_RD_DATA = I_MEMTEST_FAIL_ADDR;
-      4'h7: O_RD_DATA = I_MEMTEST_FAIL_EXPECTED;
-      4'h8: O_RD_DATA = I_MEMTEST_FAIL_ACTUAL;
-      4'h9: O_RD_DATA = I_MEMTEST_RETRY_SUMMARY;
-      4'hA: O_RD_DATA = I_MEMTEST_RETRY_DATA1;
-      4'hB: O_RD_DATA = I_MEMTEST_RETRY_DATA2;
-      4'hC: O_RD_DATA = I_MEMTEST_CTRL_SUMMARY;
-      4'hD: O_RD_DATA = I_MEMTEST_CTRL_DETAIL;
-      4'hE: O_RD_DATA = s_handshake_word;
-      4'hF: O_RD_DATA = I_SDRC_RD_DATA;
+    case (s_word_addr)
+      6'h00: O_RD_DATA = s_summary_word;
+      6'h01: O_RD_DATA = I_MEMTEST_SUMMARY;
+      6'h02: O_RD_DATA = {11'h000, I_MEMTEST_CURR_ADDR};
+      6'h03: O_RD_DATA = I_MEMTEST_EXPECTED;
+      6'h04: O_RD_DATA = I_MEMTEST_LAST_READ;
+      6'h05: O_RD_DATA = I_MEMTEST_LAST_STATUS;
+      6'h06: O_RD_DATA = I_MEMTEST_FAIL_ADDR;
+      6'h07: O_RD_DATA = I_MEMTEST_FAIL_EXPECTED;
+      6'h08: O_RD_DATA = I_MEMTEST_FAIL_ACTUAL;
+      6'h09: O_RD_DATA = I_MEMTEST_RETRY_SUMMARY;
+      6'h0A: O_RD_DATA = I_MEMTEST_RETRY_DATA1;
+      6'h0B: O_RD_DATA = I_MEMTEST_RETRY_DATA2;
+      6'h0C: O_RD_DATA = I_MEMTEST_CTRL_SUMMARY;
+      6'h0D: O_RD_DATA = I_MEMTEST_CTRL_DETAIL;
+      6'h0E: O_RD_DATA = s_handshake_word;
+      6'h0F: O_RD_DATA = I_SDRC_RD_DATA;
+      6'h10: O_RD_DATA = I_HOST_DBG_SUMMARY;
+      6'h11: O_RD_DATA = I_HOST_DBG_DETAIL;
       default: O_RD_DATA = 32'h0000_0000;
     endcase
+
+    if ((s_word_addr >= HOST_DBG_BEAT_BASE_WORD) &&
+        (s_word_addr < (HOST_DBG_BEAT_BASE_WORD + HOST_DBG_BURST_WORDS[5:0]))) begin
+      O_RD_DATA = I_HOST_DBG_RD_BEATS[s_host_dbg_beat_idx*32 +: 32];
+    end
   end
 
 endmodule

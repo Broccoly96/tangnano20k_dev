@@ -76,6 +76,9 @@ module sdram_emb_hostif_ctrl #(
   logic [31:0] l_host_wr_data;
   logic        l_host_sdrc_active;
   logic        l_host_access_enable;
+  logic [31:0] l_host_dbg_summary;
+  logic [31:0] l_host_dbg_detail;
+  logic [831:0] l_host_dbg_rd_beats;
 
   logic [15:0] l_status_addr;
   logic [31:0] l_status_rd_data;
@@ -252,6 +255,9 @@ module sdram_emb_hostif_ctrl #(
     .I_MEMTEST_RETRY_DATA2  (l_memtest_retry_data2),
     .I_MEMTEST_CTRL_SUMMARY (l_memtest_ctrl_summary),
     .I_MEMTEST_CTRL_DETAIL  (l_memtest_ctrl_detail),
+    .I_HOST_DBG_SUMMARY     (l_host_dbg_summary),
+    .I_HOST_DBG_DETAIL      (l_host_dbg_detail),
+    .I_HOST_DBG_RD_BEATS    (l_host_dbg_rd_beats),
     .O_RD_DATA              (l_status_rd_data)
   );
 
@@ -282,6 +288,9 @@ module sdram_emb_hostif_ctrl #(
     .O_SDRC_DQM      (l_host_dqm),
     .O_SDRC_WR_DATA  (l_host_wr_data),
     .O_SDRC_ACTIVE   (l_host_sdrc_active),
+    .O_HOST_DBG_SUMMARY(l_host_dbg_summary),
+    .O_HOST_DBG_DETAIL (l_host_dbg_detail),
+    .O_HOST_DBG_RD_BEATS(l_host_dbg_rd_beats),
     .O_EVT_VALID     (O_HOST_EVT_VALID),
     .O_EVT_ID        (O_HOST_EVT_ID),
     .O_EVT_ARG0      (O_HOST_EVT_ARG0),

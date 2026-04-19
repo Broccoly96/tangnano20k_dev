@@ -65,7 +65,7 @@
     "SubInsts" : [
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 189,
+      "InstLine" : 192,
       "InstName" : "u_sdram_memtest_ctrl",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_memtest_ctrl.sv",
       "ModuleLine" : 18,
@@ -73,15 +73,15 @@
      },
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 228,
+      "InstLine" : 231,
       "InstName" : "u_sdram_status_reg_map",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_status_reg_map.sv",
-      "ModuleLine" : 12,
+      "ModuleLine" : 15,
       "ModuleName" : "sdram_status_reg_map"
      },
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 258,
+      "InstLine" : 264,
       "InstName" : "u_sdram_uart_bridge_ctrl",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
       "ModuleLine" : 11,
@@ -89,7 +89,7 @@
       "SubInsts" : [
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 120,
+        "InstLine" : 123,
         "InstName" : "u_sdram_uart_ascii_ctrl",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv",
         "ModuleLine" : 10,
@@ -97,10 +97,10 @@
        },
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 139,
+        "InstLine" : 142,
         "InstName" : "u_sdram_uart_access_engine",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
-        "ModuleLine" : 15,
+        "ModuleLine" : 19,
         "ModuleName" : "sdram_uart_access_engine"
        }
       ]
