@@ -11,6 +11,7 @@ vsim.log
 !04_simlib/INSERT_LIBRARIES_HERE
 *.bak
 run_output*
+__pycache__
 
 # Questa/ModelSim transient files
 *.db

@@ -17,7 +17,7 @@
     send_uart_byte(tb_uart_rx, UART_BIT_PERIOD, 8'h06);
     wait (u_uart_log_cli.r_log_src_sel == 2);
 
-    ascii_cmd = "R 00000\n";
+    ascii_cmd = "SR 00000\n";
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
     repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
@@ -33,7 +33,7 @@
       tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "final summary read response mismatch");
     end
 
-    ascii_cmd = "R 00024\n";
+    ascii_cmd = "SR 00024\n";
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
     repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
@@ -53,15 +53,30 @@
     send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
     repeat (20) begin
       recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
-      if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_CMD_ERR)) begin
+      if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_WRITE_ACK)) begin
         break;
       end
     end
-    if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_CMD_ERR) ||
-        (payload[63:32] != ERR_UNSUPPORTED) ||
-        (payload[95:64] != 32'h0000_0010) ||
-        (payload[127:96] != 32'h1234_5678)) begin
-      tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "ASCII write was not rejected as unsupported");
+    if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_WRITE_ACK) ||
+        (payload[63:32] != 32'h0000_0010) ||
+        (payload[95:64] != 32'h1234_5678) ||
+        (payload[127:96] != 32'h0000_0000)) begin
+      tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "linear single write response mismatch");
+    end
+
+    ascii_cmd = "R 00010\n";
+    send_uart_string(tb_uart_rx, UART_BIT_PERIOD, ascii_cmd);
+    repeat (20) begin
+      recv_mirror_frame(tb_mirror_valid, tb_mirror_data, seq, payload, crc);
+      if ((payload[31:24] == 8'h03) && (payload[23:16] == EVT_READ_RSP)) begin
+        break;
+      end
+    end
+    if ((payload[31:24] != 8'h03) || (payload[23:16] != EVT_READ_RSP) ||
+        (payload[63:32] != 32'h0000_0010) ||
+        (payload[95:64] != 32'h1234_5678) ||
+        (payload[127:96] != 32'h0000_0000)) begin
+      tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "linear single readback response mismatch");
     end
 
     ascii_cmd = "BR 00040 00001\n";
@@ -90,6 +105,6 @@
       tb_log_pkg::log_fatal(1, "SDRAM HOSTIF TB", "BW did not return unsupported CMD_ERR");
     end
 
-    tb_log_pkg::log_info("SDRAM HOSTIF TB", "status-map-only host interface smoke test passed");
+    tb_log_pkg::log_info("SDRAM HOSTIF TB", "linear SDRAM host interface smoke test passed");
     $finish;
   end

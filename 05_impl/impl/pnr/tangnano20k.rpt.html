@@ -83,7 +83,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td class="label">Created Time</td>
-<td>Sun Apr 19 07:39:52 2026
+<td>Sun Apr 19 09:01:32 2026
 </td>
 </tr>
 <tr>
@@ -97,14 +97,14 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <tr>
 <td class="label">Place & Route Process</td>
 <td>Running placement:
-   Placement Phase 0: CPU time = 0h 0m 0.611s, Elapsed time = 0h 0m 0.611s
-   Placement Phase 1: CPU time = 0h 0m 0.23s, Elapsed time = 0h 0m 0.23s
+   Placement Phase 0: CPU time = 0h 0m 0.668s, Elapsed time = 0h 0m 0.668s
+   Placement Phase 1: CPU time = 0h 0m 0.214s, Elapsed time = 0h 0m 0.213s
    Placement Phase 2: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
-   Placement Phase 3: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
+   Placement Phase 3: CPU time = 0h 0m 1s, Elapsed time = 0h 0m 1s
    Total Placement: CPU time = 0h 0m 4s, Elapsed time = 0h 0m 4s
 Running routing:
    Routing Phase 0: CPU time = 0h 0m 0.003s, Elapsed time = 0h 0m 0.003s
-   Routing Phase 1: CPU time = 0h 0m 0.148s, Elapsed time = 0h 0m 0.148s
+   Routing Phase 1: CPU time = 0h 0m 0.138s, Elapsed time = 0h 0m 0.138s
    Routing Phase 2: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
    Routing Phase 3: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s
    Total Routing: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
@@ -114,7 +114,7 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">Total Time and Memory Usage</td>
-<td>CPU time = 0h 0m 8s, Elapsed time = 0h 0m 8s, Peak memory usage = 537MB</td>
+<td>CPU time = 0h 0m 8s, Elapsed time = 0h 0m 8s, Peak memory usage = 542MB</td>
 </tr>
 </table>
 <br/>
@@ -129,12 +129,12 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">Logic</td>
-<td>5895/20736</td>
-<td>29%</td>
+<td>6445/20736</td>
+<td>32%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --LUT,ALU,ROM16</td>
-<td>5253(4795 LUT, 458 ALU, 0 ROM16)</td>
+<td>5803(5345 LUT, 458 ALU, 0 ROM16)</td>
 <td>-</td>
 </tr>
 <tr>
@@ -144,8 +144,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">Register</td>
-<td>3302/15915</td>
-<td>21%</td>
+<td>3516/15915</td>
+<td>23%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --Logic Register as Latch</td>
@@ -154,8 +154,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --Logic Register as FF</td>
-<td>3219/15552</td>
-<td>21%</td>
+<td>3433/15552</td>
+<td>23%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --I/O Register as Latch</td>
@@ -169,8 +169,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">CLS</td>
-<td>4310/10368</td>
-<td>42%</td>
+<td>4713/10368</td>
+<td>46%</td>
 </tr>
 <tr>
 <td class="label">I/O Port</td>
@@ -295,9 +295,9 @@ Generate output files:
 <td> TR TL BR BL</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/g_log_tap[2].u_tap/n2375_3</td>
+<td class="label">u_uart_log_cli/r_shared_rd_pending</td>
 <td>PRIMARY</td>
-<td> TR BR</td>
+<td> TR</td>
 </tr>
 <tr>
 <td class="label">l_hostif_sdrc_rst_n</td>
@@ -320,22 +320,22 @@ Generate output files:
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_fail_reason_1_6</td>
-<td>LW</td>
-<td> -</td>
-</tr>
-<tr>
 <td class="label">u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/O_EVT_ARG1_21_6</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_embedded_sdram/sdrc_top_inst/U0/Ctrl_wr_data_valid</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_fail_reason_1_8</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/r_shared_rd_pending</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/u_sdram_uart_ascii_ctrl/r_cmd_data_31_7</td>
+<td>LW</td>
+<td> -</td>
+</tr>
+<tr>
+<td class="label">u_embedded_sdram/sdrc_top_inst/U0/Ctrl_wr_data_valid</td>
 <td>LW</td>
 <td> -</td>
 </tr>

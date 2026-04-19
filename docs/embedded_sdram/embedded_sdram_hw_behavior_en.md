@@ -46,8 +46,9 @@ The results in this document were obtained with:
 - Gowin embedded SDRAM controller IP in `00_ip/embedded_sdram`
 - user RTL in `01_src/embedded_sdram`
 - top-level integration in `01_src/tangnano20k_top.sv`
-- host path configured as status-map-only
-- self-test as the only SDRAM traffic source
+- host path configured for linear single-word SDRAM `R/W`
+- status register access separated into the `SR/SW` namespace
+- self-test as the SDRAM traffic owner until it reaches PASS
 - linear self-test mode with `BURST_WORDS = 1` as the default
   power-on and manual regression mode
 
@@ -361,12 +362,12 @@ Use this host command to reset the Gowin SDRC and rerun the self-test:
 ```powershell
 python 11_app\debug_log_cli\sdram_hostif_tool.py `
   --transport tcp --tcp-host 192.168.10.40 --tcp-port 2323 `
-  write 0x3C 0x00000001 --select-host
+  selftest --select-host
 ```
 
 The write returns `WRITE_ACK` when accepted.
 After the write, status bit `SUMMARY[2]` is `sdrc_reset_active`.
-Polling `read 0` shall show the sequence:
+Polling `status-read 0` shall show the sequence:
 
 1. reset active or init not done
 2. init done with self-test active

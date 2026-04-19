@@ -1,13 +1,5 @@
 [
  {
-  "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
-  "InstLine" : 15,
-  "InstName" : "sdram_uart_access_engine",
-  "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
-  "ModuleLine" : 15,
-  "ModuleName" : "sdram_uart_access_engine"
- },
- {
   "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
   "InstLine" : 8,
   "InstName" : "tangnano20k_top",
@@ -73,7 +65,7 @@
     "SubInsts" : [
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 168,
+      "InstLine" : 189,
       "InstName" : "u_sdram_memtest_ctrl",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_memtest_ctrl.sv",
       "ModuleLine" : 18,
@@ -81,7 +73,7 @@
      },
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 207,
+      "InstLine" : 228,
       "InstName" : "u_sdram_status_reg_map",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_status_reg_map.sv",
       "ModuleLine" : 12,
@@ -89,7 +81,7 @@
      },
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 237,
+      "InstLine" : 258,
       "InstName" : "u_sdram_uart_bridge_ctrl",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
       "ModuleLine" : 11,
@@ -97,11 +89,19 @@
       "SubInsts" : [
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 108,
+        "InstLine" : 120,
         "InstName" : "u_sdram_uart_ascii_ctrl",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv",
         "ModuleLine" : 10,
         "ModuleName" : "sdram_uart_ascii_ctrl"
+       },
+       {
+        "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
+        "InstLine" : 139,
+        "InstName" : "u_sdram_uart_access_engine",
+        "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
+        "ModuleLine" : 15,
+        "ModuleName" : "sdram_uart_access_engine"
        }
       ]
      }

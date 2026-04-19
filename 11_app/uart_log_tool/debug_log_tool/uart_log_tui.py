@@ -21,6 +21,8 @@ from sdram_uart_protocol import (
     build_bulk_read_command,
     build_bulk_write_command,
     build_read_command,
+    build_status_read_command,
+    build_status_write_command,
     build_write_command,
     iter_bulk_write_blocks,
     recv_bulk_read_blob,
@@ -88,8 +90,16 @@ def make_read_packet(addr: int) -> bytes:
     return build_read_command(addr)
 
 
+def make_status_read_packet(addr: int) -> bytes:
+    return build_status_read_command(addr)
+
+
 def make_write_packet(addr: int, data: int) -> bytes:
     return build_write_command(addr, data)
+
+
+def make_status_write_packet(addr: int, data: int) -> bytes:
+    return build_status_write_command(addr, data)
 
 
 def next_src_steps(current_idx: int, target_idx: int, num_src: int = UART_LOG_NUM_SRC) -> int:
@@ -194,7 +204,7 @@ def format_sdram_status_text(status_bytes: bytes) -> str:
 
     lines = [
         "Base: 0x00000  Size: 64 bytes  Mode: status + write-only control",
-        "Control: W 0003C 00000001 resets SDRC and reruns selftest",
+        "Control: SW 0003C 00000001 resets SDRC and reruns selftest",
         "",
         f"0x00 SUMMARY        = 0x{summary:08X}",
         f"  map_version       : 0x{summary_version:02X}",
@@ -345,8 +355,8 @@ class UARTLogApp(App[None]):
     BINDINGS = [
         ("1", "show_log", "Log"),
         ("2", "show_map", "SDRAM Map"),
-        ("3", "show_status", "SDRAM Status"),
-        ("4", "show_rw", "SDRAM RW"),
+        ("3", "show_rw", "SDRAM RW"),
+        ("4", "show_status", "SDRAM STS"),
         ("p", "rescan", "Rescan Ports"),
         ("c", "toggle_connect", "Connect/Disconnect"),
         ("m", "toggle_mode", "Raw/Decode"),
@@ -479,8 +489,8 @@ class UARTLogApp(App[None]):
                 with Vertical(id="nav"):
                     yield Button("1 Log", id="nav_log")
                     yield Button("2 SDRAM Map", id="nav_map")
-                    yield Button("3 SDRAM Status", id="nav_status")
-                    yield Button("4 SDRAM RW", id="nav_rw")
+                    yield Button("3 SDRAM RW", id="nav_rw")
+                    yield Button("4 SDRAM STS", id="nav_status")
                 with Vertical(id="screen_host"):
                     with Vertical(id="log_screen", classes="screen"):
                         with Horizontal(id="log_main_row"):
@@ -529,7 +539,7 @@ class UARTLogApp(App[None]):
                                     yield Input(value="0x00000", id="file_write_addr_input", placeholder="base addr")
                                     yield Input(value="", id="file_write_path_input", placeholder="file path")
                                 yield Static("-", id="file_write_result")
-            yield Static("keys: 1=log 2=map 3=status 4=rw p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
+            yield Static("keys: 1=log 2=map 3=rw 4=sts p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -939,7 +949,7 @@ class UARTLogApp(App[None]):
             self._status_summary.update(
                 "\n".join(
                     [
-                        "[SDRAM Status]",
+                        "[SDRAM STS]",
                         "base       : 0x00000",
                         "size       : 64 bytes",
                         f"view       : {self._status_mode}",
@@ -956,7 +966,7 @@ class UARTLogApp(App[None]):
 
     def _start_status_refresh(self) -> None:
         if self._replay_file_path is not None:
-            self._status_summary_text = "replay mode: SDRAM Status disabled"
+            self._status_summary_text = "replay mode: SDRAM STS disabled"
             self._refresh_status_view()
             self._set_status(self._status_summary_text)
             return
@@ -1097,6 +1107,7 @@ class UARTLogApp(App[None]):
         except Exception as exc:
             self._rw_single_read_result = f"invalid addr: {exc}"
             self._refresh_rw_view()
+            self._set_status(self._rw_single_read_result)
             return
         if self._start_rw_task(kind="single_read", commands=[("read", addr, 0)], expected_reads=1):
             self._rw_single_read_result = f"reading 0x{addr:05X}..."
@@ -1111,6 +1122,7 @@ class UARTLogApp(App[None]):
         except Exception as exc:
             self._rw_single_write_result = f"invalid input: {exc}"
             self._refresh_rw_view()
+            self._set_status(self._rw_single_write_result)
             return
         if self._start_rw_task(kind="single_write", commands=[("write", addr, data)]):
             self._rw_single_write_result = f"writing 0x{data:08X} -> 0x{addr:05X}"
@@ -1325,10 +1337,35 @@ class UARTLogApp(App[None]):
             try:
                 self._map_base_addr = parse_u21(self._map_base_input.value.strip())
             except Exception as exc:
-                self._set_status(f"invalid base addr: {exc}")
+                self._map_summary_text = f"invalid base addr: {exc}"
+                self._refresh_map_view()
+                self._set_status(self._map_summary_text)
                 return
-        self._map_summary_text = "INOP: bulk path disabled"
-        self._map_refresh_active = False
+        if self._replay_file_path is not None:
+            self._map_summary_text = "replay mode: SDRAM Map disabled"
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+        if not self._active_connected():
+            self._map_summary_text = "not connected"
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+        if self._host_task_busy():
+            self._map_summary_text = "host task busy"
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+
+        self._map_refresh_active = True
+        self._map_restore_src_idx = None
+        self._map_select_deadline = 0.0
+        self._map_rsp_deadline = 0.0
+        self._map_inflight_addr = None
+        self._map_received_words = {}
+        self._map_bytes = bytearray(MAP_BYTE_COUNT)
+        self._map_pending_queue = [self._map_base_addr + idx for idx in range(MAP_WORD_COUNT)]
+        self._map_summary_text = f"queued {MAP_WORD_COUNT} SDRAM reads"
         self._refresh_map_view()
         self._set_status(self._map_summary_text)
 
@@ -1359,7 +1396,8 @@ class UARTLogApp(App[None]):
         if self._map_inflight_addr is not None or now < self._map_select_deadline or not self._map_pending_queue:
             return
         next_addr = self._map_pending_queue.pop(0)
-        if self._send_bytes(make_read_packet(next_addr)) != 4:
+        payload = make_read_packet(next_addr)
+        if self._send_bytes(payload) != len(payload):
             self._map_refresh_active = False
             self._map_summary_text = f"short write for 0x{next_addr:05X}"
             self._refresh_map_view()
@@ -1390,7 +1428,7 @@ class UARTLogApp(App[None]):
             return
 
         next_addr = self._status_pending_queue.pop(0)
-        payload = make_read_packet(next_addr)
+        payload = make_status_read_packet(next_addr)
         if self._send_bytes(payload) != len(payload):
             self._finish_status_refresh(f"short write for 0x{next_addr:05X}")
             return
@@ -1421,7 +1459,7 @@ class UARTLogApp(App[None]):
         if self._status_selftest_inflight or now < self._status_selftest_select_deadline:
             return
 
-        payload = make_write_packet(STATUS_SELFTEST_ADDR, STATUS_SELFTEST_DATA)
+        payload = make_status_write_packet(STATUS_SELFTEST_ADDR, STATUS_SELFTEST_DATA)
         if self._send_bytes(payload) != len(payload):
             self._finish_status_selftest(
                 f"short write for selftest trigger at 0x{STATUS_SELFTEST_ADDR:05X}"
@@ -1430,7 +1468,7 @@ class UARTLogApp(App[None]):
         self._status_selftest_inflight = True
         self._status_selftest_rsp_deadline = now + STATUS_RESPONSE_TIMEOUT_S
         self._status_summary_text = (
-            f"triggering selftest W 0x{STATUS_SELFTEST_ADDR:05X} 0x{STATUS_SELFTEST_DATA:08X}"
+            f"triggering selftest SW 0x{STATUS_SELFTEST_ADDR:05X} 0x{STATUS_SELFTEST_DATA:08X}"
         )
         self._refresh_status_view()
 

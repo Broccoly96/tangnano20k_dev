@@ -3,15 +3,16 @@
 // File         : sdram_uart_bridge_ctrl.sv
 // Description  : SDRAM debug register-map bridge for uart_log_cli.
 //                - Parses ASCII host commands.
-//                - Allows only 32-bit status-map reads from the 64-byte debug map.
-//                - Allows one write-only control register for selftest restart.
-//                - Rejects all other writes and bulk transfers with ERR_UNSUPPORTED.
+//                - Routes SR/SW to the status/control register namespace.
+//                - Routes R/W to the linear single-word SDRAM access engine.
+//                - Rejects bulk transfers with ERR_UNSUPPORTED.
 //////////////////////////////////////////////////////////////////////////////////
 
 module sdram_uart_bridge_ctrl (
   input  logic        I_CLK,
   input  logic        I_RST_N,
   input  logic        I_ENABLE,
+  input  logic        I_HOST_ACCESS_ENABLE,
   input  logic        I_CLI_RX_VALID,
   input  logic [7:0]  I_CLI_RX_DATA,
   output logic        O_RAW_RX_BYPASS,
@@ -33,6 +34,7 @@ module sdram_uart_bridge_ctrl (
   output logic [7:0]  O_SDRC_DATA_LEN,
   output logic [3:0]  O_SDRC_DQM,
   output logic [31:0] O_SDRC_WR_DATA,
+  output logic        O_SDRC_ACTIVE,
   output logic        O_EVT_VALID,
   output logic [7:0]  O_EVT_ID,
   output logic [31:0] O_EVT_ARG0,
@@ -52,6 +54,7 @@ module sdram_uart_bridge_ctrl (
 
   logic        s_ascii_cmd_valid;
   logic [1:0]  s_ascii_cmd_op;
+  logic        s_ascii_cmd_is_status;
   logic        s_ascii_cmd_bulk_is_read;
   logic [20:0] s_ascii_cmd_addr;
   logic [31:0] s_ascii_cmd_data;
@@ -64,6 +67,19 @@ module sdram_uart_bridge_ctrl (
   logic        r_cmd_busy;
   logic        r_read_rsp_pending;
   logic [20:0] r_read_addr;
+  logic        r_access_req_valid;
+  logic        r_access_req_is_write;
+  logic [20:0] r_access_req_addr;
+  logic [31:0] r_access_req_data;
+  logic        l_access_req_ready;
+  logic        l_access_rsp_valid;
+  logic        l_access_rsp_ready;
+  logic        l_access_rsp_is_write;
+  logic [20:0] l_access_rsp_addr;
+  logic [31:0] l_access_rsp_data;
+  logic [31:0] l_access_rsp_status;
+  logic        l_access_busy;
+  logic        s_access_rsp_can_push;
 
   logic [103:0] r_evt_fifo_mem [0:EVT_FIFO_DEPTH-1];
   logic [EVT_FIFO_PTR_W-1:0] r_evt_wr_ptr;
@@ -86,14 +102,10 @@ module sdram_uart_bridge_ctrl (
 
   assign O_STATUS_ADDR   = r_read_addr[15:0];
 
-  assign O_SDRC_WR_N     = 1'b1;
-  assign O_SDRC_RD_N     = 1'b1;
-  assign O_SDRC_ADDR     = 21'h00000;
-  assign O_SDRC_DATA_LEN = 8'h00;
-  assign O_SDRC_DQM      = 4'h0;
-  assign O_SDRC_WR_DATA  = 32'h0000_0000;
-
-  assign O_CMD_BUSY      = r_cmd_busy || r_read_rsp_pending;
+  assign O_CMD_BUSY      = r_cmd_busy || r_read_rsp_pending || l_access_busy;
+  assign O_SDRC_ACTIVE   = l_access_busy;
+  assign s_access_rsp_can_push = l_access_rsp_valid && !s_evt_fifo_full;
+  assign l_access_rsp_ready = s_access_rsp_can_push;
   assign s_evt_fifo_full  = (r_evt_count == EVT_FIFO_DEPTH);
   assign s_evt_fifo_empty = (r_evt_count == 0);
   assign s_evt_push       = r_evt_push_valid && !s_evt_fifo_full;
@@ -114,6 +126,7 @@ module sdram_uart_bridge_ctrl (
     .I_CMD_READY       (r_ascii_cmd_ready),
     .O_CMD_VALID       (s_ascii_cmd_valid),
     .O_CMD_OP          (s_ascii_cmd_op),
+    .O_CMD_IS_STATUS   (s_ascii_cmd_is_status),
     .O_CMD_BULK_IS_READ(s_ascii_cmd_bulk_is_read),
     .O_CMD_ADDR        (s_ascii_cmd_addr),
     .O_CMD_DATA        (s_ascii_cmd_data),
@@ -121,6 +134,34 @@ module sdram_uart_bridge_ctrl (
     .O_ERR_VALID       (s_ascii_err_valid),
     .O_ERR_CODE        (s_ascii_err_code),
     .O_ERR_DETAIL      (s_ascii_err_detail)
+  );
+
+  sdram_uart_access_engine u_sdram_uart_access_engine (
+    .I_CLK           (I_CLK),
+    .I_RST_N         (I_RST_N),
+    .I_REQ_VALID     (r_access_req_valid),
+    .O_REQ_READY     (l_access_req_ready),
+    .I_REQ_IS_WRITE  (r_access_req_is_write),
+    .I_REQ_ADDR      (r_access_req_addr),
+    .I_REQ_DATA      (r_access_req_data),
+    .I_SDRC_INIT_DONE(I_SDRC_INIT_DONE),
+    .I_SDRC_BUSY_N   (I_SDRC_BUSY_N),
+    .I_SDRC_WRD_ACK  (I_SDRC_WRD_ACK),
+    .I_SDRC_RD_VALID (I_SDRC_RD_VALID),
+    .I_SDRC_RD_DATA  (I_SDRC_RD_DATA),
+    .O_SDRC_WR_N     (O_SDRC_WR_N),
+    .O_SDRC_RD_N     (O_SDRC_RD_N),
+    .O_SDRC_ADDR     (O_SDRC_ADDR),
+    .O_SDRC_DATA_LEN (O_SDRC_DATA_LEN),
+    .O_SDRC_DQM      (O_SDRC_DQM),
+    .O_SDRC_WR_DATA  (O_SDRC_WR_DATA),
+    .O_RSP_VALID     (l_access_rsp_valid),
+    .I_RSP_READY     (l_access_rsp_ready),
+    .O_RSP_IS_WRITE  (l_access_rsp_is_write),
+    .O_RSP_ADDR      (l_access_rsp_addr),
+    .O_RSP_DATA      (l_access_rsp_data),
+    .O_RSP_STATUS    (l_access_rsp_status),
+    .O_BUSY          (l_access_busy)
   );
 
   task automatic push_event(
@@ -179,6 +220,10 @@ module sdram_uart_bridge_ctrl (
       r_cmd_busy         <= 1'b0;
       r_read_rsp_pending <= 1'b0;
       r_read_addr        <= '0;
+      r_access_req_valid <= 1'b0;
+      r_access_req_is_write <= 1'b0;
+      r_access_req_addr  <= '0;
+      r_access_req_data  <= '0;
       r_evt_push_valid   <= 1'b0;
       r_evt_push_id      <= 8'h00;
       r_evt_push_arg0    <= 32'h0;
@@ -188,9 +233,17 @@ module sdram_uart_bridge_ctrl (
     end else begin
       r_ascii_cmd_ready       <= 1'b0;
       r_evt_push_valid        <= 1'b0;
+      r_access_req_valid      <= 1'b0;
       O_SELFTEST_RESTART_REQ  <= 1'b0;
 
-      if (r_read_rsp_pending) begin
+      if (s_access_rsp_can_push) begin
+        push_event(
+          l_access_rsp_is_write ? EVT_WRITE_ACK : EVT_READ_RSP,
+          {11'h000, l_access_rsp_addr},
+          l_access_rsp_data,
+          l_access_rsp_status
+        );
+      end else if (r_read_rsp_pending) begin
         push_event(
           EVT_READ_RSP,
           {11'h000, r_read_addr},
@@ -201,16 +254,16 @@ module sdram_uart_bridge_ctrl (
         r_cmd_busy         <= 1'b0;
       end
 
-      if (s_ascii_err_valid) begin
+      if (!s_access_rsp_can_push && !r_read_rsp_pending && s_ascii_err_valid) begin
         push_event(EVT_CMD_ERR, s_ascii_err_code, s_ascii_err_detail, 32'h0000_0000);
       end
 
-      if (s_ascii_cmd_valid && !r_ascii_cmd_ready) begin
+      if (!s_access_rsp_can_push && !r_read_rsp_pending && s_ascii_cmd_valid && !r_ascii_cmd_ready) begin
         r_ascii_cmd_ready <= 1'b1;
 
         if (!I_ENABLE || r_cmd_busy || r_read_rsp_pending) begin
           push_event(EVT_CMD_ERR, ERR_BUSY, {11'h000, s_ascii_cmd_addr}, 32'h0000_0000);
-        end else if (s_ascii_cmd_op == ASCII_OP_READ) begin
+        end else if (s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_READ)) begin
           if ((s_ascii_cmd_addr > STATUS_ADDR_MAX) || (s_ascii_cmd_addr[1:0] != 2'b00)) begin
             push_event(EVT_CMD_ERR, ERR_ADDR_RANGE, {11'h000, s_ascii_cmd_addr}, 32'h0000_0040);
           end else begin
@@ -218,17 +271,21 @@ module sdram_uart_bridge_ctrl (
             r_read_rsp_pending <= 1'b1;
             r_cmd_busy         <= 1'b1;
           end
-        end else if (s_ascii_cmd_op == ASCII_OP_WRITE) begin
+        end else if (s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_WRITE)) begin
           if (s_ascii_cmd_addr == STATUS_CTRL_ADDR) begin
-            if (s_ascii_cmd_data[0]) begin
-              O_SELFTEST_RESTART_REQ <= 1'b1;
+            if (l_access_busy) begin
+              push_event(EVT_CMD_ERR, ERR_BUSY, {11'h000, s_ascii_cmd_addr}, s_ascii_cmd_data);
+            end else begin
+              if (s_ascii_cmd_data[0]) begin
+                O_SELFTEST_RESTART_REQ <= 1'b1;
+              end
+              push_event(
+                EVT_WRITE_ACK,
+                {11'h000, s_ascii_cmd_addr},
+                s_ascii_cmd_data,
+                32'h0000_0000
+              );
             end
-            push_event(
-              EVT_WRITE_ACK,
-              {11'h000, s_ascii_cmd_addr},
-              s_ascii_cmd_data,
-              32'h0000_0000
-            );
           end else begin
             push_event(
               EVT_CMD_ERR,
@@ -236,6 +293,24 @@ module sdram_uart_bridge_ctrl (
               {11'h000, s_ascii_cmd_addr},
               s_ascii_cmd_data
             );
+          end
+        end else if (!s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_READ)) begin
+          if (!I_HOST_ACCESS_ENABLE || !l_access_req_ready) begin
+            push_event(EVT_CMD_ERR, ERR_BUSY, {11'h000, s_ascii_cmd_addr}, 32'h0000_0000);
+          end else begin
+            r_access_req_valid    <= 1'b1;
+            r_access_req_is_write <= 1'b0;
+            r_access_req_addr     <= s_ascii_cmd_addr;
+            r_access_req_data     <= 32'h0000_0000;
+          end
+        end else if (!s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_WRITE)) begin
+          if (!I_HOST_ACCESS_ENABLE || !l_access_req_ready) begin
+            push_event(EVT_CMD_ERR, ERR_BUSY, {11'h000, s_ascii_cmd_addr}, s_ascii_cmd_data);
+          end else begin
+            r_access_req_valid    <= 1'b1;
+            r_access_req_is_write <= 1'b1;
+            r_access_req_addr     <= s_ascii_cmd_addr;
+            r_access_req_data     <= s_ascii_cmd_data;
           end
         end else if (s_ascii_cmd_op == ASCII_OP_BULK) begin
           push_event(

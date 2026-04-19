@@ -15,6 +15,8 @@ from sdram_uart_protocol import (  # noqa: E402
     build_bulk_read_command,
     build_bulk_write_command,
     build_read_command,
+    build_status_read_command,
+    build_status_write_command,
     build_write_command,
     crc16_ccitt_false,
     iter_bulk_write_blocks,
@@ -26,6 +28,8 @@ class SDRAMUARTProtocolTests(unittest.TestCase):
     def test_ascii_commands_are_line_oriented(self) -> None:
         self.assertEqual(build_read_command(0x40), b"R 00040\n")
         self.assertEqual(build_write_command(0x40, 0x12345678), b"W 00040 12345678\n")
+        self.assertEqual(build_status_read_command(0x3C), b"SR 0003C\n")
+        self.assertEqual(build_status_write_command(0x3C, 0x1), b"SW 0003C 00000001\n")
         self.assertEqual(build_bulk_read_command(0x100, 0x40), b"BR 00100 00040\n")
         self.assertEqual(build_bulk_write_command(0x100, 0x40), b"BW 00100 00040\n")
 

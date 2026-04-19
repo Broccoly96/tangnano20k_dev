@@ -26,7 +26,9 @@ HOST_EVT_CMD_ERR = 0x3E
 
 CMD_NEXT_SRC = 0x06
 CMD_READ = "R"
+CMD_STATUS_READ = "SR"
 CMD_WRITE = "W"
+CMD_STATUS_WRITE = "SW"
 CMD_BULK_READ = "BR"
 CMD_BULK_WRITE = "BW"
 
@@ -65,7 +67,7 @@ def build_ascii_command(command: str, *fields: int) -> bytes:
         parts.append(f"{field:05X}")
       elif command in (CMD_BULK_READ, CMD_BULK_WRITE) and len(parts) == 3:
         parts.append(f"{field:05X}")
-      elif command == CMD_WRITE and len(parts) == 3:
+      elif command in (CMD_WRITE, CMD_STATUS_WRITE) and len(parts) == 2:
         parts.append(f"{field:08X}")
       else:
         parts.append(f"{field:05X}")
@@ -76,8 +78,16 @@ def build_read_command(addr: int) -> bytes:
     return build_ascii_command(CMD_READ, addr)
 
 
+def build_status_read_command(addr: int) -> bytes:
+    return build_ascii_command(CMD_STATUS_READ, addr)
+
+
 def build_write_command(addr: int, data: int) -> bytes:
     return build_ascii_command(CMD_WRITE, addr, data & 0xFFFF_FFFF)
+
+
+def build_status_write_command(addr: int, data: int) -> bytes:
+    return build_ascii_command(CMD_STATUS_WRITE, addr, data & 0xFFFF_FFFF)
 
 
 def build_bulk_read_command(addr: int, words: int) -> bytes:

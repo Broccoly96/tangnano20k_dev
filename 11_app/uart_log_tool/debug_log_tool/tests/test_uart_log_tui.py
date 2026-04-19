@@ -19,6 +19,21 @@ from uart_log_tui import (  # noqa: E402
 )
 
 
+class DummySock:
+    def __init__(self) -> None:
+        self.sent: list[bytes] = []
+
+    def send(self, payload: bytes) -> int:
+        self.sent.append(payload)
+        return len(payload)
+
+    def recv(self, max_bytes: int) -> bytes:
+        raise BlockingIOError
+
+    def close(self) -> None:
+        pass
+
+
 class UARTLogTuiTests(unittest.TestCase):
     def test_next_src_steps_wraps_forward(self) -> None:
         self.assertEqual(next_src_steps(0, 2), 2)
@@ -81,14 +96,14 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.query_one("#btn_status_refresh", Button).label.plain, "Refresh Status")
             self.assertEqual(app.query_one("#btn_status_mode", Button).label.plain, "Mode: Decode")
             self.assertEqual(app.query_one("#btn_status_selftest", Button).label.plain, "Selftest")
-            self.assertEqual(app.query_one("#nav_status", Button).label.plain, "3 SDRAM Status")
-            self.assertEqual(app.query_one("#nav_rw", Button).label.plain, "4 SDRAM RW")
+            self.assertEqual(app.query_one("#nav_rw", Button).label.plain, "3 SDRAM RW")
+            self.assertEqual(app.query_one("#nav_status", Button).label.plain, "4 SDRAM STS")
             self.assertIsNotNone(app.query_one("#status_scroll", VerticalScroll))
             self.assertEqual(app.query_one("#btn_file_read_save", Button).label.plain, "Read")
             self.assertEqual(app.query_one("#btn_file_write", Button).label.plain, "Write")
             self.assertEqual(app.query_one("#file_write_addr_input", Input).value, "0x00000")
 
-    async def test_map_refresh_reports_inop(self) -> None:
+    async def test_map_refresh_queues_linear_reads_when_connected(self) -> None:
         app = UARTLogApp(
             transport="tcp",
             initial_port=None,
@@ -102,9 +117,62 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
         )
 
         async with app.run_test():
+            app._tcp._sock = DummySock()
             app._start_map_refresh()
-            self.assertEqual(app._map_summary_text, "INOP: bulk path disabled")
-            self.assertFalse(app._map_refresh_active)
+            self.assertEqual(app._map_summary_text, "queued 64 SDRAM reads")
+            self.assertTrue(app._map_refresh_active)
+            self.assertEqual(app._map_pending_queue[:3], [0x00000, 0x00001, 0x00002])
+
+    async def test_map_refresh_sends_ascii_read_packet(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            sock = DummySock()
+            app._tcp._sock = sock
+            app._selected_src_idx = 2
+            app._start_map_refresh()
+            app._poll_map_refresh()
+            self.assertEqual(sock.sent[-1], b"R 00000\n")
+            self.assertEqual(app._map_inflight_addr, 0x00000)
+
+    async def test_single_rw_accepts_unaligned_addresses(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._tcp._sock = DummySock()
+            app._selected_src_idx = 2
+
+            app.query_one("#single_read_addr_input", Input).value = "0x00003"
+            app._start_single_read()
+            self.assertTrue(app._rw_task_active)
+            self.assertEqual(app._rw_task_pending, [("read", 0x00003, 0)])
+            app._finish_rw_task("test cleanup")
+
+            app.query_one("#single_write_addr_input", Input).value = "0x00005"
+            app.query_one("#single_write_data_input", Input).value = "0x12345678"
+            app._start_single_write()
+            self.assertTrue(app._rw_task_active)
+            self.assertEqual(app._rw_task_pending, [("write", 0x00005, 0x12345678)])
 
     async def test_status_refresh_requires_connection(self) -> None:
         app = UARTLogApp(

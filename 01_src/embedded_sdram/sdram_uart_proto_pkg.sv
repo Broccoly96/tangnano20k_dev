@@ -14,6 +14,7 @@ package sdram_uart_proto_pkg;
   localparam int unsigned MAX_BULK_PAYLOAD_WORDS  = MAX_BULK_PAYLOAD_BYTES / 4;
 
   localparam logic [7:0] ASCII_CMD_R  = 8'h52;
+  localparam logic [7:0] ASCII_CMD_S  = 8'h53;
   localparam logic [7:0] ASCII_CMD_W  = 8'h57;
   localparam logic [7:0] ASCII_CMD_B  = 8'h42;
   localparam logic [7:0] ASCII_CMD_LF = 8'h0A;

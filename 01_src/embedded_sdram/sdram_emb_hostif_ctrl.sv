@@ -4,7 +4,7 @@
 // Description  : Shared embedded SDRAM host/test controller without SDRAM IP.
 //                - Owns startup self-test on the vendor SDRC user interface.
 //                - Exposes a debug status-map to uart_log_cli.
-//                - Intentionally disables host SDRAM read/write during debug.
+//                - Allows linear single-word host SDRAM read/write after PASS.
 //                - Uses a write-only status-map control register to reset the
 //                  vendor SDRC and rerun the self-test on demand.
 //////////////////////////////////////////////////////////////////////////////////
@@ -68,6 +68,14 @@ module sdram_emb_hostif_ctrl #(
   logic [7:0]  l_test_data_len;
   logic [3:0]  l_test_dqm;
   logic [31:0] l_test_wr_data;
+  logic        l_host_wr_n;
+  logic        l_host_rd_n;
+  logic [20:0] l_host_addr;
+  logic [7:0]  l_host_data_len;
+  logic [3:0]  l_host_dqm;
+  logic [31:0] l_host_wr_data;
+  logic        l_host_sdrc_active;
+  logic        l_host_access_enable;
 
   logic [15:0] l_status_addr;
   logic [31:0] l_status_rd_data;
@@ -108,6 +116,12 @@ module sdram_emb_hostif_ctrl #(
   assign l_manual_selftest_running = r_manual_selftest_pending &&
                                      !l_memtest_test_pass &&
                                      !l_memtest_test_fail;
+  assign l_host_access_enable = l_sdrc_local_rst_n &&
+                                l_sdrc_init_done_safe &&
+                                l_memtest_test_pass &&
+                                !l_memtest_test_active &&
+                                !l_memtest_test_fail &&
+                                !l_manual_selftest_running;
 
   assign O_INIT_DONE      = l_sdrc_init_done_safe;
   assign O_TEST_ACTIVE    = l_manual_selftest_running ? 1'b1 : l_memtest_test_active;
@@ -119,13 +133,20 @@ module sdram_emb_hostif_ctrl #(
   assign O_RAW_TX_VALID   = 1'b0;
   assign O_RAW_TX_DATA    = 8'h00;
 
-  // Self-test is the only producer of SDRC traffic in this debug configuration.
-  assign O_SDRC_WR_N      = l_sdrc_local_rst_n ? l_test_wr_n : 1'b1;
-  assign O_SDRC_RD_N      = l_sdrc_local_rst_n ? l_test_rd_n : 1'b1;
-  assign O_SDRC_ADDR      = l_sdrc_local_rst_n ? l_test_addr : 21'h00000;
-  assign O_SDRC_DATA_LEN  = l_sdrc_local_rst_n ? l_test_data_len : 8'h00;
-  assign O_SDRC_DQM       = l_sdrc_local_rst_n ? l_test_dqm : 4'h0;
-  assign O_SDRC_WR_DATA   = l_sdrc_local_rst_n ? l_test_wr_data : 32'h0000_0000;
+  // Self-test owns SDRC until PASS. After PASS, the UART host may issue
+  // linear single-word SDRAM accesses through the bridge access engine.
+  assign O_SDRC_WR_N      = !l_sdrc_local_rst_n ? 1'b1 :
+                            (l_host_sdrc_active ? l_host_wr_n : l_test_wr_n);
+  assign O_SDRC_RD_N      = !l_sdrc_local_rst_n ? 1'b1 :
+                            (l_host_sdrc_active ? l_host_rd_n : l_test_rd_n);
+  assign O_SDRC_ADDR      = !l_sdrc_local_rst_n ? 21'h00000 :
+                            (l_host_sdrc_active ? l_host_addr : l_test_addr);
+  assign O_SDRC_DATA_LEN  = !l_sdrc_local_rst_n ? 8'h00 :
+                            (l_host_sdrc_active ? l_host_data_len : l_test_data_len);
+  assign O_SDRC_DQM       = !l_sdrc_local_rst_n ? 4'h0 :
+                            (l_host_sdrc_active ? l_host_dqm : l_test_dqm);
+  assign O_SDRC_WR_DATA   = !l_sdrc_local_rst_n ? 32'h0000_0000 :
+                            (l_host_sdrc_active ? l_host_wr_data : l_test_wr_data);
 
   // Holds only the SDRC and selftest logic in reset after a manual trigger.
   // The UART/status bridge remains live so the host can receive WRITE_ACK and
@@ -238,6 +259,7 @@ module sdram_emb_hostif_ctrl #(
     .I_CLK           (I_CLK),
     .I_RST_N         (I_RST_N),
     .I_ENABLE        (1'b1),
+    .I_HOST_ACCESS_ENABLE(l_host_access_enable),
     .I_CLI_RX_VALID  (I_CLI_RX_VALID),
     .I_CLI_RX_DATA   (I_CLI_RX_DATA),
     .O_RAW_RX_BYPASS (),
@@ -253,12 +275,13 @@ module sdram_emb_hostif_ctrl #(
     .I_STATUS_RD_DATA(l_status_rd_data),
     .O_STATUS_ADDR   (l_status_addr),
     .O_SELFTEST_RESTART_REQ(l_selftest_restart_req),
-    .O_SDRC_WR_N     (),
-    .O_SDRC_RD_N     (),
-    .O_SDRC_ADDR     (),
-    .O_SDRC_DATA_LEN (),
-    .O_SDRC_DQM      (),
-    .O_SDRC_WR_DATA  (),
+    .O_SDRC_WR_N     (l_host_wr_n),
+    .O_SDRC_RD_N     (l_host_rd_n),
+    .O_SDRC_ADDR     (l_host_addr),
+    .O_SDRC_DATA_LEN (l_host_data_len),
+    .O_SDRC_DQM      (l_host_dqm),
+    .O_SDRC_WR_DATA  (l_host_wr_data),
+    .O_SDRC_ACTIVE   (l_host_sdrc_active),
     .O_EVT_VALID     (O_HOST_EVT_VALID),
     .O_EVT_ID        (O_HOST_EVT_ID),
     .O_EVT_ARG0      (O_HOST_EVT_ARG0),

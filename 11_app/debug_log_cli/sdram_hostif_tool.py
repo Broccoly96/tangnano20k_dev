@@ -24,6 +24,8 @@ from sdram_uart_protocol import (  # noqa: E402
     build_bulk_read_command,
     build_bulk_write_command,
     build_read_command,
+    build_status_read_command,
+    build_status_write_command,
     build_write_command,
     iter_bulk_write_blocks,
     parse_u21,
@@ -142,6 +144,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser_read.add_argument("addr", type=parse_u21)
     parser_read.add_argument("--select-host", action="store_true")
 
+    parser_status_write = subparsers.add_parser("status-write")
+    parser_status_write.add_argument("addr", type=parse_u21)
+    parser_status_write.add_argument("data", type=parse_u32)
+    parser_status_write.add_argument("--select-host", action="store_true")
+
+    parser_status_read = subparsers.add_parser("status-read")
+    parser_status_read.add_argument("addr", type=parse_u21)
+    parser_status_read.add_argument("--select-host", action="store_true")
+
+    parser_selftest = subparsers.add_parser("selftest")
+    parser_selftest.add_argument("--select-host", action="store_true")
+
     parser_bulk_write = subparsers.add_parser("bulk-write")
     parser_bulk_write.add_argument("addr", type=parse_u21)
     parser_bulk_write.add_argument("path")
@@ -230,6 +244,69 @@ def main() -> int:
             return 1
         print(
             f"READ_RSP addr=0x{frame.event.arg0:05X} data=0x{frame.event.arg1:08X} "
+            f"status=0x{frame.event.arg2:08X}"
+        )
+        return 0
+
+      if args.command == "status-write":
+        write_exact(client.write_bytes, build_status_write_command(args.addr, args.data))
+        frame = wait_for_host_result(
+            client,
+            parser,
+            args.timeout_s,
+            HOST_EVT_WRITE_ACK,
+            addr=args.addr,
+        )
+        if frame.event.event_id == HOST_EVT_CMD_ERR:
+            print(
+                f"CMD_ERR reason=0x{frame.event.arg0:08X} addr=0x{frame.event.arg1:05X} "
+                f"detail=0x{frame.event.arg2:08X}"
+            )
+            return 1
+        print(
+            f"STATUS_WRITE_ACK addr=0x{frame.event.arg0:05X} data=0x{frame.event.arg1:08X} "
+            f"status=0x{frame.event.arg2:08X}"
+        )
+        return 0
+
+      if args.command == "status-read":
+        write_exact(client.write_bytes, build_status_read_command(args.addr))
+        frame = wait_for_host_result(
+            client,
+            parser,
+            args.timeout_s,
+            HOST_EVT_READ_RSP,
+            addr=args.addr,
+        )
+        if frame.event.event_id == HOST_EVT_CMD_ERR:
+            print(
+                f"CMD_ERR reason=0x{frame.event.arg0:08X} addr=0x{frame.event.arg1:05X} "
+                f"detail=0x{frame.event.arg2:08X}"
+            )
+            return 1
+        print(
+            f"STATUS_READ_RSP addr=0x{frame.event.arg0:05X} data=0x{frame.event.arg1:08X} "
+            f"status=0x{frame.event.arg2:08X}"
+        )
+        return 0
+
+      if args.command == "selftest":
+        write_exact(client.write_bytes, build_status_write_command(0x0003C, 0x0000_0001))
+        frame = wait_for_host_result(
+            client,
+            parser,
+            args.timeout_s,
+            HOST_EVT_WRITE_ACK,
+            addr=0x0003C,
+        )
+        if frame.event.event_id == HOST_EVT_CMD_ERR:
+            print(
+                f"CMD_ERR reason=0x{frame.event.arg0:08X} addr=0x{frame.event.arg1:05X} "
+                f"detail=0x{frame.event.arg2:08X}"
+            )
+            return 1
+        print(
+            f"SELFTEST_ACK addr=0x{frame.event.arg0:05X} data=0x{frame.event.arg1:08X} "
             f"status=0x{frame.event.arg2:08X}"
         )
         return 0

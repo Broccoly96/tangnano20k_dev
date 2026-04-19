@@ -40,6 +40,7 @@ module testbench;
   logic [20:0] tb_rsp_addr;
   logic [31:0] tb_rsp_data;
   logic [31:0] tb_rsp_status;
+  logic        tb_busy;
   logic [31:0] mem_words [0:MEM_WORDS-1];
   uif_state_e  st_uif;
   logic [20:0] r_uif_base_addr;
@@ -48,6 +49,7 @@ module testbench;
   logic [7:0]  r_uif_phase_count;
   logic [7:0]  r_uif_busy_count;
   logic [31:0] r_uif_wr_value;
+  logic        r_read_valid_seen_low_busy;
   integer      read_req_count;
   logic        inject_next_wr_timeout;
   logic        inject_next_rd_timeout;
@@ -76,6 +78,7 @@ module testbench;
     r_uif_phase_count     = '0;
     r_uif_busy_count      = '0;
     r_uif_wr_value        = '0;
+    r_read_valid_seen_low_busy = 1'b0;
     read_req_count        = 0;
     inject_next_wr_timeout= 1'b0;
     inject_next_rd_timeout= 1'b0;
@@ -118,7 +121,8 @@ module testbench;
     .O_RSP_IS_WRITE  (tb_rsp_is_write),
     .O_RSP_ADDR      (tb_rsp_addr),
     .O_RSP_DATA      (tb_rsp_data),
-    .O_RSP_STATUS    (tb_rsp_status)
+    .O_RSP_STATUS    (tb_rsp_status),
+    .O_BUSY          (tb_busy)
   );
 
   // Simple SDRC user-interface responder for unit testing.
@@ -134,6 +138,7 @@ module testbench;
       r_uif_phase_count <= '0;
       r_uif_busy_count  <= '0;
       r_uif_wr_value    <= '0;
+      r_read_valid_seen_low_busy <= 1'b0;
       read_req_count    <= 0;
     end else begin
       tb_sdrc_rd_valid <= 1'b0;
@@ -145,9 +150,11 @@ module testbench;
           r_uif_count       <= '0;
           r_uif_phase_count <= '0;
           r_uif_busy_count  <= '0;
+          r_read_valid_seen_low_busy <= 1'b0;
           if (!tb_sdrc_wr_n) begin
             r_uif_base_addr <= tb_sdrc_addr;
             r_uif_len       <= tb_sdrc_data_len + 1'b1;
+            r_uif_wr_value  <= tb_sdrc_wr_data;
             mem_words[tb_sdrc_addr] <= tb_sdrc_wr_data;
             if (inject_next_wr_timeout) begin
               inject_next_wr_timeout <= 1'b0;
@@ -235,17 +242,25 @@ module testbench;
         UIF_READ_BUSY: begin
           if (r_uif_phase_count == 8'd1) begin
             tb_sdrc_wrd_ack <= 1'b1;
+            tb_sdrc_rd_valid <= 1'b1;
+            tb_sdrc_rd_data  <= r_uif_wr_value;
           end
           if ((r_uif_phase_count >= 8'd2) && (r_uif_count < r_uif_len)) begin
             tb_sdrc_busy_n  <= 1'b0;
             tb_sdrc_rd_valid <= 1'b1;
             tb_sdrc_rd_data  <= mem_words[r_uif_base_addr + r_uif_count];
             r_uif_count      <= r_uif_count + 1'b1;
+            r_read_valid_seen_low_busy <= 1'b1;
+          end else if (r_read_valid_seen_low_busy && (r_uif_busy_count < 8'd3)) begin
+            tb_sdrc_busy_n   <= 1'b0;
+            r_uif_busy_count <= r_uif_busy_count + 1'b1;
           end else begin
             tb_sdrc_busy_n <= 1'b1;
           end
           r_uif_phase_count <= r_uif_phase_count + 1'b1;
-          if ((r_uif_phase_count >= 8'd2) && (r_uif_count >= r_uif_len)) begin
+          if ((r_uif_phase_count >= 8'd2) &&
+              (r_uif_count >= r_uif_len) &&
+              (!r_read_valid_seen_low_busy || (r_uif_busy_count >= 8'd3))) begin
             tb_sdrc_busy_n <= 1'b1;
             st_uif         <= UIF_IDLE;
           end
@@ -269,6 +284,20 @@ module testbench;
           st_uif <= UIF_IDLE;
         end
       endcase
+    end
+  end
+
+  // The DUT must keep its host-side busy/mux ownership asserted until the
+  // Gowin SDRC transaction has returned to idle. This catches the historical
+  // read path bug where response was generated immediately on rd_valid.
+  always_ff @(posedge tb_clk) begin
+    if (tb_rst_n && (st_uif == UIF_READ_BUSY) &&
+        r_read_valid_seen_low_busy && !tb_sdrc_busy_n && !tb_busy) begin
+      log_fatal(
+        1,
+        "ACCESS ENG TB",
+        "DUT released O_BUSY before read transaction returned to busy_n=1"
+      );
     end
   end
 

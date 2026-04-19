@@ -29,12 +29,14 @@ module testbench;
   logic [15:0] tb_status_addr;
   logic [31:0] tb_status_rd_data;
   logic        tb_selftest_restart_req;
+  logic        tb_host_access_enable;
   logic        tb_sdrc_wr_n;
   logic        tb_sdrc_rd_n;
   logic [20:0] tb_sdrc_addr;
   logic [7:0]  tb_sdrc_data_len;
   logic [3:0]  tb_sdrc_dqm;
   logic [31:0] tb_sdrc_wr_data;
+  logic        tb_sdrc_active;
   logic        tb_evt_valid;
   logic [7:0]  tb_evt_id;
   logic [31:0] tb_evt_arg0;
@@ -58,6 +60,7 @@ module testbench;
     tb_cli_rx_valid  = 1'b0;
     tb_cli_rx_data   = 8'h00;
     tb_sdrc_init_done= 1'b0;
+    tb_host_access_enable = 1'b1;
     tb_sdrc_busy_n   = 1'b1;
     tb_sdrc_wrd_ack  = 1'b0;
     tb_sdrc_rd_valid = 1'b0;
@@ -88,6 +91,7 @@ module testbench;
     .I_CLK           (tb_clk),
     .I_RST_N         (tb_rst_n),
     .I_ENABLE        (tb_enable),
+    .I_HOST_ACCESS_ENABLE(tb_host_access_enable),
     .I_CLI_RX_VALID  (tb_cli_rx_valid),
     .I_CLI_RX_DATA   (tb_cli_rx_data),
     .O_RAW_RX_BYPASS (),
@@ -109,6 +113,7 @@ module testbench;
     .O_SDRC_DATA_LEN (tb_sdrc_data_len),
     .O_SDRC_DQM      (tb_sdrc_dqm),
     .O_SDRC_WR_DATA  (tb_sdrc_wr_data),
+    .O_SDRC_ACTIVE   (tb_sdrc_active),
     .O_EVT_VALID     (tb_evt_valid),
     .O_EVT_ID        (tb_evt_id),
     .O_EVT_ARG0      (tb_evt_arg0),
@@ -127,6 +132,29 @@ module testbench;
       4'h9: tb_status_rd_data = 32'h0300_0000;
       default: tb_status_rd_data = mem_words[tb_status_addr[9:2]];
     endcase
+  end
+
+  always_ff @(posedge tb_clk or negedge tb_rst_n) begin
+    if (!tb_rst_n) begin
+      tb_sdrc_busy_n  <= 1'b1;
+      tb_sdrc_rd_valid<= 1'b0;
+      tb_sdrc_rd_data <= 32'h0;
+      tb_sdrc_wrd_ack <= 1'b0;
+    end else begin
+      tb_sdrc_rd_valid <= 1'b0;
+      tb_sdrc_wrd_ack  <= 1'b0;
+      if (!tb_sdrc_wr_n) begin
+        tb_sdrc_busy_n  <= 1'b0;
+        tb_sdrc_wrd_ack <= 1'b1;
+        mem_words[tb_sdrc_addr] <= tb_sdrc_wr_data;
+      end else if (!tb_sdrc_rd_n) begin
+        tb_sdrc_busy_n   <= 1'b0;
+        tb_sdrc_rd_valid <= 1'b1;
+        tb_sdrc_rd_data  <= mem_words[tb_sdrc_addr];
+      end else begin
+        tb_sdrc_busy_n <= 1'b1;
+      end
+    end
   end
 
   task automatic send_byte(input logic [7:0] byte_value);
