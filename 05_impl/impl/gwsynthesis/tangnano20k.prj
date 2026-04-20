@@ -4,14 +4,15 @@
     <Version>beta</Version>
     <Device id="GW2AR-18C" package="QFN88" speed="8" partNumber="GW2AR-LV18QN88C8/I7"/>
     <FileList>
-        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\embedded_sdram\embedded_sdram.v" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\embedded_sdram_hs\embedded_sdram_hs.v" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\gowin_pll\gowin_pll.v" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_proto_pkg.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_memtest_ctrl.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_access_engine.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv" type="verilog"/>
-        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_proto_pkg.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_status_reg_map.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\reset_mng.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\sync_fifo_ae_af.sv" type="verilog"/>

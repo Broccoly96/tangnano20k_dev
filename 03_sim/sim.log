@@ -1,5 +1,5 @@
 # vsim -c work.testbench -voptargs="+acc" -do "run -all; quit -code 0" -l sim.log 
-# Start time: 19:49:27 on Apr 19,2026
+# Start time: 20:25:04 on Apr 20,2026
 # //  ModelSim - Lattice FPGA Edition 2023.3 Jul 18 2023
 # //
 # //  Copyright 1991-2023 Mentor Graphics Corporation
@@ -14,35 +14,22 @@
 # //  18 U.S.C. Section 1905.
 # //
 # Loading sv_std.std
+# Loading work.sdram_hs_cmd_pkg
 # Loading work.tb_log_pkg
 # Loading work.testbench
+# Loading work.sdram_emb_hostif_ctrl
+# Loading work.sdram_memtest_ctrl
 # Loading work.sdram_status_reg_map
+# Loading work.sdram_uart_proto_pkg
+# Loading work.sdram_uart_bridge_ctrl
+# Loading work.sdram_uart_ascii_ctrl
+# Loading work.sdram_uart_access_engine
 # run -all
-# [1.000 ns][INFO ][STATUS MAP TB] word ok: summary
-# [2.000 ns][INFO ][STATUS MAP TB] word ok: summary reset active
-# [3.000 ns][INFO ][STATUS MAP TB] word ok: memtest summary
-# [4.000 ns][INFO ][STATUS MAP TB] word ok: current addr
-# [5.000 ns][INFO ][STATUS MAP TB] word ok: expected
-# [6.000 ns][INFO ][STATUS MAP TB] word ok: last read
-# [7.000 ns][INFO ][STATUS MAP TB] word ok: last status
-# [8.000 ns][INFO ][STATUS MAP TB] word ok: fail addr
-# [9.000 ns][INFO ][STATUS MAP TB] word ok: fail expected
-# [10.000 ns][INFO ][STATUS MAP TB] word ok: fail actual
-# [11.000 ns][INFO ][STATUS MAP TB] word ok: retry summary
-# [12.000 ns][INFO ][STATUS MAP TB] word ok: retry data1
-# [13.000 ns][INFO ][STATUS MAP TB] word ok: retry data2
-# [14.000 ns][INFO ][STATUS MAP TB] word ok: ctrl summary
-# [15.000 ns][INFO ][STATUS MAP TB] word ok: ctrl detail
-# [16.000 ns][INFO ][STATUS MAP TB] word ok: handshake summary
-# [17.000 ns][INFO ][STATUS MAP TB] word ok: latest rd data
-# [18.000 ns][INFO ][STATUS MAP TB] word ok: host debug summary
-# [19.000 ns][INFO ][STATUS MAP TB] word ok: host debug detail
-# [20.000 ns][INFO ][STATUS MAP TB] word ok: host debug beat0
-# [21.000 ns][INFO ][STATUS MAP TB] word ok: host debug beat1
-# [22.000 ns][INFO ][STATUS MAP TB] word ok: host debug beat25
-# [23.000 ns][INFO ][STATUS MAP TB] word ok: host debug outside range
-# [23.000 ns][INFO ][STATUS MAP TB] sdram_status_reg_map smoke test passed
-# ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/17_sdram_status_reg_map/testcase_smoke.svh(62)
-#    Time: 23 ns  Iteration: 0  Instance: /testbench
-# End time: 19:49:27 on Apr 19,2026, Elapsed time: 0:00:00
+# [0.000 ns][INFO ][TOP HS SMOKE] start HS integration smoke
+# [2130.000 ns][INFO ][TOP HS SMOKE] self-test passed after 24 HS commands
+# [20130.000 ns][INFO ][TOP HS SMOKE] observed 1 AUTO_REFRESH command(s)
+# [20130.000 ns][INFO ][TOP HS SMOKE] PASS
+# ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/01_tangnano20k_top/testcase_hs_smoke.svh(48)
+#    Time: 20130 ns  Iteration: 1  Instance: /testbench
+# End time: 20:25:04 on Apr 20,2026, Elapsed time: 0:00:00
 # Errors: 0, Warnings: 0

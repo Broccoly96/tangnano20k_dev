@@ -9,6 +9,7 @@ if str(TOOL_DIR) not in sys.path:
 
 from textual.containers import VerticalScroll  # noqa: E402
 from textual.widgets import Button, Input, Static  # noqa: E402
+from uart_log_protocol import Event  # noqa: E402
 
 from uart_log_tui import (  # noqa: E402
     UARTLogApp,
@@ -47,7 +48,7 @@ class UARTLogTuiTests(unittest.TestCase):
         self.assertIn("00 | 03020100  07060504  0B0A0908  0F0E0D0C", text)
 
     def test_format_sdram_status_text_decodes_pass_state(self) -> None:
-        blob = bytearray(64)
+        blob = bytearray(80)
         words = {
             0x00: 0x030D00A8,
             0x04: 0xB61A1A21,
@@ -68,12 +69,36 @@ class UARTLogTuiTests(unittest.TestCase):
         self.assertIn("retry_limit       : 3", text)
         self.assertIn("sampled_addr      : 0x0038", text)
 
+    def test_format_sdram_status_text_decodes_hs_v05_fields(self) -> None:
+        blob = bytearray(80)
+        words = {
+            0x00: 0x051600A8,
+            0x14: 0x0035FD12,
+            0x30: 0xB4FE0304,
+            0x38: 0x48BF4123,
+            0x48: 0x5204004D,
+        }
+        for offset, value in words.items():
+            blob[offset : offset + 4] = value.to_bytes(4, "little")
+
+        text = format_sdram_status_text(bytes(blob))
+        self.assertIn("map_version       : 0x05", text)
+        self.assertIn("memtest_state     : PASS (0x16)", text)
+        self.assertIn("cmd               : READ (0b101)", text)
+        self.assertIn("ack_count         : 18", text)
+        self.assertIn("cmd               : AUTO_REFRESH", text)
+        self.assertIn("pair_active       : 1", text)
+        self.assertIn("0x38 HS_HANDSHAKE  = 0x48BF4123", text)
+        self.assertIn("cmd               : ACTIVE (0b011)", text)
+        self.assertIn("0x48 HS_REFRESH     = 0x5204004D", text)
+        self.assertIn("interval_count_lsb: 77", text)
+
     def test_format_sdram_status_raw_text_formats_words(self) -> None:
         blob = bytearray(64)
         blob[0x00:0x04] = (0x030D00A8).to_bytes(4, "little")
         blob[0x04:0x08] = (0xB61A1A21).to_bytes(4, "little")
         text = format_sdram_status_raw_text(bytes(blob))
-        self.assertIn("Base: 0x00000  Size: 64 bytes  Mode: raw 32-bit words", text)
+        self.assertIn("Base: 0x00000  Size: 80 bytes  Mode: raw 32-bit words", text)
         self.assertIn("00 | 030D00A8  B61A1A21  00000000  00000000", text)
 
 
@@ -98,6 +123,7 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.query_one("#btn_status_selftest", Button).label.plain, "Selftest")
             self.assertEqual(app.query_one("#nav_rw", Button).label.plain, "3 SDRAM RW")
             self.assertEqual(app.query_one("#nav_status", Button).label.plain, "4 SDRAM STS")
+            self.assertEqual(app.query_one("#nav_burst", Button).label.plain, "5 SDRAM Burst")
             self.assertIsNotNone(app.query_one("#status_scroll", VerticalScroll))
             self.assertEqual(app.query_one("#btn_file_read_save", Button).label.plain, "Read")
             self.assertEqual(app.query_one("#btn_file_write", Button).label.plain, "Write")
@@ -145,6 +171,84 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(sock.sent[-1], b"R 00000\n")
             self.assertEqual(app._map_inflight_addr, 0x00000)
 
+    async def test_map_refresh_retries_timed_out_read(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            sock = DummySock()
+            app._tcp._sock = sock
+            app._selected_src_idx = 2
+            app._start_map_refresh()
+            app._poll_map_refresh()
+
+            app._map_rsp_deadline = 0.0
+            app._poll_map_refresh()
+
+            self.assertEqual(sock.sent[-2:], [b"R 00000\n", b"R 00000\n"])
+            self.assertTrue(app._map_refresh_active)
+            self.assertEqual(app._map_inflight_addr, 0x00000)
+            self.assertEqual(app._map_inflight_retries, 1)
+            self.assertEqual(app._map_retry_count, 1)
+            self.assertIn("retry 1/3 for 0x00000", app._map_summary_text)
+
+    async def test_map_refresh_fails_after_retry_limit(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._tcp._sock = DummySock()
+            app._selected_src_idx = 2
+            app._start_map_refresh()
+            app._poll_map_refresh()
+
+            app._map_inflight_retries = 3
+            app._map_rsp_deadline = 0.0
+            app._poll_map_refresh()
+
+            self.assertFalse(app._map_refresh_active)
+            self.assertIsNone(app._map_inflight_addr)
+            self.assertEqual(app._map_inflight_retries, 0)
+            self.assertIn("timeout waiting for 0x00000", app._map_summary_text)
+
+    async def test_map_refresh_rejects_range_past_sdram_limit(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._tcp._sock = DummySock()
+            app.query_one("#map_base_input", Input).value = "0x1FFFFF"
+            app._start_map_refresh()
+            self.assertFalse(app._map_refresh_active)
+            self.assertIn("map range exceeds SDRAM limit", app._map_summary_text)
+
     async def test_single_rw_accepts_unaligned_addresses(self) -> None:
         app = UARTLogApp(
             transport="tcp",
@@ -173,6 +277,109 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             app._start_single_write()
             self.assertTrue(app._rw_task_active)
             self.assertEqual(app._rw_task_pending, [("write", 0x00005, 0x12345678)])
+
+    async def test_burst_write_test_sends_bwt_command(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            sock = DummySock()
+            app._tcp._sock = sock
+            app._selected_src_idx = 2
+            app.query_one("#burst_base_input", Input).value = "0x00100"
+            app.query_one("#burst_words_input", Input).value = "0x00040"
+            app._start_burst_test(is_read=False)
+            app._poll_burst_task()
+
+            self.assertEqual(sock.sent[-1], b"BWT 00100 00040\n")
+            self.assertTrue(app._burst_task_active)
+            self.assertEqual(app._burst_task_kind, "burst_write_test")
+
+    async def test_burst_read_test_collects_packets_and_passes(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._tcp._sock = DummySock()
+            app._selected_src_idx = 2
+            app.query_one("#burst_base_input", Input).value = "0x00020"
+            app.query_one("#burst_words_input", Input).value = "0x00003"
+            app._start_burst_test(is_read=True)
+            app._poll_burst_task()
+
+            app._handle_special_event(Event(0x03, 0x34, 0, 0x00020002, 0, 1))
+            app._handle_special_event(Event(0x03, 0x34, 0, 0x01020201, 2, 0))
+            app._handle_special_event(Event(0x03, 0x35, 0, 0x00000020, 3, 0x80000002))
+
+            self.assertFalse(app._burst_task_active)
+            self.assertIn("PASS read words=3", app._burst_result_text)
+
+    async def test_burst_read_reports_mismatch(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._tcp._sock = DummySock()
+            app._selected_src_idx = 2
+            app.query_one("#burst_base_input", Input).value = "0x00020"
+            app.query_one("#burst_words_input", Input).value = "0x00002"
+            app._start_burst_test(is_read=True)
+            app._poll_burst_task()
+
+            app._handle_special_event(Event(0x03, 0x34, 0, 0x00010002, 0, 0x12345678))
+            app._handle_special_event(Event(0x03, 0x35, 0, 0x00000020, 2, 0x80000001))
+
+            self.assertFalse(app._burst_task_active)
+            self.assertIn("FAIL mismatches=1", app._burst_result_text)
+
+    async def test_burst_rejects_page_crossing_input(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._tcp._sock = DummySock()
+            app.query_one("#burst_base_input", Input).value = "0x000F8"
+            app.query_one("#burst_words_input", Input).value = "0x00010"
+            app._start_burst_test(is_read=True)
+
+            self.assertFalse(app._burst_task_active)
+            self.assertIn("burst crosses 8-bit column page", app._burst_result_text)
 
     async def test_status_refresh_requires_connection(self) -> None:
         app = UARTLogApp(

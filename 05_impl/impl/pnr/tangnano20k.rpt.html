@@ -83,7 +83,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td class="label">Created Time</td>
-<td>Sun Apr 19 19:50:10 2026
+<td>Mon Apr 20 20:25:47 2026
 </td>
 </tr>
 <tr>
@@ -97,14 +97,14 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <tr>
 <td class="label">Place & Route Process</td>
 <td>Running placement:
-   Placement Phase 0: CPU time = 0h 0m 0.89s, Elapsed time = 0h 0m 0.89s
-   Placement Phase 1: CPU time = 0h 0m 0.258s, Elapsed time = 0h 0m 0.258s
+   Placement Phase 0: CPU time = 0h 0m 0.87s, Elapsed time = 0h 0m 0.87s
+   Placement Phase 1: CPU time = 0h 0m 0.248s, Elapsed time = 0h 0m 0.248s
    Placement Phase 2: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
    Placement Phase 3: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
    Total Placement: CPU time = 0h 0m 5s, Elapsed time = 0h 0m 5s
 Running routing:
-   Routing Phase 0: CPU time = 0h 0m 0.004s, Elapsed time = 0h 0m 0.004s
-   Routing Phase 1: CPU time = 0h 0m 0.156s, Elapsed time = 0h 0m 0.156s
+   Routing Phase 0: CPU time = 0h 0m 0.003s, Elapsed time = 0h 0m 0.003s
+   Routing Phase 1: CPU time = 0h 0m 0.154s, Elapsed time = 0h 0m 0.154s
    Routing Phase 2: CPU time = 0h 0m 3s, Elapsed time = 0h 0m 3s
    Routing Phase 3: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s
    Total Routing: CPU time = 0h 0m 3s, Elapsed time = 0h 0m 3s
@@ -114,7 +114,7 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">Total Time and Memory Usage</td>
-<td>CPU time = 0h 0m 10s, Elapsed time = 0h 0m 10s, Peak memory usage = 556MB</td>
+<td>CPU time = 0h 0m 9s, Elapsed time = 0h 0m 9s, Peak memory usage = 543MB</td>
 </tr>
 </table>
 <br/>
@@ -129,23 +129,23 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">Logic</td>
-<td>7111/20736</td>
-<td>35%</td>
+<td>6557/20736</td>
+<td>32%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --LUT,ALU,ROM16</td>
-<td>6469(6007 LUT, 462 ALU, 0 ROM16)</td>
+<td>6059(5683 LUT, 376 ALU, 0 ROM16)</td>
 <td>-</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --SSRAM(RAM16)</td>
-<td>107</td>
+<td>83</td>
 <td>-</td>
 </tr>
 <tr>
 <td class="label">Register</td>
-<td>4366/15915</td>
-<td>28%</td>
+<td>3370/15915</td>
+<td>22%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --Logic Register as Latch</td>
@@ -154,8 +154,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --Logic Register as FF</td>
-<td>4283/15552</td>
-<td>28%</td>
+<td>3299/15552</td>
+<td>22%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --I/O Register as Latch</td>
@@ -164,13 +164,13 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --I/O Register as FF</td>
-<td>83/363</td>
-<td>23%</td>
+<td>71/363</td>
+<td>20%</td>
 </tr>
 <tr>
 <td class="label">CLS</td>
-<td>5616/10368</td>
-<td>55%</td>
+<td>4765/10368</td>
+<td>46%</td>
 </tr>
 <tr>
 <td class="label">I/O Port</td>
@@ -198,9 +198,14 @@ Generate output files:
 <td>-</td>
 </tr>
 <tr>
+<td class="label">IOLOGIC</td>
+<td>1 ODDR<br/></td>
+<td><1%</td>
+</tr>
+<tr>
 <td class="label">BSRAM</td>
-<td>16 SDPX9B<br/></td>
-<td>35%</td>
+<td>2 SDPB<br/>15 SDPX9B<br/></td>
+<td>37%</td>
 </tr>
 </table>
 <h2><a name="I/O_Bank_Usage_Summary">I/O Bank Usage Summary:</a></h2>
@@ -252,8 +257,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">PRIMARY</td>
-<td>4/8</td>
-<td>50%</td>
+<td>5/8</td>
+<td>63%</td>
 </tr>
 <tr>
 <td class="label">LW</td>
@@ -285,27 +290,32 @@ Generate output files:
 <td> BL</td>
 </tr>
 <tr>
-<td class="label">O_sdram_clk_d</td>
+<td class="label">clk_48m_sdram</td>
 <td>PRIMARY</td>
 <td> TR TL BR BL</td>
 </tr>
 <tr>
 <td class="label">clk_24m_sys</td>
 <td>PRIMARY</td>
-<td> TL BR BL</td>
+<td> TR TL BR BL</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/r_shared_rd_pending</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/u_sdram_uart_ascii_ctrl/r_cmd_data_31_7</td>
 <td>PRIMARY</td>
-<td> TL</td>
+<td> BL</td>
 </tr>
 <tr>
-<td class="label">l_hostif_sdrc_rst_n</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/u_sdram_uart_access_engine/n4059_11</td>
+<td>PRIMARY</td>
+<td> TL BL</td>
+</tr>
+<tr>
+<td class="label">PIN15_IOL47A_LED0_d_4</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">r_evt_fifo_mem[0]_ER_init</td>
+<td class="label">l_hostif_sdrc_rst_n</td>
 <td>LW</td>
 <td> -</td>
 </tr>
@@ -315,27 +325,27 @@ Generate output files:
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_fail_reason_1_6</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_last_status_31_10</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/O_EVT_ARG1_21_6</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_evt_id_0_13</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_fail_addr_20_9</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n6441_8</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/u_sdram_uart_ascii_ctrl/r_cmd_data_31_7</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n7245_5</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_embedded_sdram/sdrc_top_inst/U0/Ctrl_wr_data_valid</td>
+<td class="label">u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n7142_5</td>
 <td>LW</td>
 <td> -</td>
 </tr>

@@ -4,37 +4,45 @@
 
     log_info("ASCII CTRL TB", "case: single read");
     send_text("R 100308\n");
-    expect_cmd(ASCII_OP_READ, 1'b0, 1'b0, 21'h100308, 32'h0000_0000, 21'h0, "read");
+    expect_cmd(ASCII_OP_READ, 1'b0, 1'b0, 1'b0, 21'h100308, 32'h0000_0000, 21'h0, "read");
 
     log_info("ASCII CTRL TB", "case: single write");
     send_text("W 100308 89ABCDEF\n");
-    expect_cmd(ASCII_OP_WRITE, 1'b0, 1'b0, 21'h100308, 32'h89AB_CDEF, 21'h0, "write");
+    expect_cmd(ASCII_OP_WRITE, 1'b0, 1'b0, 1'b0, 21'h100308, 32'h89AB_CDEF, 21'h0, "write");
 
     log_info("ASCII CTRL TB", "case: status read");
     send_text("SR 00003C\n");
-    expect_cmd(ASCII_OP_READ, 1'b1, 1'b0, 21'h00003C, 32'h0000_0000, 21'h0, "status read");
+    expect_cmd(ASCII_OP_READ, 1'b1, 1'b0, 1'b0, 21'h00003C, 32'h0000_0000, 21'h0, "status read");
 
     log_info("ASCII CTRL TB", "case: status write");
     send_text("SW 00003C 00000001\n");
-    expect_cmd(ASCII_OP_WRITE, 1'b1, 1'b0, 21'h00003C, 32'h0000_0001, 21'h0, "status write");
+    expect_cmd(ASCII_OP_WRITE, 1'b1, 1'b0, 1'b0, 21'h00003C, 32'h0000_0001, 21'h0, "status write");
 
     log_info("ASCII CTRL TB", "case: bulk read");
     send_text("BR 100000 0040\n");
-    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 21'h100000, 32'h0000_0000, 21'h00040, "bulk read");
+    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 1'b0, 21'h100000, 32'h0000_0000, 21'h00040, "bulk read");
 
     log_info("ASCII CTRL TB", "case: bulk write");
     send_text("BW 100000 0040\n");
-    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 21'h100000, 32'h0000_0000, 21'h00040, "bulk write");
+    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 1'b0, 21'h100000, 32'h0000_0000, 21'h00040, "bulk write");
+
+    log_info("ASCII CTRL TB", "case: burst read test");
+    send_text("BRT 100000 0040\n");
+    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 1'b1, 21'h100000, 32'h0000_0000, 21'h00040, "burst read test");
+
+    log_info("ASCII CTRL TB", "case: burst write test");
+    send_text("BWT 100000 0040\n");
+    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 1'b1, 21'h100000, 32'h0000_0000, 21'h00040, "burst write test");
 
     log_info("ASCII CTRL TB", "case: optional 0x and lowercase hex");
     send_text("W 0x000012 0xdeadbeef\n");
-    expect_cmd(ASCII_OP_WRITE, 1'b0, 1'b0, 21'h000012, 32'hDEAD_BEEF, 21'h0, "0x lower hex");
+    expect_cmd(ASCII_OP_WRITE, 1'b0, 1'b0, 1'b0, 21'h000012, 32'hDEAD_BEEF, 21'h0, "0x lower hex");
 
     log_info("ASCII CTRL TB", "case: repeated spaces and CRLF");
     send_text("R   000120");
     send_byte(ASCII_CMD_CR);
     send_byte(ASCII_CMD_LF);
-    expect_cmd(ASCII_OP_READ, 1'b0, 1'b0, 21'h000120, 32'h0000_0000, 21'h0, "spaces crlf");
+    expect_cmd(ASCII_OP_READ, 1'b0, 1'b0, 1'b0, 21'h000120, 32'h0000_0000, 21'h0, "spaces crlf");
 
     log_info("ASCII CTRL TB", "case: empty line");
     send_text("\n");
@@ -81,7 +89,7 @@
     send_byte(8'h12);
     send_byte(8'h14);
     send_text("R 000120\n");
-    expect_cmd(ASCII_OP_READ, 1'b0, 1'b0, 21'h000120, 32'h0000_0000, 21'h0, "control ignore");
+    expect_cmd(ASCII_OP_READ, 1'b0, 1'b0, 1'b0, 21'h000120, 32'h0000_0000, 21'h0, "control ignore");
 
     log_info("ASCII CTRL TB", "case: pending command backpressure");
     send_text("R 000121\n");

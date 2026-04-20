@@ -12,6 +12,8 @@ vsim.log
 *.bak
 run_output*
 __pycache__
+tmp
+logs
 
 # Questa/ModelSim transient files
 *.db
@@ -25,3 +27,4 @@ __pycache__
 # Gowin EDA transient files
 impl/gwsynthesis
 impl/temp
+run_all*

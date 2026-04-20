@@ -20,6 +20,7 @@ module sdram_uart_ascii_ctrl #(
   output logic [1:0]  O_CMD_OP,
   output logic        O_CMD_IS_STATUS,
   output logic        O_CMD_BULK_IS_READ,
+  output logic        O_CMD_BULK_IS_TEST,
   output logic [20:0] O_CMD_ADDR,
   output logic [31:0] O_CMD_DATA,
   output logic [20:0] O_CMD_WORDS,
@@ -40,23 +41,25 @@ module sdram_uart_ascii_ctrl #(
   `define SDRAM_ASCII_LOG_TRACE(MSG) tb_log_pkg::log_trace("SDRAM ASCII", MSG)
 // synthesis translate_on
 
-  typedef enum logic [3:0] {
-    ST_IDLE             = 4'd0,
-    ST_CMD_AFTER_B      = 4'd1,
-    ST_ADDR_START       = 4'd2,
-    ST_ADDR_ZERO        = 4'd3,
-    ST_ADDR_BODY        = 4'd4,
-    ST_WRITE_DATA_START = 4'd5,
-    ST_WRITE_DATA_ZERO  = 4'd6,
-    ST_WRITE_DATA_BODY  = 4'd7,
-    ST_BULK_WORDS_START = 4'd8,
-    ST_BULK_WORDS_ZERO  = 4'd9,
-    ST_BULK_WORDS_BODY  = 4'd10,
-    ST_TRAIL_READ       = 4'd11,
-    ST_TRAIL_WRITE      = 4'd12,
-    ST_TRAIL_BULK       = 4'd13,
-    ST_ERROR_SKIP       = 4'd14,
-    ST_CMD_AFTER_S      = 4'd15
+  typedef enum logic [4:0] {
+    ST_IDLE             = 5'd0,
+    ST_CMD_AFTER_B      = 5'd1,
+    ST_ADDR_START       = 5'd2,
+    ST_ADDR_ZERO        = 5'd3,
+    ST_ADDR_BODY        = 5'd4,
+    ST_WRITE_DATA_START = 5'd5,
+    ST_WRITE_DATA_ZERO  = 5'd6,
+    ST_WRITE_DATA_BODY  = 5'd7,
+    ST_BULK_WORDS_START = 5'd8,
+    ST_BULK_WORDS_ZERO  = 5'd9,
+    ST_BULK_WORDS_BODY  = 5'd10,
+    ST_TRAIL_READ       = 5'd11,
+    ST_TRAIL_WRITE      = 5'd12,
+    ST_TRAIL_BULK       = 5'd13,
+    ST_ERROR_SKIP       = 5'd14,
+    ST_CMD_AFTER_S      = 5'd15,
+    ST_CMD_AFTER_BR     = 5'd16,
+    ST_CMD_AFTER_BW     = 5'd17
   } st_state_e;
 
   st_state_e   st_state;
@@ -64,6 +67,7 @@ module sdram_uart_ascii_ctrl #(
   logic [1:0]  r_build_cmd_op;
   logic        r_build_is_status;
   logic        r_build_bulk_is_read;
+  logic        r_build_bulk_is_test;
   logic [31:0] r_build_addr;
   logic [31:0] r_build_data;
   logic [31:0] r_build_words;
@@ -77,6 +81,7 @@ module sdram_uart_ascii_ctrl #(
   logic [1:0]  r_cmd_op;
   logic        r_cmd_is_status;
   logic        r_cmd_bulk_is_read;
+  logic        r_cmd_bulk_is_test;
   logic [20:0] r_cmd_addr;
   logic [31:0] r_cmd_data;
   logic [20:0] r_cmd_words;
@@ -100,6 +105,7 @@ module sdram_uart_ascii_ctrl #(
   assign O_CMD_OP           = r_cmd_op;
   assign O_CMD_IS_STATUS    = r_cmd_is_status;
   assign O_CMD_BULK_IS_READ = r_cmd_bulk_is_read;
+  assign O_CMD_BULK_IS_TEST = r_cmd_bulk_is_test;
   assign O_CMD_ADDR         = r_cmd_addr;
   assign O_CMD_DATA         = r_cmd_data;
   assign O_CMD_WORDS        = r_cmd_words;
@@ -119,6 +125,7 @@ module sdram_uart_ascii_ctrl #(
       r_build_cmd_op      <= ASCII_OP_NONE;
       r_build_is_status   <= 1'b0;
       r_build_bulk_is_read<= 1'b0;
+      r_build_bulk_is_test<= 1'b0;
       r_build_addr        <= '0;
       r_build_data        <= '0;
       r_build_words       <= '0;
@@ -131,6 +138,7 @@ module sdram_uart_ascii_ctrl #(
       r_cmd_op            <= ASCII_OP_NONE;
       r_cmd_is_status     <= 1'b0;
       r_cmd_bulk_is_read  <= 1'b0;
+      r_cmd_bulk_is_test  <= 1'b0;
       r_cmd_addr          <= '0;
       r_cmd_data          <= '0;
       r_cmd_words         <= '0;
@@ -181,6 +189,7 @@ module sdram_uart_ascii_ctrl #(
                 r_cmd_op           <= r_build_cmd_op;
                 r_cmd_is_status    <= r_build_is_status;
                 r_cmd_bulk_is_read <= r_build_bulk_is_read;
+                r_cmd_bulk_is_test <= r_build_bulk_is_test;
                 r_cmd_addr         <= r_build_addr[20:0];
                 r_cmd_data         <= 32'h0;
                 r_cmd_words        <= 21'h0;
@@ -202,6 +211,7 @@ module sdram_uart_ascii_ctrl #(
               r_line_len           <= '0;
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -224,6 +234,7 @@ module sdram_uart_ascii_ctrl #(
                 r_cmd_op           <= r_build_cmd_op;
                 r_cmd_is_status    <= r_build_is_status;
                 r_cmd_bulk_is_read <= r_build_bulk_is_read;
+                r_cmd_bulk_is_test <= r_build_bulk_is_test;
                 r_cmd_addr         <= r_build_addr[20:0];
                 r_cmd_data         <= r_build_data;
                 r_cmd_words        <= 21'h0;
@@ -239,6 +250,7 @@ module sdram_uart_ascii_ctrl #(
               r_line_len           <= '0;
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -268,6 +280,7 @@ module sdram_uart_ascii_ctrl #(
                 r_cmd_op           <= r_build_cmd_op;
                 r_cmd_is_status    <= r_build_is_status;
                 r_cmd_bulk_is_read <= r_build_bulk_is_read;
+                r_cmd_bulk_is_test <= r_build_bulk_is_test;
                 r_cmd_addr         <= r_build_addr[20:0];
                 r_cmd_data         <= 32'h0;
                 r_cmd_words        <= r_build_words[20:0];
@@ -284,6 +297,7 @@ module sdram_uart_ascii_ctrl #(
               r_line_len           <= '0;
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -297,6 +311,7 @@ module sdram_uart_ascii_ctrl #(
               r_cmd_op           <= r_build_cmd_op;
               r_cmd_is_status    <= r_build_is_status;
               r_cmd_bulk_is_read <= r_build_bulk_is_read;
+              r_cmd_bulk_is_test <= r_build_bulk_is_test;
               r_cmd_addr         <= r_build_addr[20:0];
               r_cmd_data         <= 32'h0;
               r_cmd_words        <= 21'h0;
@@ -307,6 +322,7 @@ module sdram_uart_ascii_ctrl #(
               r_line_len           <= '0;
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -320,6 +336,7 @@ module sdram_uart_ascii_ctrl #(
               r_cmd_op           <= r_build_cmd_op;
               r_cmd_is_status    <= r_build_is_status;
               r_cmd_bulk_is_read <= r_build_bulk_is_read;
+              r_cmd_bulk_is_test <= r_build_bulk_is_test;
               r_cmd_addr         <= r_build_addr[20:0];
               r_cmd_data         <= r_build_data;
               r_cmd_words        <= 21'h0;
@@ -334,6 +351,7 @@ module sdram_uart_ascii_ctrl #(
               r_line_len           <= '0;
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -355,6 +373,7 @@ module sdram_uart_ascii_ctrl #(
                 r_cmd_op           <= r_build_cmd_op;
                 r_cmd_is_status    <= r_build_is_status;
                 r_cmd_bulk_is_read <= r_build_bulk_is_read;
+                r_cmd_bulk_is_test <= r_build_bulk_is_test;
                 r_cmd_addr         <= r_build_addr[20:0];
                 r_cmd_data         <= 32'h0;
                 r_cmd_words        <= r_build_words[20:0];
@@ -371,6 +390,7 @@ module sdram_uart_ascii_ctrl #(
               r_line_len           <= '0;
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -379,7 +399,9 @@ module sdram_uart_ascii_ctrl #(
               r_words_nibbles      <= '0;
             end
 
-            ST_CMD_AFTER_S: begin
+            ST_CMD_AFTER_S,
+            ST_CMD_AFTER_BR,
+            ST_CMD_AFTER_BW: begin
               r_err_valid  <= 1'b1;
               r_err_code   <= ERR_BAD_ASCII_FIELD;
               r_err_detail <= 32'h0000_0001;
@@ -388,6 +410,7 @@ module sdram_uart_ascii_ctrl #(
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_is_status    <= 1'b0;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -411,6 +434,7 @@ module sdram_uart_ascii_ctrl #(
               r_line_len           <= '0;
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -426,6 +450,7 @@ module sdram_uart_ascii_ctrl #(
               r_line_len           <= '0;
               r_build_cmd_op       <= ASCII_OP_NONE;
               r_build_bulk_is_read <= 1'b0;
+              r_build_bulk_is_test <= 1'b0;
               r_build_addr         <= '0;
               r_build_data         <= '0;
               r_build_words        <= '0;
@@ -445,6 +470,7 @@ module sdram_uart_ascii_ctrl #(
             r_line_len           <= '0;
             r_build_cmd_op       <= ASCII_OP_NONE;
             r_build_bulk_is_read <= 1'b0;
+            r_build_bulk_is_test <= 1'b0;
             r_build_addr         <= '0;
             r_build_data         <= '0;
             r_build_words        <= '0;
@@ -468,6 +494,7 @@ module sdram_uart_ascii_ctrl #(
                   r_build_cmd_op       <= ASCII_OP_READ;
                   r_build_is_status    <= 1'b0;
                   r_build_bulk_is_read <= 1'b0;
+                  r_build_bulk_is_test <= 1'b0;
                   r_build_addr         <= '0;
                   r_build_data         <= '0;
                   r_build_words        <= '0;
@@ -479,6 +506,7 @@ module sdram_uart_ascii_ctrl #(
                   r_build_cmd_op       <= ASCII_OP_WRITE;
                   r_build_is_status    <= 1'b0;
                   r_build_bulk_is_read <= 1'b0;
+                  r_build_bulk_is_test <= 1'b0;
                   r_build_addr         <= '0;
                   r_build_data         <= '0;
                   r_build_words        <= '0;
@@ -498,10 +526,11 @@ module sdram_uart_ascii_ctrl #(
 
               ST_CMD_AFTER_B: begin
                 if (curr_byte == ASCII_CMD_R) begin
-                  st_state             <= ST_ADDR_START;
+                  st_state             <= ST_CMD_AFTER_BR;
                   r_build_cmd_op       <= ASCII_OP_BULK;
                   r_build_is_status    <= 1'b0;
                   r_build_bulk_is_read <= 1'b1;
+                  r_build_bulk_is_test <= 1'b0;
                   r_build_addr         <= '0;
                   r_build_data         <= '0;
                   r_build_words        <= '0;
@@ -509,10 +538,11 @@ module sdram_uart_ascii_ctrl #(
                   r_data_nibbles       <= '0;
                   r_words_nibbles      <= '0;
                 end else if (curr_byte == ASCII_CMD_W) begin
-                  st_state             <= ST_ADDR_START;
+                  st_state             <= ST_CMD_AFTER_BW;
                   r_build_cmd_op       <= ASCII_OP_BULK;
                   r_build_is_status    <= 1'b0;
                   r_build_bulk_is_read <= 1'b0;
+                  r_build_bulk_is_test <= 1'b0;
                   r_build_addr         <= '0;
                   r_build_data         <= '0;
                   r_build_words        <= '0;
@@ -526,12 +556,39 @@ module sdram_uart_ascii_ctrl #(
                 end
               end
 
+              ST_CMD_AFTER_BR: begin
+                if (curr_byte == ASCII_CMD_T) begin
+                  st_state <= ST_ADDR_START;
+                  r_build_bulk_is_test <= 1'b1;
+                end else if (is_ascii_space(curr_byte)) begin
+                  st_state <= ST_ADDR_START;
+                end else begin
+                  st_state          <= ST_ERROR_SKIP;
+                  r_skip_err_code   <= ERR_BAD_ASCII_CMD;
+                  r_skip_err_detail <= {16'h0, ASCII_CMD_B, ASCII_CMD_R};
+                end
+              end
+
+              ST_CMD_AFTER_BW: begin
+                if (curr_byte == ASCII_CMD_T) begin
+                  st_state <= ST_ADDR_START;
+                  r_build_bulk_is_test <= 1'b1;
+                end else if (is_ascii_space(curr_byte)) begin
+                  st_state <= ST_ADDR_START;
+                end else begin
+                  st_state          <= ST_ERROR_SKIP;
+                  r_skip_err_code   <= ERR_BAD_ASCII_CMD;
+                  r_skip_err_detail <= {16'h0, ASCII_CMD_B, ASCII_CMD_W};
+                end
+              end
+
               ST_CMD_AFTER_S: begin
                 if (curr_byte == ASCII_CMD_R) begin
                   st_state             <= ST_ADDR_START;
                   r_build_cmd_op       <= ASCII_OP_READ;
                   r_build_is_status    <= 1'b1;
                   r_build_bulk_is_read <= 1'b0;
+                  r_build_bulk_is_test <= 1'b0;
                   r_build_addr         <= '0;
                   r_build_data         <= '0;
                   r_build_words        <= '0;
@@ -543,6 +600,7 @@ module sdram_uart_ascii_ctrl #(
                   r_build_cmd_op       <= ASCII_OP_WRITE;
                   r_build_is_status    <= 1'b1;
                   r_build_bulk_is_read <= 1'b0;
+                  r_build_bulk_is_test <= 1'b0;
                   r_build_addr         <= '0;
                   r_build_data         <= '0;
                   r_build_words        <= '0;

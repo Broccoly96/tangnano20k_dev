@@ -1,2 +1,0 @@
-bank,row,col_start,burst_words,test_words,outcome,summary,mem_summary,current_addr,expected,last_read,last_status,fail_addr,fail_expected,fail_actual,retry_summary,retry_data1,retry_data2,ctrl_summary,handshake,latest_rd
-3,2,5,26,208,FAIL,0x030E0398,0x00181A0D,0x00180205,0x00000017,0x00000019,0x00C00CAB,0x0018021C,0x00000017,0x00000019,0x03030463,0x00000019,0x00000019,0xE257181A,0x47930038,0xFFFFFFFF

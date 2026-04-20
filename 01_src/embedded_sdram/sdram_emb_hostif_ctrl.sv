@@ -44,9 +44,7 @@ module sdram_emb_hostif_ctrl #(
   output logic [31:0] O_HOST_EVT_ARG2,
   input  logic        I_HOST_EVT_READY,
   input  logic [31:0] I_SDRC_RD_DATA,
-  input  logic        I_SDRC_BUSY_N,
-  input  logic        I_SDRC_RD_VALID,
-  input  logic        I_SDRC_WRD_ACK,
+  input  logic        I_SDRC_CMD_ACK,
   input  logic        I_SDRC_INIT_DONE,
   output logic        O_INIT_DONE,
   output logic        O_TEST_ACTIVE,
@@ -54,27 +52,38 @@ module sdram_emb_hostif_ctrl #(
   output logic        O_TEST_FAIL,
   output logic        O_HOST_BUSY,
   output logic        O_SDRC_RST_N,
-  output logic        O_SDRC_WR_N,
-  output logic        O_SDRC_RD_N,
+  output logic        O_SDRC_CMD_EN,
+  output logic [2:0]  O_SDRC_CMD,
+  output logic        O_SDRC_PRECHARGE_CTRL,
   output logic [20:0] O_SDRC_ADDR,
   output logic [7:0]  O_SDRC_DATA_LEN,
   output logic [3:0]  O_SDRC_DQM,
-  output logic [31:0] O_SDRC_WR_DATA
+  output logic [31:0] O_SDRC_WR_DATA,
+  output logic        O_SDRC_READ_SAMPLE_VALID
 );
 
-  logic        l_test_wr_n;
-  logic        l_test_rd_n;
+  import sdram_hs_cmd_pkg::*;
+
+  logic        l_test_cmd_en;
+  logic [2:0]  l_test_cmd;
+  logic        l_test_precharge_ctrl;
   logic [20:0] l_test_addr;
   logic [7:0]  l_test_data_len;
   logic [3:0]  l_test_dqm;
   logic [31:0] l_test_wr_data;
-  logic        l_host_wr_n;
-  logic        l_host_rd_n;
+  logic        l_test_pair_active;
+  logic        l_test_read_sample_valid;
+  logic        l_host_cmd_en;
+  logic [2:0]  l_host_cmd;
+  logic        l_host_precharge_ctrl;
   logic [20:0] l_host_addr;
   logic [7:0]  l_host_data_len;
   logic [3:0]  l_host_dqm;
   logic [31:0] l_host_wr_data;
+  logic        l_host_pair_active;
+  logic        l_host_read_sample_valid;
   logic        l_host_sdrc_active;
+  logic        l_host_sdrc_selected;
   logic        l_host_access_enable;
   logic [31:0] l_host_dbg_summary;
   logic [31:0] l_host_dbg_detail;
@@ -107,6 +116,23 @@ module sdram_emb_hostif_ctrl #(
   logic        l_sdrc_reset_active;
   logic        l_manual_selftest_running;
   logic        r_manual_selftest_pending;
+  logic        l_sdrc_ready_for_client;
+  logic        l_any_pair_active;
+  logic        l_refresh_can_start;
+  logic        l_refresh_cmd_en;
+  logic        l_test_cmd_ack;
+  logic        l_host_cmd_ack;
+  logic [31:0] l_refresh_status_word;
+
+  localparam int unsigned REFRESH_INTERVAL_CYCLES =
+    sdram_hs_cmd_pkg::SDRAM_HS_REFRESH_INTERVAL_CYCLES;
+  localparam int unsigned REFRESH_CNT_W = $clog2(REFRESH_INTERVAL_CYCLES + 1);
+
+  logic [REFRESH_CNT_W-1:0] r_refresh_cnt;
+  logic        r_refresh_due;
+  logic        r_refresh_active;
+  logic        r_refresh_cmd_sent;
+  logic [7:0]  r_refresh_defer_count;
 
   localparam int unsigned SDRC_RESET_CNT_W =
     (SDRC_RESET_HOLD_CYCLES <= 1) ? 1 : $clog2(SDRC_RESET_HOLD_CYCLES + 1);
@@ -136,20 +162,58 @@ module sdram_emb_hostif_ctrl #(
   assign O_RAW_TX_VALID   = 1'b0;
   assign O_RAW_TX_DATA    = 8'h00;
 
-  // Self-test owns SDRC until PASS. After PASS, the UART host may issue
+  assign l_any_pair_active = l_test_pair_active || l_host_pair_active;
+  assign l_host_sdrc_selected = (l_host_sdrc_active == 1'b1);
+  assign l_refresh_can_start = l_sdrc_init_done_safe &&
+                               r_refresh_due &&
+                               !r_refresh_active &&
+                               !l_any_pair_active;
+  assign l_refresh_cmd_en = r_refresh_active && !r_refresh_cmd_sent;
+  assign l_sdrc_ready_for_client = l_sdrc_local_rst_n &&
+                                   l_sdrc_init_done_safe &&
+                                   !r_refresh_active &&
+                                   (!r_refresh_due || l_any_pair_active);
+  assign l_test_cmd_ack = (!r_refresh_active && !l_host_sdrc_selected) ?
+                          I_SDRC_CMD_ACK : 1'b0;
+  assign l_host_cmd_ack = (!r_refresh_active && l_host_sdrc_selected) ?
+                          I_SDRC_CMD_ACK : 1'b0;
+
+  // Self-test owns SDRC until PASS. Refresh can preempt only between
+  // ACTIVE/read-write command pairs. After PASS, the UART host may issue
   // linear single-word SDRAM accesses through the bridge access engine.
-  assign O_SDRC_WR_N      = !l_sdrc_local_rst_n ? 1'b1 :
-                            (l_host_sdrc_active ? l_host_wr_n : l_test_wr_n);
-  assign O_SDRC_RD_N      = !l_sdrc_local_rst_n ? 1'b1 :
-                            (l_host_sdrc_active ? l_host_rd_n : l_test_rd_n);
+  assign O_SDRC_CMD_EN = !l_sdrc_local_rst_n ? 1'b0 :
+                         (l_refresh_cmd_en ? 1'b1 :
+                          (l_host_sdrc_selected ? l_host_cmd_en : l_test_cmd_en));
+  assign O_SDRC_CMD = !l_sdrc_local_rst_n ? SDRAM_HS_CMD_NOP :
+                      (l_refresh_cmd_en ? SDRAM_HS_CMD_AUTO_REFRESH :
+                       (l_host_sdrc_selected ? l_host_cmd : l_test_cmd));
+  assign O_SDRC_PRECHARGE_CTRL = !l_sdrc_local_rst_n ? 1'b0 :
+                                 (l_refresh_cmd_en ? 1'b0 :
+                                  (l_host_sdrc_selected ? l_host_precharge_ctrl :
+                                                        l_test_precharge_ctrl));
   assign O_SDRC_ADDR      = !l_sdrc_local_rst_n ? 21'h00000 :
-                            (l_host_sdrc_active ? l_host_addr : l_test_addr);
+                            (l_host_sdrc_selected ? l_host_addr : l_test_addr);
   assign O_SDRC_DATA_LEN  = !l_sdrc_local_rst_n ? 8'h00 :
-                            (l_host_sdrc_active ? l_host_data_len : l_test_data_len);
+                            (l_host_sdrc_selected ? l_host_data_len : l_test_data_len);
   assign O_SDRC_DQM       = !l_sdrc_local_rst_n ? 4'h0 :
-                            (l_host_sdrc_active ? l_host_dqm : l_test_dqm);
+                            (l_host_sdrc_selected ? l_host_dqm : l_test_dqm);
   assign O_SDRC_WR_DATA   = !l_sdrc_local_rst_n ? 32'h0000_0000 :
-                            (l_host_sdrc_active ? l_host_wr_data : l_test_wr_data);
+                            (l_host_sdrc_selected ? l_host_wr_data : l_test_wr_data);
+  assign O_SDRC_READ_SAMPLE_VALID = !l_sdrc_local_rst_n ? 1'b0 :
+                                    (l_host_sdrc_selected ? l_host_read_sample_valid :
+                                                          l_test_read_sample_valid);
+  assign l_refresh_status_word = {
+    8'h52,
+    r_refresh_due,
+    r_refresh_active,
+    r_refresh_cmd_sent,
+    l_refresh_can_start,
+    l_any_pair_active,
+    l_sdrc_ready_for_client,
+    2'b00,
+    r_refresh_defer_count,
+    r_refresh_cnt[7:0]
+  };
 
   // Holds only the SDRC and selftest logic in reset after a manual trigger.
   // The UART/status bridge remains live so the host can receive WRITE_ACK and
@@ -178,6 +242,56 @@ module sdram_emb_hostif_ctrl #(
     end
   end
 
+  // Generates periodic AUTO_REFRESH commands for the HS IP. Refresh requests
+  // are allowed to wait while an ACTIVE/read-write pair is in progress, but a
+  // pending refresh blocks the next ACTIVE launch until the refresh completes.
+  always_ff @(posedge I_CLK or negedge I_RST_N) begin
+    if (!I_RST_N) begin
+      r_refresh_cnt         <= '0;
+      r_refresh_due         <= 1'b0;
+      r_refresh_active      <= 1'b0;
+      r_refresh_cmd_sent    <= 1'b0;
+      r_refresh_defer_count <= 8'h00;
+    end else if (!l_sdrc_init_done_safe) begin
+      r_refresh_cnt         <= '0;
+      r_refresh_due         <= 1'b0;
+      r_refresh_active      <= 1'b0;
+      r_refresh_cmd_sent    <= 1'b0;
+      r_refresh_defer_count <= 8'h00;
+    end else begin
+      if (!r_refresh_due && !r_refresh_active) begin
+        if (r_refresh_cnt >= REFRESH_INTERVAL_CYCLES - 1) begin
+          r_refresh_due <= 1'b1;
+          r_refresh_cnt <= '0;
+        end else begin
+          r_refresh_cnt <= r_refresh_cnt + 1'b1;
+        end
+      end
+
+      if (r_refresh_due && l_any_pair_active && !r_refresh_active &&
+          (r_refresh_defer_count != 8'hFF)) begin
+        r_refresh_defer_count <= r_refresh_defer_count + 1'b1;
+      end
+
+      if (l_refresh_can_start) begin
+        r_refresh_active   <= 1'b1;
+        r_refresh_cmd_sent <= 1'b0;
+      end
+
+      if (l_refresh_cmd_en) begin
+        r_refresh_cmd_sent <= 1'b1;
+      end
+
+      if (r_refresh_active && I_SDRC_CMD_ACK) begin
+        r_refresh_active      <= 1'b0;
+        r_refresh_due         <= 1'b0;
+        r_refresh_cmd_sent    <= 1'b0;
+        r_refresh_defer_count <= 8'h00;
+        r_refresh_cnt         <= '0;
+      end
+    end
+  end
+
   sdram_memtest_ctrl #(
     .BURST_WORDS(MEMTEST_BURST_WORDS),
     .BURST_COUNT(MEMTEST_BURST_COUNT),
@@ -193,16 +307,18 @@ module sdram_emb_hostif_ctrl #(
     .I_CLK                (I_CLK),
     .I_RST_N              (l_sdrc_local_rst_n),
     .I_SDRC_INIT_DONE     (l_sdrc_init_done_safe),
-    .I_SDRC_BUSY_N        (I_SDRC_BUSY_N),
-    .I_SDRC_WRD_ACK       (I_SDRC_WRD_ACK),
-    .I_SDRC_RD_VALID      (I_SDRC_RD_VALID),
+    .I_SDRC_READY         (l_sdrc_ready_for_client),
+    .I_SDRC_CMD_ACK       (l_test_cmd_ack),
     .I_SDRC_RD_DATA       (I_SDRC_RD_DATA),
-    .O_SDRC_WR_N          (l_test_wr_n),
-    .O_SDRC_RD_N          (l_test_rd_n),
+    .O_SDRC_CMD_EN        (l_test_cmd_en),
+    .O_SDRC_CMD           (l_test_cmd),
+    .O_SDRC_PRECHARGE_CTRL(l_test_precharge_ctrl),
     .O_SDRC_ADDR          (l_test_addr),
     .O_SDRC_DATA_LEN      (l_test_data_len),
     .O_SDRC_DQM           (l_test_dqm),
     .O_SDRC_WR_DATA       (l_test_wr_data),
+    .O_SDRC_PAIR_ACTIVE   (l_test_pair_active),
+    .O_READ_SAMPLE_VALID  (l_test_read_sample_valid),
     .O_TEST_ACTIVE        (l_memtest_test_active),
     .O_TEST_PASS          (l_memtest_test_pass),
     .O_TEST_FAIL          (l_memtest_test_fail),
@@ -236,9 +352,11 @@ module sdram_emb_hostif_ctrl #(
     .I_TEST_FAIL            (O_TEST_FAIL),
     .I_HOST_BUSY            (O_HOST_BUSY),
     .I_SDRC_RESET_ACTIVE    (l_sdrc_reset_active),
-    .I_SDRC_BUSY_N          (I_SDRC_BUSY_N),
-    .I_SDRC_RD_VALID        (I_SDRC_RD_VALID),
-    .I_SDRC_WRD_ACK         (I_SDRC_WRD_ACK),
+    .I_SDRC_CMD_EN          (O_SDRC_CMD_EN),
+    .I_SDRC_CMD             (O_SDRC_CMD),
+    .I_SDRC_CMD_ACK         (I_SDRC_CMD_ACK),
+    .I_SDRC_READ_SAMPLE_VALID(O_SDRC_READ_SAMPLE_VALID),
+    .I_SDRC_REFRESH_STATUS  (l_refresh_status_word),
     .I_SDRC_RD_DATA         (I_SDRC_RD_DATA),
     .I_MEMTEST_SUMMARY      (l_memtest_summary),
     .I_MEMTEST_STATE        (l_memtest_state),
@@ -274,19 +392,21 @@ module sdram_emb_hostif_ctrl #(
     .O_RAW_TX_DATA   (),
     .I_RAW_TX_READY  (I_RAW_TX_READY),
     .I_SDRC_INIT_DONE(l_sdrc_init_done_safe),
-    .I_SDRC_BUSY_N   (I_SDRC_BUSY_N),
-    .I_SDRC_WRD_ACK  (I_SDRC_WRD_ACK),
-    .I_SDRC_RD_VALID (I_SDRC_RD_VALID),
+    .I_SDRC_READY    (l_sdrc_ready_for_client),
+    .I_SDRC_CMD_ACK  (l_host_cmd_ack),
     .I_SDRC_RD_DATA  (I_SDRC_RD_DATA),
     .I_STATUS_RD_DATA(l_status_rd_data),
     .O_STATUS_ADDR   (l_status_addr),
     .O_SELFTEST_RESTART_REQ(l_selftest_restart_req),
-    .O_SDRC_WR_N     (l_host_wr_n),
-    .O_SDRC_RD_N     (l_host_rd_n),
+    .O_SDRC_CMD_EN   (l_host_cmd_en),
+    .O_SDRC_CMD      (l_host_cmd),
+    .O_SDRC_PRECHARGE_CTRL(l_host_precharge_ctrl),
     .O_SDRC_ADDR     (l_host_addr),
     .O_SDRC_DATA_LEN (l_host_data_len),
     .O_SDRC_DQM      (l_host_dqm),
     .O_SDRC_WR_DATA  (l_host_wr_data),
+    .O_SDRC_PAIR_ACTIVE(l_host_pair_active),
+    .O_READ_SAMPLE_VALID(l_host_read_sample_valid),
     .O_SDRC_ACTIVE   (l_host_sdrc_active),
     .O_HOST_DBG_SUMMARY(l_host_dbg_summary),
     .O_HOST_DBG_DETAIL (l_host_dbg_detail),

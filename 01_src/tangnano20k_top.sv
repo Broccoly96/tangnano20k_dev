@@ -175,26 +175,27 @@ module tangnano20k_top(
   logic                          I_sdrc_rst_n;
   logic                          I_sdrc_clk;
   logic                          I_sdram_clk;
-  logic                          I_sdrc_selfrefresh;
-  logic                          I_sdrc_power_down;
-  logic                          I_sdrc_wr_n;
-  logic                          I_sdrc_rd_n;
+  logic                          I_sdrc_cmd_en;
+  logic [2:0]                    I_sdrc_cmd;
+  logic                          I_sdrc_precharge_ctrl;
+  logic                          I_sdram_selfrefresh;
+  logic                          I_sdram_power_down;
   logic [20:0]                   I_sdrc_addr;
   logic [7:0]                    I_sdrc_data_len;
   logic [3:0]                    I_sdrc_dqm;
   logic [31:0]                   I_sdrc_data;
   logic [31:0]                   O_sdrc_data;
   logic                          O_sdrc_init_done;
-  logic                          O_sdrc_busy_n;
-  logic                          O_sdrc_rd_valid;
-  logic                          O_sdrc_wrd_ack;
-  logic                          l_hostif_sdrc_wr_n;
-  logic                          l_hostif_sdrc_rd_n;
+  logic                          O_sdrc_cmd_ack;
+  logic                          l_hostif_sdrc_cmd_en;
+  logic [2:0]                    l_hostif_sdrc_cmd;
+  logic                          l_hostif_sdrc_precharge_ctrl;
   logic                          l_hostif_sdrc_rst_n;
   logic [20:0]                   l_hostif_sdrc_addr;
   logic [7:0]                    l_hostif_sdrc_data_len;
   logic [3:0]                    l_hostif_sdrc_dqm;
   logic [31:0]                   l_hostif_sdrc_data;
+  logic                          l_hostif_sdrc_read_sample_valid;
   //---------------------------------------------------------------------------------------------
   // PLL
   //---------------------------------------------------------------------------------------------
@@ -224,10 +225,11 @@ module tangnano20k_top(
   assign I_sdrc_rst_n       = l_hostif_sdrc_rst_n;
   assign I_sdrc_clk         = clk_48m_sdram;
   assign I_sdram_clk        = clk_48m_sdram;
-  assign I_sdrc_selfrefresh = 1'b0;
-  assign I_sdrc_power_down  = 1'b0;
-  assign I_sdrc_wr_n        = l_hostif_sdrc_wr_n;
-  assign I_sdrc_rd_n        = l_hostif_sdrc_rd_n;
+  assign I_sdrc_cmd_en      = l_hostif_sdrc_cmd_en;
+  assign I_sdrc_cmd         = l_hostif_sdrc_cmd;
+  assign I_sdrc_precharge_ctrl = l_hostif_sdrc_precharge_ctrl;
+  assign I_sdram_selfrefresh = 1'b0;
+  assign I_sdram_power_down  = 1'b0;
   assign I_sdrc_addr        = l_hostif_sdrc_addr;
   assign I_sdrc_data_len    = l_hostif_sdrc_data_len;
   assign I_sdrc_dqm         = l_hostif_sdrc_dqm;
@@ -400,19 +402,19 @@ module tangnano20k_top(
     .O_HOST_BUSY      (l_sdram_host_busy),
     .O_SDRC_RST_N     (l_hostif_sdrc_rst_n),
     .I_SDRC_RD_DATA   (O_sdrc_data),
-    .I_SDRC_BUSY_N    (O_sdrc_busy_n),
-    .I_SDRC_RD_VALID  (O_sdrc_rd_valid),
-    .I_SDRC_WRD_ACK   (O_sdrc_wrd_ack),
+    .I_SDRC_CMD_ACK   (O_sdrc_cmd_ack),
     .I_SDRC_INIT_DONE (O_sdrc_init_done),
-    .O_SDRC_WR_N      (l_hostif_sdrc_wr_n),
-    .O_SDRC_RD_N      (l_hostif_sdrc_rd_n),
+    .O_SDRC_CMD_EN    (l_hostif_sdrc_cmd_en),
+    .O_SDRC_CMD       (l_hostif_sdrc_cmd),
+    .O_SDRC_PRECHARGE_CTRL(l_hostif_sdrc_precharge_ctrl),
     .O_SDRC_ADDR      (l_hostif_sdrc_addr),
     .O_SDRC_DATA_LEN  (l_hostif_sdrc_data_len),
     .O_SDRC_DQM       (l_hostif_sdrc_dqm),
-    .O_SDRC_WR_DATA   (l_hostif_sdrc_data)
+    .O_SDRC_WR_DATA   (l_hostif_sdrc_data),
+    .O_SDRC_READ_SAMPLE_VALID(l_hostif_sdrc_read_sample_valid)
   );
 
-	embedded_sdram u_embedded_sdram(
+	embedded_sdram_hs u_embedded_sdram_hs(
 		.O_sdram_clk        (O_sdram_clk), //output O_sdram_clk
 		.O_sdram_cke        (O_sdram_cke), //output O_sdram_cke
 		.O_sdram_cs_n       (O_sdram_cs_n), //output O_sdram_cs_n
@@ -426,19 +428,18 @@ module tangnano20k_top(
 		.I_sdrc_rst_n       (I_sdrc_rst_n), //input I_sdrc_rst_n
 		.I_sdrc_clk         (I_sdrc_clk), //input I_sdrc_clk
 		.I_sdram_clk        (I_sdram_clk), //input I_sdram_clk
-		.I_sdrc_selfrefresh (I_sdrc_selfrefresh), //input I_sdrc_selfrefresh
-		.I_sdrc_power_down  (I_sdrc_power_down), //input I_sdrc_power_down
-		.I_sdrc_wr_n        (I_sdrc_wr_n), //input I_sdrc_wr_n
-		.I_sdrc_rd_n        (I_sdrc_rd_n), //input I_sdrc_rd_n
+		.I_sdrc_cmd_en      (I_sdrc_cmd_en), //input I_sdrc_cmd_en
+		.I_sdrc_cmd         (I_sdrc_cmd), //input [2:0] I_sdrc_cmd
+		.I_sdrc_precharge_ctrl(I_sdrc_precharge_ctrl), //input I_sdrc_precharge_ctrl
+		.I_sdram_power_down (I_sdram_power_down), //input I_sdram_power_down
+		.I_sdram_selfrefresh(I_sdram_selfrefresh), //input I_sdram_selfrefresh
 		.I_sdrc_addr        (I_sdrc_addr), //input [20:0] I_sdrc_addr
-		.I_sdrc_data_len    (I_sdrc_data_len), //input [7:0] I_sdrc_data_len
 		.I_sdrc_dqm         (I_sdrc_dqm), //input [3:0] I_sdrc_dqm
 		.I_sdrc_data        (I_sdrc_data), //input [31:0] I_sdrc_data
+		.I_sdrc_data_len    (I_sdrc_data_len), //input [7:0] I_sdrc_data_len
 		.O_sdrc_data        (O_sdrc_data), //output [31:0] O_sdrc_data
 		.O_sdrc_init_done   (O_sdrc_init_done), //output O_sdrc_init_done
-		.O_sdrc_busy_n      (O_sdrc_busy_n), //output O_sdrc_busy_n
-		.O_sdrc_rd_valid    (O_sdrc_rd_valid), //output O_sdrc_rd_valid
-		.O_sdrc_wrd_ack     (O_sdrc_wrd_ack) //output O_sdrc_wrd_ack
+		.O_sdrc_cmd_ack     (O_sdrc_cmd_ack) //output O_sdrc_cmd_ack
 	);
 
   //---------------------------------------------------------------------------------------------

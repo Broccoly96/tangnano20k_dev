@@ -17,6 +17,7 @@ module testbench;
   logic [1:0]  tb_cmd_op;
   logic        tb_cmd_is_status;
   logic        tb_cmd_bulk_is_read;
+  logic        tb_cmd_bulk_is_test;
   logic [20:0] tb_cmd_addr;
   logic [31:0] tb_cmd_data;
   logic [20:0] tb_cmd_words;
@@ -56,6 +57,7 @@ module testbench;
     .O_CMD_OP         (tb_cmd_op),
     .O_CMD_IS_STATUS  (tb_cmd_is_status),
     .O_CMD_BULK_IS_READ(tb_cmd_bulk_is_read),
+    .O_CMD_BULK_IS_TEST(tb_cmd_bulk_is_test),
     .O_CMD_ADDR       (tb_cmd_addr),
     .O_CMD_DATA       (tb_cmd_data),
     .O_CMD_WORDS      (tb_cmd_words),
@@ -97,6 +99,7 @@ module testbench;
     input logic [1:0]  exp_op,
     input logic        exp_is_status,
     input logic        exp_bulk_is_read,
+    input logic        exp_bulk_is_test,
     input logic [20:0] exp_addr,
     input logic [31:0] exp_data,
     input logic [20:0] exp_words,
@@ -116,6 +119,7 @@ module testbench;
       if ((tb_cmd_op !== exp_op) ||
           (tb_cmd_is_status !== exp_is_status) ||
           (tb_cmd_bulk_is_read !== exp_bulk_is_read) ||
+          (tb_cmd_bulk_is_test !== exp_bulk_is_test) ||
           (tb_cmd_addr !== exp_addr) ||
           (tb_cmd_data !== exp_data) ||
           (tb_cmd_words !== exp_words)) begin
@@ -123,11 +127,12 @@ module testbench;
           1,
           "ASCII CTRL TB",
           $sformatf(
-            "cmd mismatch %s op=%0d status=%0b bulk=%0b addr=0x%05h data=0x%08h words=0x%05h",
+            "cmd mismatch %s op=%0d status=%0b bulk_rd=%0b bulk_test=%0b addr=0x%05h data=0x%08h words=0x%05h",
             label,
             tb_cmd_op,
             tb_cmd_is_status,
             tb_cmd_bulk_is_read,
+            tb_cmd_bulk_is_test,
             tb_cmd_addr,
             tb_cmd_data,
             tb_cmd_words

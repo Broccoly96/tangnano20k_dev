@@ -20,7 +20,10 @@ HOST_EVT_READ_RSP = 0x31
 HOST_EVT_BULK_OK = 0x32
 HOST_EVT_BULK_ERR = 0x33
 HOST_EVT_BULK_PROGRESS = 0x34
+HOST_EVT_BURST_ERR = HOST_EVT_BULK_ERR
+HOST_EVT_BURST_DATA = HOST_EVT_BULK_PROGRESS
 HOST_EVT_BULK_DONE = 0x35
+HOST_EVT_BURST_DONE = HOST_EVT_BULK_DONE
 HOST_EVT_BULK_ABORT = 0x36
 HOST_EVT_CMD_ERR = 0x3E
 
@@ -31,6 +34,8 @@ CMD_WRITE = "W"
 CMD_STATUS_WRITE = "SW"
 CMD_BULK_READ = "BR"
 CMD_BULK_WRITE = "BW"
+CMD_BURST_TEST_READ = "BRT"
+CMD_BURST_TEST_WRITE = "BWT"
 
 BULK_SOF0 = 0x55
 BULK_SOF1 = 0xAA
@@ -40,6 +45,15 @@ BULK_RD_DATA = 0x81
 BULK_RD_END = 0x82
 BULK_ABORT = 0xE0
 MAX_BULK_PAYLOAD_BYTES = 104
+
+
+@dataclass(frozen=True)
+class BurstDataPacket:
+    packet_id: int
+    packet_count: int
+    first_word_index: int
+    valid_word_count: int
+    words: tuple[int, ...]
 
 
 def parse_u21(text: str) -> int:
@@ -63,9 +77,19 @@ def next_src_steps(current_idx: int, target_idx: int, num_src: int = UART_LOG_NU
 def build_ascii_command(command: str, *fields: int) -> bytes:
     parts = [command]
     for field in fields:
-      if command in (CMD_BULK_READ, CMD_BULK_WRITE) and len(parts) == 2:
+      if command in (
+          CMD_BULK_READ,
+          CMD_BULK_WRITE,
+          CMD_BURST_TEST_READ,
+          CMD_BURST_TEST_WRITE,
+      ) and len(parts) == 2:
         parts.append(f"{field:05X}")
-      elif command in (CMD_BULK_READ, CMD_BULK_WRITE) and len(parts) == 3:
+      elif command in (
+          CMD_BULK_READ,
+          CMD_BULK_WRITE,
+          CMD_BURST_TEST_READ,
+          CMD_BURST_TEST_WRITE,
+      ) and len(parts) == 3:
         parts.append(f"{field:05X}")
       elif command in (CMD_WRITE, CMD_STATUS_WRITE) and len(parts) == 2:
         parts.append(f"{field:08X}")
@@ -96,6 +120,34 @@ def build_bulk_read_command(addr: int, words: int) -> bytes:
 
 def build_bulk_write_command(addr: int, words: int) -> bytes:
     return build_ascii_command(CMD_BULK_WRITE, addr, words)
+
+
+def build_burst_test_read_command(addr: int, words: int) -> bytes:
+    return build_ascii_command(CMD_BURST_TEST_READ, addr, words)
+
+
+def build_burst_test_write_command(addr: int, words: int) -> bytes:
+    return build_ascii_command(CMD_BURST_TEST_WRITE, addr, words)
+
+
+def decode_burst_data_packet(arg0: int, arg1: int, arg2: int) -> BurstDataPacket:
+    packet_id = (arg0 >> 24) & 0xFF
+    packet_count = (arg0 >> 16) & 0xFF
+    first_word_index = (arg0 >> 8) & 0xFF
+    valid_word_count = arg0 & 0xFF
+    if valid_word_count == 1:
+        payload_words = (arg1 & 0xFFFF_FFFF,)
+    elif valid_word_count == 2:
+        payload_words = (arg1 & 0xFFFF_FFFF, arg2 & 0xFFFF_FFFF)
+    else:
+        payload_words = tuple()
+    return BurstDataPacket(
+        packet_id=packet_id,
+        packet_count=packet_count,
+        first_word_index=first_word_index,
+        valid_word_count=valid_word_count,
+        words=payload_words,
+    )
 
 
 def crc16_ccitt_false(data: bytes) -> int:

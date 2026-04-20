@@ -2,12 +2,12 @@
 //////////////////////////////////////////////////////////////////////////////////
 // File         : sdram_status_reg_map.sv
 // Description  : SDRAM debug register map for uart_log_cli host access.
-//                - Base map uses 64 bytes, byte addressed, 32-bit word reads
-//                  at 4-byte steps.
-//                - Temporary host debug window starts at 0x0040 and exposes
+//                - Base HS status map uses 80 bytes, byte addressed, 32-bit
+//                  word reads at 4-byte steps.
+//                - Temporary host debug window starts at 0x004C and exposes
 //                  the latest 26-beat host read capture.
 //                - Exposes self-test progress, fail context, retry results, and
-//                  live Gowin SDRC handshake status.
+//                  live Gowin SDRC HS command and refresh status.
 //                - Address 0x003C is also a write-only control register:
 //                  write bit0=1 to reset the SDRC and rerun the selftest.
 //////////////////////////////////////////////////////////////////////////////////
@@ -22,9 +22,11 @@ module sdram_status_reg_map #(
   input  logic        I_TEST_FAIL,
   input  logic        I_HOST_BUSY,
   input  logic        I_SDRC_RESET_ACTIVE,
-  input  logic        I_SDRC_BUSY_N,
-  input  logic        I_SDRC_RD_VALID,
-  input  logic        I_SDRC_WRD_ACK,
+  input  logic        I_SDRC_CMD_EN,
+  input  logic [2:0]  I_SDRC_CMD,
+  input  logic        I_SDRC_CMD_ACK,
+  input  logic        I_SDRC_READ_SAMPLE_VALID,
+  input  logic [31:0] I_SDRC_REFRESH_STATUS,
   input  logic [31:0] I_SDRC_RD_DATA,
   input  logic [31:0] I_MEMTEST_SUMMARY,
   input  logic [7:0]  I_MEMTEST_STATE,
@@ -48,7 +50,7 @@ module sdram_status_reg_map #(
 );
 
   localparam logic [7:0] MAP_VERSION = 8'h05;
-  localparam logic [5:0] HOST_DBG_BEAT_BASE_WORD = 6'h12;
+  localparam logic [5:0] HOST_DBG_BEAT_BASE_WORD = 6'h13;
 
   logic [31:0] s_summary_word;
   logic [31:0] s_handshake_word;
@@ -73,22 +75,24 @@ module sdram_status_reg_map #(
 
   always_comb begin
     s_handshake_word = 32'h0000_0000;
-    s_handshake_word[31:24] = 8'h47;
-    s_handshake_word[23]    = I_SDRC_BUSY_N;
-    s_handshake_word[22]    = I_SDRC_RD_VALID;
-    s_handshake_word[21]    = I_SDRC_WRD_ACK;
-    s_handshake_word[20]    = I_INIT_DONE;
-    s_handshake_word[19]    = I_TEST_ACTIVE;
-    s_handshake_word[18]    = I_TEST_PASS;
-    s_handshake_word[17]    = I_TEST_FAIL;
+    s_handshake_word[31:24] = 8'h48;
+    s_handshake_word[23]    = I_SDRC_CMD_EN;
+    s_handshake_word[22:20] = I_SDRC_CMD;
+    s_handshake_word[19]    = I_SDRC_CMD_ACK;
+    s_handshake_word[18]    = I_SDRC_READ_SAMPLE_VALID;
+    s_handshake_word[17]    = I_INIT_DONE;
     s_handshake_word[16]    = I_HOST_BUSY;
-    s_handshake_word[15:0]  = I_ADDR;
+    s_handshake_word[15]    = I_TEST_ACTIVE;
+    s_handshake_word[14]    = I_TEST_PASS;
+    s_handshake_word[13]    = I_TEST_FAIL;
+    s_handshake_word[12:0]  = I_ADDR[12:0];
   end
 
   // Maps each 32-bit status word onto a 4-byte aligned byte address.
   // 0x00..0x3C is the stable selftest/status map.
   // 0x40..0x44 is host access-engine debug summary/detail.
-  // 0x48..0xAC is the latest host read burst capture, beat0..beat25.
+  // 0x48 is HS refresh scheduler status.
+  // 0x4C..0xB0 is the latest host read burst capture, beat0..beat25.
   always_comb begin
     O_RD_DATA = 32'h0000_0000;
 
@@ -111,6 +115,7 @@ module sdram_status_reg_map #(
       6'h0F: O_RD_DATA = I_SDRC_RD_DATA;
       6'h10: O_RD_DATA = I_HOST_DBG_SUMMARY;
       6'h11: O_RD_DATA = I_HOST_DBG_DETAIL;
+      6'h12: O_RD_DATA = I_SDRC_REFRESH_STATUS;
       default: O_RD_DATA = 32'h0000_0000;
     endcase
 

@@ -15,6 +15,7 @@ package sdram_uart_proto_pkg;
 
   localparam logic [7:0] ASCII_CMD_R  = 8'h52;
   localparam logic [7:0] ASCII_CMD_S  = 8'h53;
+  localparam logic [7:0] ASCII_CMD_T  = 8'h54;
   localparam logic [7:0] ASCII_CMD_W  = 8'h57;
   localparam logic [7:0] ASCII_CMD_B  = 8'h42;
   localparam logic [7:0] ASCII_CMD_LF = 8'h0A;
@@ -33,7 +34,9 @@ package sdram_uart_proto_pkg;
   localparam logic [7:0] EVT_BULK_OK     = 8'h32;
   localparam logic [7:0] EVT_BULK_ERR    = 8'h33;
   localparam logic [7:0] EVT_BULK_PROG   = 8'h34;
+  localparam logic [7:0] EVT_BURST_DATA  = 8'h34;
   localparam logic [7:0] EVT_BULK_DONE   = 8'h35;
+  localparam logic [7:0] EVT_BURST_DONE  = 8'h35;
   localparam logic [7:0] EVT_BULK_ABORT  = 8'h36;
   localparam logic [7:0] EVT_CMD_ERR     = 8'h3E;
 

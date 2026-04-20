@@ -17,8 +17,8 @@
     expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_0002, 32'h0000_00B0, "unaligned read");
 
     log_info("BRIDGE CTRL TB", "case: out-of-range read is rejected");
-    send_text("SR 000B0\n");
-    expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_00B0, 32'h0000_00B0, "range read");
+    send_text("SR 000B4\n");
+    expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_00B4, 32'h0000_00B0, "range read");
 
     log_info("BRIDGE CTRL TB", "case: control write restarts selftest");
     restart_count_before = tb_restart_count;
@@ -32,11 +32,11 @@
 
     log_info("BRIDGE CTRL TB", "case: linear SDRAM write");
     send_text("W 00010 12345678\n");
-    expect_event(EVT_WRITE_ACK, 32'h0000_0010, 32'h0000_0001, 32'h0, "linear write ack");
+    expect_event(EVT_WRITE_ACK, 32'h0000_0010, 32'h1234_5678, 32'h0, "linear write ack");
 
     log_info("BRIDGE CTRL TB", "case: linear SDRAM readback after write");
     send_text("R 00010\n");
-    expect_event(EVT_READ_RSP, 32'h0000_0010, 32'h0000_0001, 32'h0, "linear readback");
+    expect_event(EVT_READ_RSP, 32'h0000_0010, 32'h1234_5678, 32'h0, "linear readback");
 
     log_info("BRIDGE CTRL TB", "case: host access disabled returns busy");
     tb_host_access_enable = 1'b0;
@@ -57,6 +57,20 @@
       32'h0000_0001,
       "unsupported bulk"
     );
+
+    log_info("BRIDGE CTRL TB", "case: burst write test");
+    send_text("BWT 00100 00004\n");
+    expect_event(EVT_BURST_DONE, 32'h0000_0100, 32'h0000_0004, 32'h0000_0000, "burst write done");
+
+    log_info("BRIDGE CTRL TB", "case: burst read test");
+    send_text("BRT 00100 00004\n");
+    expect_event(EVT_BURST_DATA, 32'h0002_0002, 32'h0000_0000, 32'h0000_0001, "burst data 0");
+    expect_event(EVT_BURST_DATA, 32'h0102_0202, 32'h0000_0002, 32'h0000_0003, "burst data 1");
+    expect_event(EVT_BURST_DONE, 32'h0000_0100, 32'h0000_0004, 32'h8000_0002, "burst read done");
+
+    log_info("BRIDGE CTRL TB", "case: burst page crossing error");
+    send_text("BRT 000F8 00010\n");
+    expect_event(EVT_BULK_ERR, ERR_ADDR_RANGE, 32'h0000_00F8, 32'h8000_0010, "burst page cross");
 
     log_info("BRIDGE CTRL TB", "sdram_uart_bridge_ctrl smoke test passed");
     $finish;

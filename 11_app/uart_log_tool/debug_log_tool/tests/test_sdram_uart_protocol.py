@@ -11,14 +11,18 @@ from sdram_uart_protocol import (  # noqa: E402
     BULK_RD_DATA,
     BULK_RD_END,
     BULK_WR_DATA,
+    HOST_EVT_BURST_DATA,
     build_bulk_block,
     build_bulk_read_command,
     build_bulk_write_command,
+    build_burst_test_read_command,
+    build_burst_test_write_command,
     build_read_command,
     build_status_read_command,
     build_status_write_command,
     build_write_command,
     crc16_ccitt_false,
+    decode_burst_data_packet,
     iter_bulk_write_blocks,
     RawBulkParser,
 )
@@ -32,6 +36,21 @@ class SDRAMUARTProtocolTests(unittest.TestCase):
         self.assertEqual(build_status_write_command(0x3C, 0x1), b"SW 0003C 00000001\n")
         self.assertEqual(build_bulk_read_command(0x100, 0x40), b"BR 00100 00040\n")
         self.assertEqual(build_bulk_write_command(0x100, 0x40), b"BW 00100 00040\n")
+        self.assertEqual(build_burst_test_read_command(0x100, 0x40), b"BRT 00100 00040\n")
+        self.assertEqual(build_burst_test_write_command(0x100, 0x40), b"BWT 00100 00040\n")
+
+    def test_burst_data_packet_decode(self) -> None:
+        self.assertEqual(HOST_EVT_BURST_DATA, 0x34)
+        packet = decode_burst_data_packet(0x03100402, 0x11111111, 0x22222222)
+        self.assertEqual(packet.packet_id, 3)
+        self.assertEqual(packet.packet_count, 16)
+        self.assertEqual(packet.first_word_index, 4)
+        self.assertEqual(packet.valid_word_count, 2)
+        self.assertEqual(packet.words, (0x11111111, 0x22222222))
+
+        packet = decode_burst_data_packet(0x04100601, 0x33333333, 0x44444444)
+        self.assertEqual(packet.valid_word_count, 1)
+        self.assertEqual(packet.words, (0x33333333,))
 
     def test_bulk_block_crc_round_trip(self) -> None:
         payload = bytes(range(16))

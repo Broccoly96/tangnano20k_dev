@@ -3,18 +3,18 @@
 module testbench;
 
   import tb_log_pkg::*;
+  import sdram_hs_cmd_pkg::*;
   import sdram_uart_proto_pkg::*;
 
   localparam time CLK_PERIOD = 10ns;
   localparam int unsigned MEM_WORDS = 2048;
-  localparam int unsigned BURST_WORDS = 26;
+  localparam int unsigned HOST_BURST_WORDS = 256;
 
-  typedef enum logic [2:0] {
+  typedef enum logic [1:0] {
     UIF_IDLE,
     UIF_WRITE_BUSY,
     UIF_WRITE_HANG,
-    UIF_READ_BUSY,
-    UIF_READ_HANG
+    UIF_READ_BUSY
   } uif_state_e;
 
   logic        tb_clk;
@@ -22,40 +22,41 @@ module testbench;
   logic        tb_req_valid;
   logic        tb_req_ready;
   logic        tb_req_is_write;
+  logic        tb_req_is_burst_test;
   logic [20:0] tb_req_addr;
   logic [31:0] tb_req_data;
+  logic [8:0]  tb_req_words;
   logic        tb_sdrc_init_done;
-  logic        tb_sdrc_busy_n;
-  logic        tb_sdrc_wrd_ack;
-  logic        tb_sdrc_rd_valid;
+  logic        tb_sdrc_ready;
+  logic        tb_sdrc_cmd_ack;
   logic [31:0] tb_sdrc_rd_data;
-  logic        tb_sdrc_wr_n;
-  logic        tb_sdrc_rd_n;
+  logic        tb_sdrc_cmd_en;
+  logic [2:0]  tb_sdrc_cmd;
+  logic        tb_sdrc_precharge_ctrl;
   logic [20:0] tb_sdrc_addr;
   logic [7:0]  tb_sdrc_data_len;
   logic [3:0]  tb_sdrc_dqm;
   logic [31:0] tb_sdrc_wr_data;
-  logic        tb_rsp_valid;
-  logic        tb_rsp_is_write;
-  logic [20:0] tb_rsp_addr;
-  logic [31:0] tb_rsp_data;
-  logic [31:0] tb_rsp_status;
+  logic        tb_sdrc_pair_active;
+  logic        tb_read_sample_valid;
+  logic        tb_evt_valid;
+  logic        tb_evt_ready;
+  logic [7:0]  tb_evt_id;
+  logic [31:0] tb_evt_arg0;
+  logic [31:0] tb_evt_arg1;
+  logic [31:0] tb_evt_arg2;
   logic        tb_busy;
   logic [31:0] tb_dbg_host_summary;
   logic [31:0] tb_dbg_host_detail;
-  logic [(BURST_WORDS*32)-1:0] tb_dbg_host_rd_beats;
+  logic [(HOST_BURST_WORDS*32)-1:0] tb_dbg_host_rd_beats;
   logic [31:0] mem_words [0:MEM_WORDS-1];
   uif_state_e  st_uif;
   logic [20:0] r_uif_base_addr;
-  logic [7:0]  r_uif_len;
-  logic [7:0]  r_uif_count;
-  logic [7:0]  r_uif_phase_count;
-  logic [7:0]  r_uif_busy_count;
-  logic [31:0] r_uif_wr_value;
-  logic        r_read_valid_seen_low_busy;
-  integer      read_req_count;
+  logic [8:0]  r_uif_len;
+  logic [8:0]  r_uif_count;
   logic        inject_next_wr_timeout;
-  logic        inject_next_rd_timeout;
+  logic [2:0]  cmd_history [0:127];
+  integer      cmd_history_count;
 
   initial begin
     configure_logging(LOG_DEBUG);
@@ -67,24 +68,20 @@ module testbench;
     tb_rst_n              = 1'b0;
     tb_req_valid          = 1'b0;
     tb_req_is_write       = 1'b0;
+    tb_req_is_burst_test  = 1'b0;
     tb_req_addr           = '0;
     tb_req_data           = '0;
+    tb_req_words          = 9'd1;
     tb_sdrc_init_done     = 1'b0;
-    tb_sdrc_busy_n        = 1'b1;
-    tb_sdrc_wrd_ack       = 1'b0;
-    tb_sdrc_rd_valid      = 1'b0;
-    tb_sdrc_rd_data       = 32'h0;
+    tb_sdrc_ready         = 1'b1;
+    tb_sdrc_cmd_ack       = 1'b0;
+    tb_evt_ready          = 1'b0;
     st_uif                = UIF_IDLE;
     r_uif_base_addr       = '0;
     r_uif_len             = '0;
     r_uif_count           = '0;
-    r_uif_phase_count     = '0;
-    r_uif_busy_count      = '0;
-    r_uif_wr_value        = '0;
-    r_read_valid_seen_low_busy = 1'b0;
-    read_req_count        = 0;
     inject_next_wr_timeout= 1'b0;
-    inject_next_rd_timeout= 1'b0;
+    cmd_history_count     = 0;
     for (int idx = 0; idx < MEM_WORDS; idx++) begin
       mem_words[idx] = 32'h1000_0000 + idx;
     end
@@ -99,190 +96,116 @@ module testbench;
   end
 
   sdram_uart_access_engine #(
-    .RESP_TIMEOUT_CYCLES(64)
+    .RESP_TIMEOUT_CYCLES(512),
+    .HOST_BURST_WORDS(HOST_BURST_WORDS),
+    .READ_DATA_LATENCY_CYCLES(2)
   ) u_dut (
-    .I_CLK           (tb_clk),
-    .I_RST_N         (tb_rst_n),
-    .I_REQ_VALID     (tb_req_valid),
-    .O_REQ_READY     (tb_req_ready),
-    .I_REQ_IS_WRITE  (tb_req_is_write),
-    .I_REQ_ADDR      (tb_req_addr),
-    .I_REQ_DATA      (tb_req_data),
-    .I_SDRC_INIT_DONE(tb_sdrc_init_done),
-    .I_SDRC_BUSY_N   (tb_sdrc_busy_n),
-    .I_SDRC_WRD_ACK  (tb_sdrc_wrd_ack),
-    .I_SDRC_RD_VALID (tb_sdrc_rd_valid),
-    .I_SDRC_RD_DATA  (tb_sdrc_rd_data),
-    .O_SDRC_WR_N     (tb_sdrc_wr_n),
-    .O_SDRC_RD_N     (tb_sdrc_rd_n),
-    .O_SDRC_ADDR     (tb_sdrc_addr),
-    .O_SDRC_DATA_LEN (tb_sdrc_data_len),
-    .O_SDRC_DQM      (tb_sdrc_dqm),
-    .O_SDRC_WR_DATA  (tb_sdrc_wr_data),
-    .O_RSP_VALID     (tb_rsp_valid),
-    .I_RSP_READY     (1'b1),
-    .O_RSP_IS_WRITE  (tb_rsp_is_write),
-    .O_RSP_ADDR      (tb_rsp_addr),
-    .O_RSP_DATA      (tb_rsp_data),
-    .O_RSP_STATUS    (tb_rsp_status),
-    .O_BUSY          (tb_busy),
-    .O_DBG_HOST_SUMMARY(tb_dbg_host_summary),
-    .O_DBG_HOST_DETAIL (tb_dbg_host_detail),
+    .I_CLK              (tb_clk),
+    .I_RST_N            (tb_rst_n),
+    .I_REQ_VALID        (tb_req_valid),
+    .O_REQ_READY        (tb_req_ready),
+    .I_REQ_IS_WRITE     (tb_req_is_write),
+    .I_REQ_IS_BURST_TEST(tb_req_is_burst_test),
+    .I_REQ_ADDR         (tb_req_addr),
+    .I_REQ_DATA         (tb_req_data),
+    .I_REQ_WORDS        (tb_req_words),
+    .I_SDRC_INIT_DONE   (tb_sdrc_init_done),
+    .I_SDRC_READY       (tb_sdrc_ready),
+    .I_SDRC_CMD_ACK     (tb_sdrc_cmd_ack),
+    .I_SDRC_RD_DATA     (tb_sdrc_rd_data),
+    .O_SDRC_CMD_EN      (tb_sdrc_cmd_en),
+    .O_SDRC_CMD         (tb_sdrc_cmd),
+    .O_SDRC_PRECHARGE_CTRL(tb_sdrc_precharge_ctrl),
+    .O_SDRC_ADDR        (tb_sdrc_addr),
+    .O_SDRC_DATA_LEN    (tb_sdrc_data_len),
+    .O_SDRC_DQM         (tb_sdrc_dqm),
+    .O_SDRC_WR_DATA     (tb_sdrc_wr_data),
+    .O_SDRC_PAIR_ACTIVE (tb_sdrc_pair_active),
+    .O_READ_SAMPLE_VALID(tb_read_sample_valid),
+    .O_EVT_VALID        (tb_evt_valid),
+    .I_EVT_READY        (tb_evt_ready),
+    .O_EVT_ID           (tb_evt_id),
+    .O_EVT_ARG0         (tb_evt_arg0),
+    .O_EVT_ARG1         (tb_evt_arg1),
+    .O_EVT_ARG2         (tb_evt_arg2),
+    .O_BUSY             (tb_busy),
+    .O_DBG_HOST_SUMMARY (tb_dbg_host_summary),
+    .O_DBG_HOST_DETAIL  (tb_dbg_host_detail),
     .O_DBG_HOST_RD_BEATS(tb_dbg_host_rd_beats)
   );
 
-  // Simple SDRC user-interface responder for unit testing.
+  always_comb begin
+    tb_sdrc_rd_data = 32'h0000_0000;
+    if (st_uif == UIF_READ_BUSY) begin
+      tb_sdrc_rd_data = mem_words[r_uif_base_addr + r_uif_count];
+    end
+  end
+
+  // Native HS SDRAM responder:
+  // ACTIVE is acknowledged immediately.
+  // WRITE stores the command-cycle word and following burst beats.
+  // READ presents each word before O_READ_SAMPLE_VALID samples it.
   always_ff @(posedge tb_clk or negedge tb_rst_n) begin
     if (!tb_rst_n) begin
       st_uif            <= UIF_IDLE;
-      tb_sdrc_busy_n    <= 1'b1;
-      tb_sdrc_rd_valid  <= 1'b0;
-      tb_sdrc_rd_data   <= 32'h0;
+      tb_sdrc_cmd_ack   <= 1'b0;
       r_uif_base_addr   <= '0;
       r_uif_len         <= '0;
       r_uif_count       <= '0;
-      r_uif_phase_count <= '0;
-      r_uif_busy_count  <= '0;
-      r_uif_wr_value    <= '0;
-      r_read_valid_seen_low_busy <= 1'b0;
-      read_req_count    <= 0;
+      cmd_history_count <= 0;
     end else begin
-      tb_sdrc_rd_valid <= 1'b0;
-      tb_sdrc_wrd_ack  <= 1'b0;
+      tb_sdrc_ready   <= 1'b1;
+      tb_sdrc_cmd_ack <= 1'b0;
+
+      if (tb_sdrc_cmd_en) begin
+        cmd_history[cmd_history_count] <= tb_sdrc_cmd;
+        cmd_history_count <= cmd_history_count + 1;
+      end
 
       case (st_uif)
         UIF_IDLE: begin
-          tb_sdrc_busy_n    <= 1'b1;
-          r_uif_count       <= '0;
-          r_uif_phase_count <= '0;
-          r_uif_busy_count  <= '0;
-          r_read_valid_seen_low_busy <= 1'b0;
-          if (!tb_sdrc_wr_n) begin
+          r_uif_count <= '0;
+          if (tb_sdrc_cmd_en && (tb_sdrc_cmd == SDRAM_HS_CMD_ACTIVE)) begin
+            tb_sdrc_cmd_ack <= 1'b1;
+          end else if (tb_sdrc_cmd_en && (tb_sdrc_cmd == SDRAM_HS_CMD_WRITE)) begin
             r_uif_base_addr <= tb_sdrc_addr;
-            r_uif_len       <= tb_sdrc_data_len + 1'b1;
-            r_uif_wr_value  <= tb_sdrc_wr_data;
+            r_uif_len       <= {1'b0, tb_sdrc_data_len} + 9'd1;
             mem_words[tb_sdrc_addr] <= tb_sdrc_wr_data;
-            if (inject_next_wr_timeout) begin
-              inject_next_wr_timeout <= 1'b0;
-              r_uif_count       <= 8'd1;
-              r_uif_phase_count <= 8'd0;
-              r_uif_busy_count  <= 8'd0;
-              st_uif <= UIF_WRITE_HANG;
-            end else begin
-              r_uif_count       <= 8'd1;
-              r_uif_phase_count <= 8'd0;
-              r_uif_busy_count  <= 8'd0;
-              st_uif <= UIF_WRITE_BUSY;
-            end
-            log_debug(
-              "ACCESS ENG TB",
-              $sformatf(
-                "accept_write addr=0x%05h len=%0d data=0x%08h",
-                tb_sdrc_addr,
-                tb_sdrc_data_len + 1,
-                tb_sdrc_wr_data
-              )
-            );
-          end else if (!tb_sdrc_rd_n) begin
+            r_uif_count     <= 9'd1;
+            st_uif          <= inject_next_wr_timeout ? UIF_WRITE_HANG : UIF_WRITE_BUSY;
+            inject_next_wr_timeout <= 1'b0;
+          end else if (tb_sdrc_cmd_en && (tb_sdrc_cmd == SDRAM_HS_CMD_READ)) begin
             r_uif_base_addr <= tb_sdrc_addr;
-            r_uif_len       <= tb_sdrc_data_len + 1'b1;
+            r_uif_len       <= {1'b0, tb_sdrc_data_len} + 9'd1;
             r_uif_count     <= '0;
-            r_uif_phase_count <= 8'd0;
-            r_uif_busy_count  <= 8'd0;
-            read_req_count  <= read_req_count + 1;
-            if (inject_next_rd_timeout) begin
-              inject_next_rd_timeout <= 1'b0;
-              st_uif <= UIF_READ_HANG;
-            end else begin
-              st_uif <= UIF_READ_BUSY;
-            end
-            log_debug(
-              "ACCESS ENG TB",
-              $sformatf(
-                "accept_read addr=0x%05h len=%0d count=%0d",
-                tb_sdrc_addr,
-                tb_sdrc_data_len + 1,
-                read_req_count + 1
-              )
-            );
+            st_uif          <= UIF_READ_BUSY;
           end
         end
 
         UIF_WRITE_BUSY: begin
-          if (r_uif_phase_count == 8'd1) begin
-            tb_sdrc_wrd_ack <= 1'b1;
-          end
-          if ((r_uif_phase_count >= 8'd2) && (r_uif_busy_count < r_uif_len)) begin
-            tb_sdrc_busy_n   <= 1'b0;
-            r_uif_busy_count <= r_uif_busy_count + 1'b1;
-          end else begin
-            tb_sdrc_busy_n <= 1'b1;
-          end
-          if ((r_uif_phase_count >= 8'd3) && (r_uif_count < r_uif_len)) begin
+          if (r_uif_count < r_uif_len) begin
             mem_words[r_uif_base_addr + r_uif_count] <= tb_sdrc_wr_data;
             r_uif_count <= r_uif_count + 1'b1;
           end
-          r_uif_phase_count <= r_uif_phase_count + 1'b1;
-          if ((r_uif_count >= r_uif_len) &&
-              (r_uif_phase_count >= 8'd2) &&
-              (r_uif_busy_count >= r_uif_len)) begin
-            tb_sdrc_busy_n <= 1'b1;
-            st_uif         <= UIF_IDLE;
+          if (((r_uif_count + 1'b1) >= r_uif_len) || (r_uif_len == 9'd1)) begin
+            tb_sdrc_cmd_ack <= 1'b1;
+            st_uif          <= UIF_IDLE;
           end
         end
 
         UIF_WRITE_HANG: begin
-          if (r_uif_phase_count == 8'd1) begin
-            tb_sdrc_wrd_ack <= 1'b1;
-          end
-          if (r_uif_phase_count >= 8'd2) begin
-            tb_sdrc_busy_n <= 1'b0;
-          end
-          r_uif_phase_count <= r_uif_phase_count + 1'b1;
-          if (tb_rsp_valid) begin
-            tb_sdrc_busy_n <= 1'b1;
-            st_uif         <= UIF_IDLE;
+          if (tb_evt_valid) begin
+            st_uif <= UIF_IDLE;
           end
         end
 
         UIF_READ_BUSY: begin
-          if (r_uif_phase_count == 8'd1) begin
-            tb_sdrc_wrd_ack <= 1'b1;
-            tb_sdrc_rd_valid <= 1'b1;
-            tb_sdrc_rd_data  <= r_uif_wr_value;
-          end
-          if ((r_uif_phase_count >= 8'd2) && (r_uif_count < r_uif_len)) begin
-            tb_sdrc_busy_n  <= 1'b0;
-            tb_sdrc_rd_valid <= 1'b1;
-            tb_sdrc_rd_data  <= mem_words[r_uif_base_addr + r_uif_count];
-            r_uif_count      <= r_uif_count + 1'b1;
-            r_read_valid_seen_low_busy <= 1'b1;
-          end else if (r_read_valid_seen_low_busy && (r_uif_busy_count < 8'd3)) begin
-            tb_sdrc_busy_n   <= 1'b0;
-            r_uif_busy_count <= r_uif_busy_count + 1'b1;
-          end else begin
-            tb_sdrc_busy_n <= 1'b1;
-          end
-          r_uif_phase_count <= r_uif_phase_count + 1'b1;
-          if ((r_uif_phase_count >= 8'd2) &&
-              (r_uif_count >= r_uif_len) &&
-              (!r_read_valid_seen_low_busy || (r_uif_busy_count >= 8'd3))) begin
-            tb_sdrc_busy_n <= 1'b1;
-            st_uif         <= UIF_IDLE;
-          end
-        end
-
-        UIF_READ_HANG: begin
-          if (r_uif_phase_count == 8'd1) begin
-            tb_sdrc_wrd_ack <= 1'b1;
-          end
-          if (r_uif_phase_count >= 8'd2) begin
-            tb_sdrc_busy_n <= 1'b0;
-          end
-          r_uif_phase_count <= r_uif_phase_count + 1'b1;
-          if (tb_rsp_valid) begin
-            tb_sdrc_busy_n <= 1'b1;
-            st_uif         <= UIF_IDLE;
+          if (tb_read_sample_valid) begin
+            if ((r_uif_count + 1'b1) >= r_uif_len) begin
+              tb_sdrc_cmd_ack <= 1'b1;
+              st_uif          <= UIF_IDLE;
+            end
+            r_uif_count <= r_uif_count + 1'b1;
           end
         end
 
@@ -293,78 +216,103 @@ module testbench;
     end
   end
 
-  // The DUT must keep its host-side busy/mux ownership asserted until the
-  // Gowin SDRC transaction has returned to idle. This catches the historical
-  // read path bug where response was generated immediately on rd_valid.
-  always_ff @(posedge tb_clk) begin
-    if (tb_rst_n && (st_uif == UIF_READ_BUSY) &&
-        r_read_valid_seen_low_busy && !tb_sdrc_busy_n && !tb_busy) begin
-      log_fatal(
-        1,
-        "ACCESS ENG TB",
-        "DUT released O_BUSY before read transaction returned to busy_n=1"
-      );
-    end
-  end
-
   task automatic issue_request(
-    input logic is_write,
+    input logic        is_write,
+    input logic        is_burst_test,
     input logic [20:0] addr,
-    input logic [31:0] data
+    input logic [31:0] data,
+    input logic [8:0]  words
   );
     begin
       while (!tb_req_ready) @(posedge tb_clk);
       @(posedge tb_clk);
-      tb_req_valid    <= 1'b1;
-      tb_req_is_write <= is_write;
-      tb_req_addr     <= addr;
-      tb_req_data     <= data;
+      tb_req_valid         <= 1'b1;
+      tb_req_is_write      <= is_write;
+      tb_req_is_burst_test <= is_burst_test;
+      tb_req_addr          <= addr;
+      tb_req_data          <= data;
+      tb_req_words         <= words;
       @(posedge tb_clk);
-      tb_req_valid    <= 1'b0;
-      tb_req_is_write <= 1'b0;
-      tb_req_addr     <= '0;
-      tb_req_data     <= '0;
+      tb_req_valid         <= 1'b0;
+      tb_req_is_write      <= 1'b0;
+      tb_req_is_burst_test <= 1'b0;
+      tb_req_addr          <= '0;
+      tb_req_data          <= '0;
+      tb_req_words         <= 9'd1;
     end
   endtask
 
-  task automatic expect_response(
-    input logic        exp_is_write,
-    input logic [20:0] exp_addr,
-    input logic [31:0] exp_data,
-    input logic [31:0] exp_status,
+  task automatic expect_event(
+    input logic [7:0]  exp_id,
+    input logic [31:0] exp_arg0,
+    input logic [31:0] exp_arg1,
+    input logic [31:0] exp_arg2,
     input string       label
   );
     int wait_cycles;
     begin
       wait_cycles = 0;
-      while (!tb_rsp_valid) begin
+      while (!tb_evt_valid) begin
         @(posedge tb_clk);
         wait_cycles++;
-        if (wait_cycles > 200) begin
-          log_fatal(1, "ACCESS ENG TB", {"timeout waiting response: ", label});
+        if (wait_cycles > 800) begin
+          log_fatal(1, "ACCESS ENG TB", {"timeout waiting event: ", label});
         end
       end
 
-      if ((tb_rsp_is_write !== exp_is_write) ||
-          (tb_rsp_addr !== exp_addr) ||
-          (tb_rsp_data !== exp_data) ||
-          (tb_rsp_status !== exp_status)) begin
+      if ((tb_evt_id !== exp_id) ||
+          (tb_evt_arg0 !== exp_arg0) ||
+          (tb_evt_arg1 !== exp_arg1) ||
+          (tb_evt_arg2 !== exp_arg2)) begin
         log_fatal(
           1,
           "ACCESS ENG TB",
           $sformatf(
-            "response mismatch %s is_write=%0b addr=0x%05h data=0x%08h status=0x%08h",
+            "event mismatch %s id=0x%02h arg0=0x%08h arg1=0x%08h arg2=0x%08h",
             label,
-            tb_rsp_is_write,
-            tb_rsp_addr,
-            tb_rsp_data,
-            tb_rsp_status
+            tb_evt_id,
+            tb_evt_arg0,
+            tb_evt_arg1,
+            tb_evt_arg2
           )
         );
       end
 
-      log_info("ACCESS ENG TB", {"response ok: ", label});
+      log_info("ACCESS ENG TB", {"event ok: ", label});
       @(posedge tb_clk);
+      tb_evt_ready <= 1'b1;
+      @(posedge tb_clk);
+      tb_evt_ready <= 1'b0;
+      #1;
+    end
+  endtask
+
+  task automatic expect_command_pair(
+    input int unsigned first_idx,
+    input logic [2:0]  exp_access_cmd,
+    input string       label
+  );
+    begin
+      if ((cmd_history_count - first_idx) != 2) begin
+        log_fatal(
+          1,
+          "ACCESS ENG TB",
+          $sformatf("command count mismatch %s count=%0d", label, cmd_history_count - first_idx)
+        );
+      end
+      if ((cmd_history[first_idx] !== SDRAM_HS_CMD_ACTIVE) ||
+          (cmd_history[first_idx + 1] !== exp_access_cmd)) begin
+        log_fatal(
+          1,
+          "ACCESS ENG TB",
+          $sformatf(
+            "command sequence mismatch %s cmd0=%03b cmd1=%03b",
+            label,
+            cmd_history[first_idx],
+            cmd_history[first_idx + 1]
+          )
+        );
+      end
     end
   endtask
 
