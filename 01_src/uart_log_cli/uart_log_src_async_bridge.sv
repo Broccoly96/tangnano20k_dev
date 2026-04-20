@@ -10,24 +10,12 @@
 module uart_log_src_async_bridge #(
   parameter int unsigned FIFO_DEPTH = 4
 ) (
-  input  logic        I_SRC_CLK,
-  input  logic        I_SRC_RST_N,
-  input  logic        I_DST_CLK,
-  input  logic        I_DST_RST_N,
-  input  logic        I_DST_ENABLE,
-  output logic        O_SRC_ENABLE,
-  input  logic        I_SRC_EVT_VALID,
-  input  logic [7:0]  I_SRC_EVT_ID,
-  input  logic [31:0] I_SRC_ARG0,
-  input  logic [31:0] I_SRC_ARG1,
-  input  logic [31:0] I_SRC_ARG2,
-  output logic        O_SRC_EVT_READY,
-  output logic        O_DST_EVT_VALID,
-  output logic [7:0]  O_DST_EVT_ID,
-  output logic [31:0] O_DST_ARG0,
-  output logic [31:0] O_DST_ARG1,
-  output logic [31:0] O_DST_ARG2,
-  input  logic        I_DST_EVT_READY
+  input  logic              I_SRC_CLK,
+  input  logic              I_SRC_RST_N,
+  input  logic              I_DST_CLK,
+  input  logic              I_DST_RST_N,
+  uart_log_evt_if.consumer  SRC_IF,
+  uart_log_evt_if.producer  DST_IF
 );
 
   localparam int unsigned DATA_W = 104;
@@ -70,17 +58,17 @@ module uart_log_src_async_bridge #(
   );
   assign s_fifo_empty = (r_rd_ptr_gray == r_wr_ptr_gray_sync2_dst);
 
-  assign O_SRC_ENABLE    = r_dst_enable_sync2_src;
-  assign O_SRC_EVT_READY = r_dst_enable_sync2_src && !s_fifo_full;
-  assign s_src_push      = I_SRC_EVT_VALID && O_SRC_EVT_READY;
+  assign SRC_IF.enable    = r_dst_enable_sync2_src;
+  assign SRC_IF.evt_ready = r_dst_enable_sync2_src && !s_fifo_full;
+  assign s_src_push       = SRC_IF.evt_valid && SRC_IF.evt_ready;
 
   assign s_dst_payload = r_fifo_mem[r_rd_ptr_bin[ADDR_W-1:0]];
-  assign O_DST_EVT_VALID = !s_fifo_empty;
-  assign O_DST_EVT_ID    = s_dst_payload[103:96];
-  assign O_DST_ARG0      = s_dst_payload[95:64];
-  assign O_DST_ARG1      = s_dst_payload[63:32];
-  assign O_DST_ARG2      = s_dst_payload[31:0];
-  assign s_dst_pop       = O_DST_EVT_VALID && I_DST_EVT_READY;
+  assign DST_IF.evt_valid = !s_fifo_empty;
+  assign DST_IF.evt_id    = s_dst_payload[103:96];
+  assign DST_IF.arg0      = s_dst_payload[95:64];
+  assign DST_IF.arg1      = s_dst_payload[63:32];
+  assign DST_IF.arg2      = s_dst_payload[31:0];
+  assign s_dst_pop        = DST_IF.evt_valid && DST_IF.evt_ready;
 
   // Synchronizes the currently-selected source enable into the source domain.
   always_ff @(posedge I_SRC_CLK or negedge I_SRC_RST_N) begin
@@ -88,7 +76,7 @@ module uart_log_src_async_bridge #(
       r_dst_enable_sync1_src <= 1'b0;
       r_dst_enable_sync2_src <= 1'b0;
     end else begin
-      r_dst_enable_sync1_src <= I_DST_ENABLE;
+      r_dst_enable_sync1_src <= DST_IF.enable;
       r_dst_enable_sync2_src <= r_dst_enable_sync1_src;
     end
   end
@@ -106,10 +94,10 @@ module uart_log_src_async_bridge #(
 
       if (s_src_push) begin
         r_fifo_mem[r_wr_ptr_bin[ADDR_W-1:0]] <= {
-          I_SRC_EVT_ID,
-          I_SRC_ARG0,
-          I_SRC_ARG1,
-          I_SRC_ARG2
+          SRC_IF.evt_id,
+          SRC_IF.arg0,
+          SRC_IF.arg1,
+          SRC_IF.arg2
         };
         r_wr_ptr_bin  <= s_wr_ptr_bin_next;
         r_wr_ptr_gray <= s_wr_ptr_gray_next;

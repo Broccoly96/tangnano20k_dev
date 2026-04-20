@@ -18,33 +18,19 @@
 module uart_log_cli #(
   parameter int unsigned CLK_HZ  = 50_000_000,
   parameter int unsigned BAUD    = 115_200,
-  parameter int unsigned NUM_SRC = 2
+  parameter int unsigned NUM_SRC = 2,
+  parameter logic [NUM_SRC-1:0] SRC_ENABLE_MASK = {NUM_SRC{1'b1}}
 ) (
   input  logic I_CLK,
   input  logic I_RST_N,
   input  logic I_UART_RX,
   output logic O_UART_TX,
 
-  input  logic [NUM_SRC-1:0]       I_SRC_EVT_VALID,
-  input  logic [NUM_SRC*8-1:0]     I_SRC_EVT_ID,
-  input  logic [NUM_SRC*32-1:0]    I_SRC_ARG0,
-  input  logic [NUM_SRC*32-1:0]    I_SRC_ARG1,
-  input  logic [NUM_SRC*32-1:0]    I_SRC_ARG2,
-  output logic [NUM_SRC-1:0]       O_SRC_EVT_READY,
-  output logic [NUM_SRC-1:0]       O_SRC_ENABLE,
+  uart_log_evt_if.consumer SRC_IF [NUM_SRC],
   output logic [((NUM_SRC <= 1) ? 1 : $clog2(NUM_SRC)) - 1:0] O_LOG_SRC_SEL,
   output logic O_SOFT_RESET_REQ,
-  output logic O_STATUS_REQ_VALID,
-  output logic [7:0] O_STATUS_REQ_KEY,
-  input  logic       I_RAW_RX_BYPASS,
-  input  logic       I_RAW_TX_MODE,
-  input  logic       I_RAW_TX_VALID,
-  input  logic [7:0] I_RAW_TX_DATA,
-  output logic       O_RAW_TX_READY,
   output logic       O_CLI_RX_VALID,
-  output logic [7:0] O_CLI_RX_DATA,
-  output logic       O_MIRROR_VALID,
-  output logic [7:0] O_MIRROR_DATA
+  output logic [7:0] O_CLI_RX_DATA
 );
 
   import uart_log_cli_pkg::*;
@@ -54,15 +40,14 @@ module uart_log_cli #(
   localparam int unsigned MS_TICK_CNT = (CLK_HZ < 1000) ? 1 : ((CLK_HZ + 500) / 1000);
   localparam int unsigned MS_DIV_W    = (MS_TICK_CNT <= 1) ? 1 : $clog2(MS_TICK_CNT);
 
-  localparam int unsigned SYS_Q_DEPTH = 16;
+  localparam int unsigned SYS_Q_DEPTH = 4;
   localparam int unsigned SYS_Q_PTR_W = (SYS_Q_DEPTH <= 1) ? 1 : $clog2(SYS_Q_DEPTH);
   localparam int unsigned SYS_Q_CNT_W = $clog2(SYS_Q_DEPTH + 1);
 
   typedef enum logic [1:0] {
     SYS_PUSH_NONE  = 2'd0,
     SYS_PUSH_MODE  = 2'd1,
-    SYS_PUSH_RESET = 2'd2,
-    SYS_PUSH_HELP  = 2'd3
+    SYS_PUSH_RESET = 2'd2
   } sys_push_sel_e;
 
   typedef enum logic [0:0] {
@@ -89,8 +74,6 @@ module uart_log_cli #(
 
   // CLI pending responses.
   logic       r_reset_ack_pending;
-  logic [3:0] r_help_pending_count;
-  logic [1:0] r_help_line_cursor;
   logic       r_cli_literal_pending;
 
   // System-event queue (payload-only queue, still used to prioritize/serialize
@@ -140,14 +123,12 @@ module uart_log_cli #(
   logic          s_apply_sel_now;
   logic [127:0]  s_mode_payload;
   logic [127:0]  s_reset_payload;
-  logic [127:0]  s_help_payload;
   logic          s_push_req;
   logic [127:0]  s_push_data;
   sys_push_sel_e s_push_sel;
   logic          s_do_push;
   logic          s_sys_q_drop;
   logic          s_sys_pop;
-  logic          s_help_line_step;
   logic          s_reset_clear;
 
   logic          s_prod_has_sys;
@@ -156,53 +137,6 @@ module uart_log_cli #(
   logic          s_prod_take_src;
   logic          s_prod_drop_sys;
   logic          s_prod_drop_src;
-
-  //------------------------------------------------------------------------------
-  // pack_help_payload
-  //------------------------------------------------------------------------------
-  // Builds EV_HELP payload lines. Each line occupies arg0..arg2 as 12 ASCII bytes
-  // in little-endian word ordering.
-  // Packs one EV_HELP line into the standard 128-bit UART event payload.
-  function automatic logic [127:0] pack_help_payload(
-    input logic [15:0] timestamp,
-    input logic [1:0]  line_idx
-  );
-    logic [31:0] arg0;
-    logic [31:0] arg1;
-    logic [31:0] arg2;
-    begin
-      case (line_idx)
-        2'd0: begin
-          // "? help"
-          arg0 = 32'h6568203F;
-          arg1 = 32'h0000706C;
-          arg2 = 32'h00000000;
-        end
-        2'd1: begin
-          // "^R reset"
-          arg0 = 32'h7220525E;
-          arg1 = 32'h74657365;
-          arg2 = 32'h00000000;
-        end
-        2'd2: begin
-          // "^F next log"
-          arg0 = 32'h6E20465E;
-          arg1 = 32'h20747865;
-          arg2 = 32'h00676F6C;
-        end
-        default: begin
-          // "^D prev log"
-          arg0 = 32'h7020445E;
-          arg1 = 32'h20766572;
-          arg2 = 32'h00676F6C;
-        end
-      endcase
-
-      pack_help_payload = pack_event_payload(
-        SYS_SRC_ID, EV_HELP, timestamp, arg0, arg1, arg2
-      );
-    end
-  endfunction
 
   //------------------------------------------------------------------------------
   // frame_byte_at
@@ -246,6 +180,33 @@ module uart_log_cli #(
     end
   endfunction
 
+  function automatic logic [SEL_W-1:0] sel_next_local(input logic [SEL_W-1:0] sel);
+    begin
+      if (NUM_SRC <= 1) begin
+        sel_next_local = '0;
+      end else if (sel >= (NUM_SRC - 1)) begin
+        sel_next_local = '0;
+      end else begin
+        sel_next_local = sel + 1'b1;
+      end
+    end
+  endfunction
+
+  function automatic logic [SEL_W-1:0] sel_prev_local(input logic [SEL_W-1:0] sel);
+    begin
+      if (NUM_SRC <= 1) begin
+        sel_prev_local = '0;
+      end else if (sel == '0) begin
+        sel_prev_local = '0;
+        for (int bit_idx = 0; bit_idx < SEL_W; bit_idx++) begin
+          sel_prev_local[bit_idx] = ((NUM_SRC - 1) >> bit_idx) & 1;
+        end
+      end else begin
+        sel_prev_local = sel - 1'b1;
+      end
+    end
+  endfunction
+
   //------------------------------------------------------------------------------
   // UART RX/TX blocks
   //------------------------------------------------------------------------------
@@ -285,8 +246,6 @@ module uart_log_cli #(
     end
   end
 
-  assign O_SRC_ENABLE    = s_sel_onehot;
-  assign O_SRC_EVT_READY = s_tap_evt_ready;
   assign O_LOG_SRC_SEL   = r_log_src_sel;
 
   always_comb begin
@@ -318,31 +277,41 @@ module uart_log_cli #(
       wire [31:0]  w_arg2;
       wire [127:0] w_payload;
 
-      assign w_evt_id = I_SRC_EVT_ID[g_src*8 +: 8];
-      assign w_arg0   = I_SRC_ARG0[g_src*32 +: 32];
-      assign w_arg1   = I_SRC_ARG1[g_src*32 +: 32];
-      assign w_arg2   = I_SRC_ARG2[g_src*32 +: 32];
+      assign SRC_IF[g_src].enable    = s_sel_onehot[g_src] & SRC_ENABLE_MASK[g_src];
+      assign SRC_IF[g_src].evt_ready = s_tap_evt_ready[g_src];
 
-      assign w_payload = pack_event_payload(
-        SRC_ID[7:0],
-        w_evt_id,
-        r_timestamp_ms,
-        w_arg0,
-        w_arg1,
-        w_arg2
-      );
+      assign w_evt_id = SRC_IF[g_src].evt_id;
+      assign w_arg0   = SRC_IF[g_src].arg0;
+      assign w_arg1   = SRC_IF[g_src].arg1;
+      assign w_arg2   = SRC_IF[g_src].arg2;
 
-      uart_log_tap u_tap (
-        .I_CLK      (I_CLK),
-        .I_RST_N    (I_RST_N),
-        .I_ENABLE   (s_sel_onehot[g_src]),
-        .I_EVT_VALID(I_SRC_EVT_VALID[g_src]),
-        .I_EVT_DATA (w_payload),
-        .O_EVT_READY(s_tap_evt_ready[g_src]),
-        .O_TVALID   (s_tap_tvalid[g_src]),
-        .I_TREADY   (s_tap_tready[g_src]),
-        .O_TDATA    (s_tap_tdata[g_src])
-      );
+      if (SRC_ENABLE_MASK[g_src]) begin : g_enabled_tap
+        assign w_payload = pack_event_payload(
+          SRC_ID[7:0],
+          w_evt_id,
+          r_timestamp_ms,
+          w_arg0,
+          w_arg1,
+          w_arg2
+        );
+
+        uart_log_tap u_tap (
+          .I_CLK      (I_CLK),
+          .I_RST_N    (I_RST_N),
+          .I_ENABLE   (s_sel_onehot[g_src]),
+          .I_EVT_VALID(SRC_IF[g_src].evt_valid),
+          .I_EVT_DATA (w_payload),
+          .O_EVT_READY(s_tap_evt_ready[g_src]),
+          .O_TVALID   (s_tap_tvalid[g_src]),
+          .I_TREADY   (s_tap_tready[g_src]),
+          .O_TDATA    (s_tap_tdata[g_src])
+        );
+      end else begin : g_disabled_tap
+        assign w_payload = 128'h0;
+        assign s_tap_evt_ready[g_src] = 1'b0;
+        assign s_tap_tvalid[g_src]    = 1'b0;
+        assign s_tap_tdata[g_src]     = 128'h0;
+      end
     end
   endgenerate
 
@@ -369,9 +338,7 @@ module uart_log_cli #(
   assign s_sys_q_empty = (r_sys_q_count == 0);
   assign s_sys_q_rdata = r_sys_q_mem[r_sys_q_rd_ptr];
 
-  assign s_tx_boundary_idle = (!r_frame_active) && (!s_uart_tx_busy) && !I_RAW_TX_MODE;
-  assign O_RAW_TX_READY     =
-    (r_tx_state == TX_IDLE) && (!r_frame_active) && (!s_uart_tx_busy) && I_RAW_TX_MODE;
+  assign s_tx_boundary_idle = (!r_frame_active) && (!s_uart_tx_busy);
 
   // Source change is applied only when all in-flight payloads are drained:
   //  - frame engine idle
@@ -397,12 +364,9 @@ module uart_log_cli #(
     32'h00000000
   );
 
-  assign s_help_payload = pack_help_payload(r_timestamp_ms, r_help_line_cursor);
-
   // System queue source priority:
   //   1) mode-change notification (generated at apply time)
   //   2) reset-ack response
-  //   3) help lines
   always_comb begin
     s_push_req  = 1'b0;
     s_push_data = 128'h0;
@@ -416,10 +380,6 @@ module uart_log_cli #(
       s_push_req  = 1'b1;
       s_push_data = s_reset_payload;
       s_push_sel  = SYS_PUSH_RESET;
-    end else if (r_help_pending_count != 0) begin
-      s_push_req  = 1'b1;
-      s_push_data = s_help_payload;
-      s_push_sel  = SYS_PUSH_HELP;
     end
   end
 
@@ -442,12 +402,10 @@ module uart_log_cli #(
   assign s_shared_wr_en   = s_prod_take_sys || s_prod_take_src;
   assign s_shared_wr_data = s_prod_take_sys ? s_sys_q_rdata : s_sel_tdata;
 
-  assign s_help_line_step = s_push_req && (s_push_sel == SYS_PUSH_HELP);
   assign s_reset_clear    = s_push_req && (s_push_sel == SYS_PUSH_RESET);
 
   // Consumer read request from shared FIFO.
   assign s_shared_rd_en =
-    (!I_RAW_TX_MODE) &&
     s_tx_boundary_idle &&
     (!r_shared_rd_pending) &&
     (!s_shared_empty);
@@ -472,8 +430,6 @@ module uart_log_cli #(
       r_sel_pending        <= '0;
 
       r_reset_ack_pending  <= 1'b0;
-      r_help_pending_count <= 4'd0;
-      r_help_line_cursor   <= 2'd0;
 
       r_sys_q_wr_ptr       <= '0;
       r_sys_q_rd_ptr       <= '0;
@@ -495,20 +451,14 @@ module uart_log_cli #(
       r_uart_tx_start      <= 1'b0;
       r_uart_tx_data       <= 8'h00;
       O_SOFT_RESET_REQ     <= 1'b0;
-      O_STATUS_REQ_VALID   <= 1'b0;
-      O_STATUS_REQ_KEY     <= 8'h00;
       O_CLI_RX_VALID       <= 1'b0;
       O_CLI_RX_DATA        <= 8'h00;
-      O_MIRROR_VALID       <= 1'b0;
-      O_MIRROR_DATA        <= 8'h00;
       r_cli_literal_pending <= 1'b0;
     end else begin
       // Default one-cycle pulses.
       r_uart_tx_start    <= 1'b0;
       O_SOFT_RESET_REQ   <= 1'b0;
-      O_STATUS_REQ_VALID <= 1'b0;
       O_CLI_RX_VALID     <= 1'b0;
-      O_MIRROR_VALID     <= 1'b0;
 
       // 1ms timestamp free-run counter.
       if (MS_TICK_CNT <= 1) begin
@@ -522,11 +472,7 @@ module uart_log_cli #(
 
       // CLI command decode.
       if (s_uart_rx_valid) begin
-        if (I_RAW_RX_BYPASS) begin
-          O_CLI_RX_VALID        <= 1'b1;
-          O_CLI_RX_DATA         <= s_uart_rx_data;
-          r_cli_literal_pending <= 1'b0;
-        end else if (r_cli_literal_pending) begin
+        if (r_cli_literal_pending) begin
           O_CLI_RX_VALID        <= 1'b1;
           O_CLI_RX_DATA         <= s_uart_rx_data;
           r_cli_literal_pending <= 1'b0;
@@ -537,11 +483,7 @@ module uart_log_cli #(
           O_CLI_RX_DATA  <= s_uart_rx_data;
           case (s_uart_rx_data)
             CMD_HELP: begin
-              if (r_help_pending_count >= 4'd12) begin
-                r_help_pending_count <= 4'd15;
-              end else begin
-                r_help_pending_count <= r_help_pending_count + 4'd4;
-              end
+              // Help text is omitted in the production RTL.
             end
 
             CMD_SOFT_RESET: begin
@@ -551,25 +493,20 @@ module uart_log_cli #(
 
             CMD_NEXT_SRC: begin
               if (r_sel_pending_valid) begin
-                r_sel_pending <= sel_next(r_sel_pending, NUM_SRC);
+                r_sel_pending <= sel_next_local(r_sel_pending);
               end else begin
-                r_sel_pending <= sel_next(r_log_src_sel, NUM_SRC);
+                r_sel_pending <= sel_next_local(r_log_src_sel);
               end
               r_sel_pending_valid <= 1'b1;
             end
 
             CMD_PREV_SRC: begin
               if (r_sel_pending_valid) begin
-                r_sel_pending <= sel_prev(r_sel_pending, NUM_SRC);
+                r_sel_pending <= sel_prev_local(r_sel_pending);
               end else begin
-                r_sel_pending <= sel_prev(r_log_src_sel, NUM_SRC);
+                r_sel_pending <= sel_prev_local(r_log_src_sel);
               end
               r_sel_pending_valid <= 1'b1;
-            end
-
-            CMD_STATUS_REQ: begin
-              O_STATUS_REQ_VALID <= 1'b1;
-              O_STATUS_REQ_KEY   <= CMD_STATUS_REQ;
             end
 
             default: begin
@@ -612,23 +549,11 @@ module uart_log_cli #(
       endcase
 
       // Pending flags update after system-queue arbitration.
-      if (!I_RAW_RX_BYPASS &&
-          (s_uart_rx_valid) && !r_cli_literal_pending &&
+      if ((s_uart_rx_valid) && !r_cli_literal_pending &&
           (s_uart_rx_data == CMD_SOFT_RESET)) begin
         r_reset_ack_pending <= 1'b1;
       end else if (s_reset_clear) begin
         r_reset_ack_pending <= 1'b0;
-      end
-
-      if (!(!I_RAW_RX_BYPASS &&
-             (s_uart_rx_valid) && !r_cli_literal_pending &&
-             (s_uart_rx_data == CMD_HELP))) begin
-        if (s_help_line_step) begin
-          if (r_help_pending_count != 0) begin
-            r_help_pending_count <= r_help_pending_count - 1'b1;
-          end
-          r_help_line_cursor <= r_help_line_cursor + 1'b1;
-        end
       end
 
       // Shared producer drop counters (latest drop when shared FIFO is full).
@@ -668,16 +593,8 @@ module uart_log_cli #(
       // TX_WAIT_DONE : waits for uart_tx_stream done pulse, then advances byte.
       case (r_tx_state)
         TX_IDLE: begin
-          if (I_RAW_TX_MODE && I_RAW_TX_VALID && !s_uart_tx_busy && !r_frame_active) begin
+          if (r_frame_active && !s_uart_tx_busy) begin
             r_uart_tx_start <= 1'b1;
-            r_uart_tx_data  <= I_RAW_TX_DATA;
-            O_MIRROR_VALID  <= 1'b1;
-            O_MIRROR_DATA   <= I_RAW_TX_DATA;
-            r_tx_state      <= TX_WAIT_DONE;
-          end else if (r_frame_active && !s_uart_tx_busy && !I_RAW_TX_MODE) begin
-            r_uart_tx_start <= 1'b1;
-            O_MIRROR_VALID  <= 1'b1;
-            O_MIRROR_DATA   <= r_uart_tx_data;
             r_tx_state      <= TX_WAIT_DONE;
           end
         end

@@ -1,10 +1,16 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // File         : sdram_uart_ascii_ctrl.sv
-// Description  : Line-oriented ASCII parser for SDRAM UART host commands.
-//                - Consumes one byte at a time with a small sequential FSM.
-//                - Preserves the existing external command/error contract for
-//                  sdram_uart_bridge_ctrl while avoiding whole-line decode.
+// Description  : Fixed-format ASCII parser for SDRAM UART host commands.
+//                The parser accepts only the command shapes emitted by the
+//                uart_log_tool TUI:
+//                  R AAAAA
+//                  W AAAAA DDDDDDDD
+//                  SR AAAAA
+//                  SW AAAAA DDDDDDDD
+//                  BRT AAAAA WWWWW
+//                  BWT AAAAA WWWWW
+//                Carriage return is ignored before line-feed termination.
 //////////////////////////////////////////////////////////////////////////////////
 
 module sdram_uart_ascii_ctrl #(
@@ -31,51 +37,18 @@ module sdram_uart_ascii_ctrl #(
 
   import sdram_uart_proto_pkg::*;
 
-  `define SDRAM_ASCII_LOG_DEBUG(MSG)
-  `define SDRAM_ASCII_LOG_TRACE(MSG)
-// synthesis translate_off
-`undef SDRAM_ASCII_LOG_DEBUG
-`undef SDRAM_ASCII_LOG_TRACE
-  import tb_log_pkg::*;
-  `define SDRAM_ASCII_LOG_DEBUG(MSG) tb_log_pkg::log_debug("SDRAM ASCII", MSG)
-  `define SDRAM_ASCII_LOG_TRACE(MSG) tb_log_pkg::log_trace("SDRAM ASCII", MSG)
-// synthesis translate_on
+  localparam int unsigned MAX_LINE_BYTES = 17;
+  localparam int unsigned LEN_READ       = 7;
+  localparam int unsigned LEN_READ6      = 8;
+  localparam int unsigned LEN_WRITE      = 16;
+  localparam int unsigned LEN_WRITE6     = 17;
+  localparam int unsigned LEN_STATUS_RD  = 8;
+  localparam int unsigned LEN_STATUS_WR  = 17;
+  localparam int unsigned LEN_BURST_TEST = 15;
 
-  typedef enum logic [4:0] {
-    ST_IDLE             = 5'd0,
-    ST_CMD_AFTER_B      = 5'd1,
-    ST_ADDR_START       = 5'd2,
-    ST_ADDR_ZERO        = 5'd3,
-    ST_ADDR_BODY        = 5'd4,
-    ST_WRITE_DATA_START = 5'd5,
-    ST_WRITE_DATA_ZERO  = 5'd6,
-    ST_WRITE_DATA_BODY  = 5'd7,
-    ST_BULK_WORDS_START = 5'd8,
-    ST_BULK_WORDS_ZERO  = 5'd9,
-    ST_BULK_WORDS_BODY  = 5'd10,
-    ST_TRAIL_READ       = 5'd11,
-    ST_TRAIL_WRITE      = 5'd12,
-    ST_TRAIL_BULK       = 5'd13,
-    ST_ERROR_SKIP       = 5'd14,
-    ST_CMD_AFTER_S      = 5'd15,
-    ST_CMD_AFTER_BR     = 5'd16,
-    ST_CMD_AFTER_BW     = 5'd17
-  } st_state_e;
-
-  st_state_e   st_state;
-  logic [6:0]  r_line_len;
-  logic [1:0]  r_build_cmd_op;
-  logic        r_build_is_status;
-  logic        r_build_bulk_is_read;
-  logic        r_build_bulk_is_test;
-  logic [31:0] r_build_addr;
-  logic [31:0] r_build_data;
-  logic [31:0] r_build_words;
-  logic [2:0]  r_addr_nibbles;
-  logic [3:0]  r_data_nibbles;
-  logic [2:0]  r_words_nibbles;
-  logic [31:0] r_skip_err_code;
-  logic [31:0] r_skip_err_detail;
+  logic [7:0]  r_line [0:MAX_LINE_BYTES-1];
+  logic [4:0]  r_line_len;
+  logic        r_overflow;
 
   logic        r_cmd_valid;
   logic [1:0]  r_cmd_op;
@@ -89,18 +62,6 @@ module sdram_uart_ascii_ctrl #(
   logic [31:0] r_err_code;
   logic [31:0] r_err_detail;
 
-  function automatic logic is_ascii_printable(input logic [7:0] byte_value);
-    begin
-      is_ascii_printable = (byte_value >= 8'h20) && (byte_value <= 8'h7E);
-    end
-  endfunction
-
-  function automatic logic is_ascii_space(input logic [7:0] byte_value);
-    begin
-      is_ascii_space = (byte_value == 8'h20);
-    end
-  endfunction
-
   assign O_CMD_VALID        = r_cmd_valid;
   assign O_CMD_OP           = r_cmd_op;
   assign O_CMD_IS_STATUS    = r_cmd_is_status;
@@ -113,27 +74,372 @@ module sdram_uart_ascii_ctrl #(
   assign O_ERR_CODE         = r_err_code;
   assign O_ERR_DETAIL       = r_err_detail;
 
-  // Sequential byte parser.
-  always_ff @(posedge I_CLK or negedge I_RST_N) begin
-    logic [7:0]  curr_byte;
-    logic [31:0] next_value32;
-    logic [31:0] next_value21;
+  function automatic logic is_hex_upper(input logic [7:0] byte_value);
+    begin
+      is_hex_upper =
+        ((byte_value >= 8'h30) && (byte_value <= 8'h39)) ||
+        ((byte_value >= 8'h41) && (byte_value <= 8'h46));
+    end
+  endfunction
 
+  function automatic logic [3:0] hex_upper_to_nibble(input logic [7:0] byte_value);
+    begin
+      if ((byte_value >= 8'h30) && (byte_value <= 8'h39)) begin
+        hex_upper_to_nibble = byte_value[3:0];
+      end else begin
+        hex_upper_to_nibble = byte_value[3:0] + 4'd9;
+      end
+    end
+  endfunction
+
+  function automatic logic fixed_hex5_ok(
+    input logic [7:0] b0,
+    input logic [7:0] b1,
+    input logic [7:0] b2,
+    input logic [7:0] b3,
+    input logic [7:0] b4
+  );
+    begin
+      fixed_hex5_ok = is_hex_upper(b0) && is_hex_upper(b1) &&
+                      is_hex_upper(b2) && is_hex_upper(b3) &&
+                      is_hex_upper(b4);
+    end
+  endfunction
+
+  function automatic logic fixed_hex8_ok(
+    input logic [7:0] b0,
+    input logic [7:0] b1,
+    input logic [7:0] b2,
+    input logic [7:0] b3,
+    input logic [7:0] b4,
+    input logic [7:0] b5,
+    input logic [7:0] b6,
+    input logic [7:0] b7
+  );
+    begin
+      fixed_hex8_ok = is_hex_upper(b0) && is_hex_upper(b1) &&
+                      is_hex_upper(b2) && is_hex_upper(b3) &&
+                      is_hex_upper(b4) && is_hex_upper(b5) &&
+                      is_hex_upper(b6) && is_hex_upper(b7);
+    end
+  endfunction
+
+  function automatic logic fixed_hex6_ok(
+    input logic [7:0] b0,
+    input logic [7:0] b1,
+    input logic [7:0] b2,
+    input logic [7:0] b3,
+    input logic [7:0] b4,
+    input logic [7:0] b5
+  );
+    begin
+      fixed_hex6_ok = is_hex_upper(b0) && is_hex_upper(b1) &&
+                      is_hex_upper(b2) && is_hex_upper(b3) &&
+                      is_hex_upper(b4) && is_hex_upper(b5);
+    end
+  endfunction
+
+  function automatic logic fixed_addr6_ok(
+    input logic [7:0] b0,
+    input logic [7:0] b1,
+    input logic [7:0] b2,
+    input logic [7:0] b3,
+    input logic [7:0] b4,
+    input logic [7:0] b5
+  );
+    begin
+      fixed_addr6_ok = fixed_hex6_ok(b0, b1, b2, b3, b4, b5) &&
+                       (hex_upper_to_nibble(b0) <= 4'd1);
+    end
+  endfunction
+
+  function automatic logic [20:0] parse_hex5(
+    input logic [7:0] b0,
+    input logic [7:0] b1,
+    input logic [7:0] b2,
+    input logic [7:0] b3,
+    input logic [7:0] b4
+  );
+    begin
+      parse_hex5 = {
+        1'b0,
+        hex_upper_to_nibble(b0),
+        hex_upper_to_nibble(b1),
+        hex_upper_to_nibble(b2),
+        hex_upper_to_nibble(b3),
+        hex_upper_to_nibble(b4)
+      };
+    end
+  endfunction
+
+  function automatic logic [20:0] parse_hex6(
+    input logic [7:0] b0,
+    input logic [7:0] b1,
+    input logic [7:0] b2,
+    input logic [7:0] b3,
+    input logic [7:0] b4,
+    input logic [7:0] b5
+  );
+    logic [3:0] top_nibble;
+    begin
+      top_nibble = hex_upper_to_nibble(b0);
+      parse_hex6 = {
+        top_nibble[0],
+        hex_upper_to_nibble(b1),
+        hex_upper_to_nibble(b2),
+        hex_upper_to_nibble(b3),
+        hex_upper_to_nibble(b4),
+        hex_upper_to_nibble(b5)
+      };
+    end
+  endfunction
+
+  function automatic logic [31:0] parse_hex8(
+    input logic [7:0] b0,
+    input logic [7:0] b1,
+    input logic [7:0] b2,
+    input logic [7:0] b3,
+    input logic [7:0] b4,
+    input logic [7:0] b5,
+    input logic [7:0] b6,
+    input logic [7:0] b7
+  );
+    begin
+      parse_hex8 = {
+        hex_upper_to_nibble(b0),
+        hex_upper_to_nibble(b1),
+        hex_upper_to_nibble(b2),
+        hex_upper_to_nibble(b3),
+        hex_upper_to_nibble(b4),
+        hex_upper_to_nibble(b5),
+        hex_upper_to_nibble(b6),
+        hex_upper_to_nibble(b7)
+      };
+    end
+  endfunction
+
+  function automatic logic [31:0] parse_hex6_32(
+    input logic [7:0] b0,
+    input logic [7:0] b1,
+    input logic [7:0] b2,
+    input logic [7:0] b3,
+    input logic [7:0] b4,
+    input logic [7:0] b5
+  );
+    begin
+      parse_hex6_32 = {
+        8'h00,
+        hex_upper_to_nibble(b0),
+        hex_upper_to_nibble(b1),
+        hex_upper_to_nibble(b2),
+        hex_upper_to_nibble(b3),
+        hex_upper_to_nibble(b4),
+        hex_upper_to_nibble(b5)
+      };
+    end
+  endfunction
+
+  task automatic emit_cmd(
+    input logic [1:0]  cmd_op,
+    input logic        cmd_is_status,
+    input logic        cmd_bulk_is_read,
+    input logic        cmd_bulk_is_test,
+    input logic [20:0] cmd_addr,
+    input logic [31:0] cmd_data,
+    input logic [20:0] cmd_words
+  );
+    begin
+      r_cmd_valid         <= 1'b1;
+      r_cmd_op            <= cmd_op;
+      r_cmd_is_status     <= cmd_is_status;
+      r_cmd_bulk_is_read  <= cmd_bulk_is_read;
+      r_cmd_bulk_is_test  <= cmd_bulk_is_test;
+      r_cmd_addr          <= cmd_addr;
+      r_cmd_data          <= cmd_data;
+      r_cmd_words         <= cmd_words;
+    end
+  endtask
+
+  task automatic emit_err(
+    input logic [31:0] err_code,
+    input logic [31:0] err_detail
+  );
+    begin
+      r_err_valid <= 1'b1;
+      r_err_code  <= err_code;
+      r_err_detail<= err_detail;
+    end
+  endtask
+
+  task automatic decode_line;
+    logic [20:0] decoded_addr;
+    logic [31:0] decoded_data;
+    logic [20:0] decoded_words;
+    begin
+      if (r_overflow) begin
+        emit_err(ERR_BAD_ASCII_FIELD, 32'hFFFF_FFFF);
+      end else if (r_line_len == 0) begin
+        // Empty lines are ignored.
+      end else if ((r_line_len == LEN_READ) &&
+                   (r_line[0] == ASCII_CMD_R) &&
+                   (r_line[1] == 8'h20) &&
+                   fixed_hex5_ok(r_line[2], r_line[3], r_line[4],
+                                 r_line[5], r_line[6])) begin
+        decoded_addr = parse_hex5(r_line[2], r_line[3], r_line[4],
+                                  r_line[5], r_line[6]);
+        emit_cmd(ASCII_OP_READ, 1'b0, 1'b0, 1'b0, decoded_addr, 32'h0, 21'h0);
+      end else if ((r_line_len == LEN_READ6) &&
+                   (r_line[0] == ASCII_CMD_R) &&
+                   (r_line[1] == 8'h20) &&
+                   fixed_addr6_ok(r_line[2], r_line[3], r_line[4],
+                                  r_line[5], r_line[6], r_line[7])) begin
+        decoded_addr = parse_hex6(r_line[2], r_line[3], r_line[4],
+                                  r_line[5], r_line[6], r_line[7]);
+        emit_cmd(ASCII_OP_READ, 1'b0, 1'b0, 1'b0, decoded_addr, 32'h0, 21'h0);
+      end else if ((r_line_len == LEN_READ6) &&
+                   (r_line[0] == ASCII_CMD_R) &&
+                   (r_line[1] == 8'h20) &&
+                   fixed_hex6_ok(r_line[2], r_line[3], r_line[4],
+                                 r_line[5], r_line[6], r_line[7])) begin
+        emit_err(
+          ERR_ADDR_RANGE,
+          parse_hex6_32(r_line[2], r_line[3], r_line[4],
+                        r_line[5], r_line[6], r_line[7])
+        );
+      end else if ((r_line_len == LEN_WRITE) &&
+                   (r_line[0] == ASCII_CMD_W) &&
+                   (r_line[1] == 8'h20) &&
+                   (r_line[7] == 8'h20) &&
+                   fixed_hex5_ok(r_line[2], r_line[3], r_line[4],
+                                 r_line[5], r_line[6]) &&
+                   fixed_hex8_ok(r_line[8], r_line[9], r_line[10], r_line[11],
+                                 r_line[12], r_line[13], r_line[14], r_line[15])) begin
+        decoded_addr = parse_hex5(r_line[2], r_line[3], r_line[4],
+                                  r_line[5], r_line[6]);
+        decoded_data = parse_hex8(r_line[8], r_line[9], r_line[10], r_line[11],
+                                  r_line[12], r_line[13], r_line[14], r_line[15]);
+        emit_cmd(ASCII_OP_WRITE, 1'b0, 1'b0, 1'b0, decoded_addr, decoded_data, 21'h0);
+      end else if ((r_line_len == LEN_WRITE6) &&
+                   (r_line[0] == ASCII_CMD_W) &&
+                   (r_line[1] == 8'h20) &&
+                   (r_line[8] == 8'h20) &&
+                   fixed_addr6_ok(r_line[2], r_line[3], r_line[4],
+                                  r_line[5], r_line[6], r_line[7]) &&
+                   fixed_hex8_ok(r_line[9], r_line[10], r_line[11], r_line[12],
+                                 r_line[13], r_line[14], r_line[15], r_line[16])) begin
+        decoded_addr = parse_hex6(r_line[2], r_line[3], r_line[4],
+                                  r_line[5], r_line[6], r_line[7]);
+        decoded_data = parse_hex8(r_line[9], r_line[10], r_line[11], r_line[12],
+                                  r_line[13], r_line[14], r_line[15], r_line[16]);
+        emit_cmd(ASCII_OP_WRITE, 1'b0, 1'b0, 1'b0, decoded_addr, decoded_data, 21'h0);
+      end else if ((r_line_len == LEN_STATUS_RD) &&
+                   (r_line[0] == ASCII_CMD_S) &&
+                   (r_line[1] == ASCII_CMD_R) &&
+                   (r_line[2] == 8'h20) &&
+                   fixed_hex5_ok(r_line[3], r_line[4], r_line[5],
+                                 r_line[6], r_line[7])) begin
+        decoded_addr = parse_hex5(r_line[3], r_line[4], r_line[5],
+                                  r_line[6], r_line[7]);
+        emit_cmd(ASCII_OP_READ, 1'b1, 1'b0, 1'b0, decoded_addr, 32'h0, 21'h0);
+      end else if ((r_line_len == LEN_STATUS_WR) &&
+                   (r_line[0] == ASCII_CMD_S) &&
+                   (r_line[1] == ASCII_CMD_W) &&
+                   (r_line[2] == 8'h20) &&
+                   (r_line[8] == 8'h20) &&
+                   fixed_hex5_ok(r_line[3], r_line[4], r_line[5],
+                                 r_line[6], r_line[7]) &&
+                   fixed_hex8_ok(r_line[9], r_line[10], r_line[11], r_line[12],
+                                 r_line[13], r_line[14], r_line[15], r_line[16])) begin
+        decoded_addr = parse_hex5(r_line[3], r_line[4], r_line[5],
+                                  r_line[6], r_line[7]);
+        decoded_data = parse_hex8(r_line[9], r_line[10], r_line[11], r_line[12],
+                                  r_line[13], r_line[14], r_line[15], r_line[16]);
+        emit_cmd(ASCII_OP_WRITE, 1'b1, 1'b0, 1'b0, decoded_addr, decoded_data, 21'h0);
+      end else if ((r_line_len == LEN_BURST_TEST) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   (r_line[1] == ASCII_CMD_R) &&
+                   (r_line[2] == ASCII_CMD_T) &&
+                   (r_line[3] == 8'h20) &&
+                   (r_line[9] == 8'h20) &&
+                   fixed_hex5_ok(r_line[4], r_line[5], r_line[6],
+                                 r_line[7], r_line[8]) &&
+                   fixed_hex5_ok(r_line[10], r_line[11], r_line[12],
+                                 r_line[13], r_line[14])) begin
+        decoded_addr  = parse_hex5(r_line[4], r_line[5], r_line[6],
+                                   r_line[7], r_line[8]);
+        decoded_words = parse_hex5(r_line[10], r_line[11], r_line[12],
+                                   r_line[13], r_line[14]);
+        emit_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 1'b1, decoded_addr, 32'h0, decoded_words);
+      end else if ((r_line_len == (LEN_BURST_TEST + 1)) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   (r_line[1] == ASCII_CMD_R) &&
+                   (r_line[2] == ASCII_CMD_T) &&
+                   (r_line[3] == 8'h20) &&
+                   (r_line[10] == 8'h20) &&
+                   fixed_addr6_ok(r_line[4], r_line[5], r_line[6],
+                                  r_line[7], r_line[8], r_line[9]) &&
+                   fixed_hex5_ok(r_line[11], r_line[12], r_line[13],
+                                 r_line[14], r_line[15])) begin
+        decoded_addr  = parse_hex6(r_line[4], r_line[5], r_line[6],
+                                   r_line[7], r_line[8], r_line[9]);
+        decoded_words = parse_hex5(r_line[11], r_line[12], r_line[13],
+                                   r_line[14], r_line[15]);
+        emit_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 1'b1, decoded_addr, 32'h0, decoded_words);
+      end else if ((r_line_len == LEN_BURST_TEST) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   (r_line[1] == ASCII_CMD_W) &&
+                   (r_line[2] == ASCII_CMD_T) &&
+                   (r_line[3] == 8'h20) &&
+                   (r_line[9] == 8'h20) &&
+                   fixed_hex5_ok(r_line[4], r_line[5], r_line[6],
+                                 r_line[7], r_line[8]) &&
+                   fixed_hex5_ok(r_line[10], r_line[11], r_line[12],
+                                 r_line[13], r_line[14])) begin
+        decoded_addr  = parse_hex5(r_line[4], r_line[5], r_line[6],
+                                   r_line[7], r_line[8]);
+        decoded_words = parse_hex5(r_line[10], r_line[11], r_line[12],
+                                   r_line[13], r_line[14]);
+        emit_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 1'b1, decoded_addr, 32'h0, decoded_words);
+      end else if ((r_line_len == (LEN_BURST_TEST + 1)) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   (r_line[1] == ASCII_CMD_W) &&
+                   (r_line[2] == ASCII_CMD_T) &&
+                   (r_line[3] == 8'h20) &&
+                   (r_line[10] == 8'h20) &&
+                   fixed_addr6_ok(r_line[4], r_line[5], r_line[6],
+                                  r_line[7], r_line[8], r_line[9]) &&
+                   fixed_hex5_ok(r_line[11], r_line[12], r_line[13],
+                                 r_line[14], r_line[15])) begin
+        decoded_addr  = parse_hex6(r_line[4], r_line[5], r_line[6],
+                                   r_line[7], r_line[8], r_line[9]);
+        decoded_words = parse_hex5(r_line[11], r_line[12], r_line[13],
+                                   r_line[14], r_line[15]);
+        emit_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 1'b1, decoded_addr, 32'h0, decoded_words);
+      end else if ((r_line_len >= 2) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   ((r_line[1] == ASCII_CMD_R) || (r_line[1] == ASCII_CMD_W))) begin
+        emit_cmd(
+          ASCII_OP_BULK,
+          1'b0,
+          (r_line[1] == ASCII_CMD_R),
+          1'b0,
+          21'h0,
+          32'h0,
+          21'h0
+        );
+      end else begin
+        emit_err(ERR_BAD_ASCII_CMD, {24'h0, r_line[0]});
+      end
+    end
+  endtask
+
+  // The line collector ignores CR, terminates on LF, and holds decoded commands
+  // until the downstream bridge accepts them through I_CMD_READY.
+  always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
-      st_state            <= ST_IDLE;
+      r_line              <= '{default: 8'h00};
       r_line_len          <= '0;
-      r_build_cmd_op      <= ASCII_OP_NONE;
-      r_build_is_status   <= 1'b0;
-      r_build_bulk_is_read<= 1'b0;
-      r_build_bulk_is_test<= 1'b0;
-      r_build_addr        <= '0;
-      r_build_data        <= '0;
-      r_build_words       <= '0;
-      r_addr_nibbles      <= '0;
-      r_data_nibbles      <= '0;
-      r_words_nibbles     <= '0;
-      r_skip_err_code     <= '0;
-      r_skip_err_detail   <= '0;
+      r_overflow          <= 1'b0;
       r_cmd_valid         <= 1'b0;
       r_cmd_op            <= ASCII_OP_NONE;
       r_cmd_is_status     <= 1'b0;
@@ -147,731 +453,30 @@ module sdram_uart_ascii_ctrl #(
       r_err_detail        <= '0;
     end else begin
       if (I_CMD_READY) begin
-        `SDRAM_ASCII_LOG_TRACE("cmd_consumed");
         r_cmd_valid <= 1'b0;
       end
       if (r_err_valid) begin
-        `SDRAM_ASCII_LOG_TRACE(
-          $sformatf("err_cleared code=0x%08h detail=0x%08h", r_err_code, r_err_detail)
-        );
         r_err_valid <= 1'b0;
       end
 
-      if (I_ENABLE && I_RX_VALID && !r_cmd_valid) begin
-        curr_byte = I_RX_DATA;
-
-        if (curr_byte == ASCII_CMD_CR) begin
-          `SDRAM_ASCII_LOG_TRACE("ignore_cr");
-        end else if (curr_byte == ASCII_CMD_LF) begin
-          case (st_state)
-            ST_IDLE: begin
-              r_line_len <= '0;
-            end
-
-            ST_ADDR_START,
-            ST_ADDR_ZERO,
-            ST_ADDR_BODY: begin
-              if ((st_state == ST_ADDR_START) ||
-                  ((st_state == ST_ADDR_BODY) && (r_addr_nibbles == 0))) begin
-                r_err_valid  <= 1'b1;
-                r_err_code   <= ERR_BAD_ASCII_FIELD;
-                r_err_detail <= 32'h0000_0001;
-                `SDRAM_ASCII_LOG_DEBUG("emit_err bad_addr_field");
-              end else if (r_build_addr > 32'h001F_FFFF) begin
-                r_err_valid  <= 1'b1;
-                r_err_code   <= ERR_ADDR_RANGE;
-                r_err_detail <= r_build_addr;
-                `SDRAM_ASCII_LOG_DEBUG(
-                  $sformatf("emit_err addr_range value=0x%08h", r_build_addr)
-                );
-              end else if (r_build_cmd_op == ASCII_OP_READ) begin
-                r_cmd_valid        <= 1'b1;
-                r_cmd_op           <= r_build_cmd_op;
-                r_cmd_is_status    <= r_build_is_status;
-                r_cmd_bulk_is_read <= r_build_bulk_is_read;
-                r_cmd_bulk_is_test <= r_build_bulk_is_test;
-                r_cmd_addr         <= r_build_addr[20:0];
-                r_cmd_data         <= 32'h0;
-                r_cmd_words        <= 21'h0;
-                `SDRAM_ASCII_LOG_DEBUG(
-                  $sformatf("emit_cmd READ addr=0x%05h", r_build_addr[20:0])
-                );
-              end else if (r_build_cmd_op == ASCII_OP_WRITE) begin
-                r_err_valid  <= 1'b1;
-                r_err_code   <= ERR_BAD_ASCII_FIELD;
-                r_err_detail <= 32'h0000_0003;
-                `SDRAM_ASCII_LOG_DEBUG("emit_err missing_write_data");
-              end else begin
-                r_err_valid  <= 1'b1;
-                r_err_code   <= ERR_BAD_ASCII_FIELD;
-                r_err_detail <= 32'h0000_0005;
-                `SDRAM_ASCII_LOG_DEBUG("emit_err missing_bulk_words");
-              end
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-            end
-
-            ST_WRITE_DATA_START,
-            ST_WRITE_DATA_ZERO,
-            ST_WRITE_DATA_BODY: begin
-              if ((st_state == ST_WRITE_DATA_START) ||
-                  ((st_state == ST_WRITE_DATA_BODY) && (r_data_nibbles == 0))) begin
-                r_err_valid  <= 1'b1;
-                r_err_code   <= ERR_BAD_ASCII_FIELD;
-                r_err_detail <= 32'h0000_0003;
-                `SDRAM_ASCII_LOG_DEBUG("emit_err bad_write_data");
-              end else begin
-                r_cmd_valid        <= 1'b1;
-                r_cmd_op           <= r_build_cmd_op;
-                r_cmd_is_status    <= r_build_is_status;
-                r_cmd_bulk_is_read <= r_build_bulk_is_read;
-                r_cmd_bulk_is_test <= r_build_bulk_is_test;
-                r_cmd_addr         <= r_build_addr[20:0];
-                r_cmd_data         <= r_build_data;
-                r_cmd_words        <= 21'h0;
-                `SDRAM_ASCII_LOG_DEBUG(
-                  $sformatf(
-                    "emit_cmd WRITE addr=0x%05h data=0x%08h",
-                    r_build_addr[20:0],
-                    r_build_data
-                  )
-                );
-              end
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-            end
-
-            ST_BULK_WORDS_START,
-            ST_BULK_WORDS_ZERO,
-            ST_BULK_WORDS_BODY: begin
-              if ((st_state == ST_BULK_WORDS_START) ||
-                  ((st_state == ST_BULK_WORDS_BODY) && (r_words_nibbles == 0))) begin
-                r_err_valid  <= 1'b1;
-                r_err_code   <= ERR_BAD_ASCII_FIELD;
-                r_err_detail <= 32'h0000_0005;
-                `SDRAM_ASCII_LOG_DEBUG("emit_err bad_bulk_words");
-              end else if ((r_build_words == 0) || (r_build_words > 32'h001F_FFFF)) begin
-                r_err_valid  <= 1'b1;
-                r_err_code   <= ERR_WORD_COUNT;
-                r_err_detail <= r_build_words;
-                `SDRAM_ASCII_LOG_DEBUG(
-                  $sformatf("emit_err word_count value=0x%08h", r_build_words)
-                );
-              end else begin
-                r_cmd_valid        <= 1'b1;
-                r_cmd_op           <= r_build_cmd_op;
-                r_cmd_is_status    <= r_build_is_status;
-                r_cmd_bulk_is_read <= r_build_bulk_is_read;
-                r_cmd_bulk_is_test <= r_build_bulk_is_test;
-                r_cmd_addr         <= r_build_addr[20:0];
-                r_cmd_data         <= 32'h0;
-                r_cmd_words        <= r_build_words[20:0];
-                `SDRAM_ASCII_LOG_DEBUG(
-                  $sformatf(
-                    "emit_cmd BULK addr=0x%05h words=0x%05h bulk_read=%0b",
-                    r_build_addr[20:0],
-                    r_build_words[20:0],
-                    r_build_bulk_is_read
-                  )
-                );
-              end
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-            end
-
-            ST_TRAIL_READ: begin
-              r_cmd_valid        <= 1'b1;
-              r_cmd_op           <= r_build_cmd_op;
-              r_cmd_is_status    <= r_build_is_status;
-              r_cmd_bulk_is_read <= r_build_bulk_is_read;
-              r_cmd_bulk_is_test <= r_build_bulk_is_test;
-              r_cmd_addr         <= r_build_addr[20:0];
-              r_cmd_data         <= 32'h0;
-              r_cmd_words        <= 21'h0;
-              `SDRAM_ASCII_LOG_DEBUG(
-                $sformatf("emit_cmd READ addr=0x%05h", r_build_addr[20:0])
-              );
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-            end
-
-            ST_TRAIL_WRITE: begin
-              r_cmd_valid        <= 1'b1;
-              r_cmd_op           <= r_build_cmd_op;
-              r_cmd_is_status    <= r_build_is_status;
-              r_cmd_bulk_is_read <= r_build_bulk_is_read;
-              r_cmd_bulk_is_test <= r_build_bulk_is_test;
-              r_cmd_addr         <= r_build_addr[20:0];
-              r_cmd_data         <= r_build_data;
-              r_cmd_words        <= 21'h0;
-              `SDRAM_ASCII_LOG_DEBUG(
-                $sformatf(
-                  "emit_cmd WRITE addr=0x%05h data=0x%08h",
-                  r_build_addr[20:0],
-                  r_build_data
-                )
-              );
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-            end
-
-            ST_TRAIL_BULK: begin
-              if ((r_build_words == 0) || (r_build_words > 32'h001F_FFFF)) begin
-                r_err_valid  <= 1'b1;
-                r_err_code   <= ERR_WORD_COUNT;
-                r_err_detail <= r_build_words;
-                `SDRAM_ASCII_LOG_DEBUG(
-                  $sformatf("emit_err word_count value=0x%08h", r_build_words)
-                );
-              end else begin
-                r_cmd_valid        <= 1'b1;
-                r_cmd_op           <= r_build_cmd_op;
-                r_cmd_is_status    <= r_build_is_status;
-                r_cmd_bulk_is_read <= r_build_bulk_is_read;
-                r_cmd_bulk_is_test <= r_build_bulk_is_test;
-                r_cmd_addr         <= r_build_addr[20:0];
-                r_cmd_data         <= 32'h0;
-                r_cmd_words        <= r_build_words[20:0];
-                `SDRAM_ASCII_LOG_DEBUG(
-                  $sformatf(
-                    "emit_cmd BULK addr=0x%05h words=0x%05h bulk_read=%0b",
-                    r_build_addr[20:0],
-                    r_build_words[20:0],
-                    r_build_bulk_is_read
-                  )
-                );
-              end
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-            end
-
-            ST_CMD_AFTER_S,
-            ST_CMD_AFTER_BR,
-            ST_CMD_AFTER_BW: begin
-              r_err_valid  <= 1'b1;
-              r_err_code   <= ERR_BAD_ASCII_FIELD;
-              r_err_detail <= 32'h0000_0001;
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_is_status    <= 1'b0;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-            end
-
-            ST_ERROR_SKIP: begin
-              r_err_valid  <= 1'b1;
-              r_err_code   <= r_skip_err_code;
-              r_err_detail <= r_skip_err_detail;
-              `SDRAM_ASCII_LOG_DEBUG(
-                $sformatf(
-                  "emit_err code=0x%08h detail=0x%08h",
-                  r_skip_err_code,
-                  r_skip_err_detail
-                )
-              );
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-              r_skip_err_code      <= '0;
-              r_skip_err_detail    <= '0;
-            end
-
-            default: begin
-              st_state             <= ST_IDLE;
-              r_line_len           <= '0;
-              r_build_cmd_op       <= ASCII_OP_NONE;
-              r_build_bulk_is_read <= 1'b0;
-              r_build_bulk_is_test <= 1'b0;
-              r_build_addr         <= '0;
-              r_build_data         <= '0;
-              r_build_words        <= '0;
-              r_addr_nibbles       <= '0;
-              r_data_nibbles       <= '0;
-              r_words_nibbles      <= '0;
-            end
-          endcase
-        end else if (!is_ascii_printable(curr_byte)) begin
-          `SDRAM_ASCII_LOG_TRACE($sformatf("ignore_ctrl byte=0x%02h", curr_byte));
+      if (I_ENABLE && I_RX_VALID && !r_cmd_valid && !r_err_valid) begin
+        if (I_RX_DATA == ASCII_CMD_CR) begin
+          // Ignore CR so the parser accepts both LF and CRLF line endings.
+        end else if (I_RX_DATA == ASCII_CMD_LF) begin
+          decode_line();
+          r_line_len <= '0;
+          r_overflow <= 1'b0;
+        end else if (I_RX_DATA < 8'h20) begin
+          // uart_log_cli forwards source-select control keys to this stream.
+          // They are not SDRAM commands and must not poison the next line.
+        end else if (r_line_len < MAX_LINE_BYTES) begin
+          r_line[r_line_len] <= I_RX_DATA;
+          r_line_len         <= r_line_len + 1'b1;
         end else begin
-          if ((st_state != ST_ERROR_SKIP) && (r_line_len >= LINE_BYTES)) begin
-            r_err_valid          <= 1'b1;
-            r_err_code           <= ERR_BAD_ASCII_FIELD;
-            r_err_detail         <= 32'hFFFF_FFFF;
-            st_state             <= ST_IDLE;
-            r_line_len           <= '0;
-            r_build_cmd_op       <= ASCII_OP_NONE;
-            r_build_bulk_is_read <= 1'b0;
-            r_build_bulk_is_test <= 1'b0;
-            r_build_addr         <= '0;
-            r_build_data         <= '0;
-            r_build_words        <= '0;
-            r_addr_nibbles       <= '0;
-            r_data_nibbles       <= '0;
-            r_words_nibbles      <= '0;
-            r_skip_err_code      <= '0;
-            r_skip_err_detail    <= '0;
-            `SDRAM_ASCII_LOG_DEBUG("line_overflow");
-          end else begin
-            if (st_state != ST_ERROR_SKIP) begin
-              r_line_len <= r_line_len + 1'b1;
-            end
-
-            case (st_state)
-              ST_IDLE: begin
-                if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_IDLE;
-                end else if (curr_byte == ASCII_CMD_R) begin
-                  st_state             <= ST_ADDR_START;
-                  r_build_cmd_op       <= ASCII_OP_READ;
-                  r_build_is_status    <= 1'b0;
-                  r_build_bulk_is_read <= 1'b0;
-                  r_build_bulk_is_test <= 1'b0;
-                  r_build_addr         <= '0;
-                  r_build_data         <= '0;
-                  r_build_words        <= '0;
-                  r_addr_nibbles       <= '0;
-                  r_data_nibbles       <= '0;
-                  r_words_nibbles      <= '0;
-                end else if (curr_byte == ASCII_CMD_W) begin
-                  st_state             <= ST_ADDR_START;
-                  r_build_cmd_op       <= ASCII_OP_WRITE;
-                  r_build_is_status    <= 1'b0;
-                  r_build_bulk_is_read <= 1'b0;
-                  r_build_bulk_is_test <= 1'b0;
-                  r_build_addr         <= '0;
-                  r_build_data         <= '0;
-                  r_build_words        <= '0;
-                  r_addr_nibbles       <= '0;
-                  r_data_nibbles       <= '0;
-                  r_words_nibbles      <= '0;
-                end else if (curr_byte == ASCII_CMD_B) begin
-                  st_state <= ST_CMD_AFTER_B;
-                end else if (curr_byte == ASCII_CMD_S) begin
-                  st_state <= ST_CMD_AFTER_S;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_CMD;
-                  r_skip_err_detail <= {24'h0, curr_byte};
-                end
-              end
-
-              ST_CMD_AFTER_B: begin
-                if (curr_byte == ASCII_CMD_R) begin
-                  st_state             <= ST_CMD_AFTER_BR;
-                  r_build_cmd_op       <= ASCII_OP_BULK;
-                  r_build_is_status    <= 1'b0;
-                  r_build_bulk_is_read <= 1'b1;
-                  r_build_bulk_is_test <= 1'b0;
-                  r_build_addr         <= '0;
-                  r_build_data         <= '0;
-                  r_build_words        <= '0;
-                  r_addr_nibbles       <= '0;
-                  r_data_nibbles       <= '0;
-                  r_words_nibbles      <= '0;
-                end else if (curr_byte == ASCII_CMD_W) begin
-                  st_state             <= ST_CMD_AFTER_BW;
-                  r_build_cmd_op       <= ASCII_OP_BULK;
-                  r_build_is_status    <= 1'b0;
-                  r_build_bulk_is_read <= 1'b0;
-                  r_build_bulk_is_test <= 1'b0;
-                  r_build_addr         <= '0;
-                  r_build_data         <= '0;
-                  r_build_words        <= '0;
-                  r_addr_nibbles       <= '0;
-                  r_data_nibbles       <= '0;
-                  r_words_nibbles      <= '0;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_CMD;
-                  r_skip_err_detail <= {24'h0, ASCII_CMD_B};
-                end
-              end
-
-              ST_CMD_AFTER_BR: begin
-                if (curr_byte == ASCII_CMD_T) begin
-                  st_state <= ST_ADDR_START;
-                  r_build_bulk_is_test <= 1'b1;
-                end else if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_ADDR_START;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_CMD;
-                  r_skip_err_detail <= {16'h0, ASCII_CMD_B, ASCII_CMD_R};
-                end
-              end
-
-              ST_CMD_AFTER_BW: begin
-                if (curr_byte == ASCII_CMD_T) begin
-                  st_state <= ST_ADDR_START;
-                  r_build_bulk_is_test <= 1'b1;
-                end else if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_ADDR_START;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_CMD;
-                  r_skip_err_detail <= {16'h0, ASCII_CMD_B, ASCII_CMD_W};
-                end
-              end
-
-              ST_CMD_AFTER_S: begin
-                if (curr_byte == ASCII_CMD_R) begin
-                  st_state             <= ST_ADDR_START;
-                  r_build_cmd_op       <= ASCII_OP_READ;
-                  r_build_is_status    <= 1'b1;
-                  r_build_bulk_is_read <= 1'b0;
-                  r_build_bulk_is_test <= 1'b0;
-                  r_build_addr         <= '0;
-                  r_build_data         <= '0;
-                  r_build_words        <= '0;
-                  r_addr_nibbles       <= '0;
-                  r_data_nibbles       <= '0;
-                  r_words_nibbles      <= '0;
-                end else if (curr_byte == ASCII_CMD_W) begin
-                  st_state             <= ST_ADDR_START;
-                  r_build_cmd_op       <= ASCII_OP_WRITE;
-                  r_build_is_status    <= 1'b1;
-                  r_build_bulk_is_read <= 1'b0;
-                  r_build_bulk_is_test <= 1'b0;
-                  r_build_addr         <= '0;
-                  r_build_data         <= '0;
-                  r_build_words        <= '0;
-                  r_addr_nibbles       <= '0;
-                  r_data_nibbles       <= '0;
-                  r_words_nibbles      <= '0;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_CMD;
-                  r_skip_err_detail <= {24'h0, curr_byte};
-                end
-              end
-
-              ST_ADDR_START: begin
-                if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_ADDR_START;
-                end else if (curr_byte == 8'h30) begin
-                  st_state       <= ST_ADDR_ZERO;
-                  r_build_addr   <= '0;
-                  r_addr_nibbles <= '0;
-                end else if (is_ascii_hex(curr_byte)) begin
-                  st_state       <= ST_ADDR_BODY;
-                  r_build_addr   <= {28'h0, ascii_hex_to_nibble(curr_byte)};
-                  r_addr_nibbles <= 3'd1;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0001;
-                end
-              end
-
-              ST_ADDR_ZERO: begin
-                if ((curr_byte == 8'h78) || (curr_byte == 8'h58)) begin
-                  st_state <= ST_ADDR_BODY;
-                end else if (is_ascii_hex(curr_byte)) begin
-                  next_value21     = {28'h0, ascii_hex_to_nibble(curr_byte)};
-                  st_state         <= ST_ADDR_BODY;
-                  r_build_addr     <= next_value21;
-                  r_addr_nibbles   <= 3'd2;
-                end else if (is_ascii_space(curr_byte)) begin
-                  r_build_addr   <= '0;
-                  r_addr_nibbles <= 3'd1;
-                  if (r_build_cmd_op == ASCII_OP_READ) begin
-                    st_state <= ST_TRAIL_READ;
-                  end else if (r_build_cmd_op == ASCII_OP_WRITE) begin
-                    st_state <= ST_WRITE_DATA_START;
-                  end else begin
-                    st_state <= ST_BULK_WORDS_START;
-                  end
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0001;
-                end
-              end
-
-              ST_ADDR_BODY: begin
-                if (is_ascii_hex(curr_byte)) begin
-                  if (r_addr_nibbles >= 3'd6) begin
-                    st_state          <= ST_ERROR_SKIP;
-                    r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                    r_skip_err_detail <= 32'h0000_0001;
-                  end else begin
-                    next_value21   = {r_build_addr[27:0], ascii_hex_to_nibble(curr_byte)};
-                    r_build_addr   <= next_value21;
-                    r_addr_nibbles <= r_addr_nibbles + 1'b1;
-                  end
-                end else if (is_ascii_space(curr_byte)) begin
-                  if (r_addr_nibbles == 0) begin
-                    st_state          <= ST_ERROR_SKIP;
-                    r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                    r_skip_err_detail <= 32'h0000_0001;
-                  end else if (r_build_addr > 32'h001F_FFFF) begin
-                    st_state          <= ST_ERROR_SKIP;
-                    r_skip_err_code   <= ERR_ADDR_RANGE;
-                    r_skip_err_detail <= r_build_addr;
-                  end else if (r_build_cmd_op == ASCII_OP_READ) begin
-                    st_state <= ST_TRAIL_READ;
-                  end else if (r_build_cmd_op == ASCII_OP_WRITE) begin
-                    st_state <= ST_WRITE_DATA_START;
-                  end else begin
-                    st_state <= ST_BULK_WORDS_START;
-                  end
-                end else if (r_build_cmd_op == ASCII_OP_READ) begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0002;
-                end else if (r_build_cmd_op == ASCII_OP_WRITE) begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0003;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0005;
-                end
-              end
-
-              ST_WRITE_DATA_START: begin
-                if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_WRITE_DATA_START;
-                end else if (curr_byte == 8'h30) begin
-                  st_state       <= ST_WRITE_DATA_ZERO;
-                  r_build_data   <= '0;
-                  r_data_nibbles <= '0;
-                end else if (is_ascii_hex(curr_byte)) begin
-                  st_state       <= ST_WRITE_DATA_BODY;
-                  r_build_data   <= {28'h0, ascii_hex_to_nibble(curr_byte)};
-                  r_data_nibbles <= 4'd1;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0003;
-                end
-              end
-
-              ST_WRITE_DATA_ZERO: begin
-                if ((curr_byte == 8'h78) || (curr_byte == 8'h58)) begin
-                  st_state <= ST_WRITE_DATA_BODY;
-                end else if (is_ascii_hex(curr_byte)) begin
-                  next_value32   = {28'h0, ascii_hex_to_nibble(curr_byte)};
-                  st_state       <= ST_WRITE_DATA_BODY;
-                  r_build_data   <= next_value32;
-                  r_data_nibbles <= 4'd2;
-                end else if (is_ascii_space(curr_byte)) begin
-                  r_build_data   <= '0;
-                  r_data_nibbles <= 4'd1;
-                  st_state       <= ST_TRAIL_WRITE;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0004;
-                end
-              end
-
-              ST_WRITE_DATA_BODY: begin
-                if (is_ascii_hex(curr_byte)) begin
-                  if (r_data_nibbles >= 4'd8) begin
-                    st_state          <= ST_ERROR_SKIP;
-                    r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                    r_skip_err_detail <= 32'h0000_0003;
-                  end else begin
-                    next_value32   = {r_build_data[27:0], ascii_hex_to_nibble(curr_byte)};
-                    r_build_data   <= next_value32;
-                    r_data_nibbles <= r_data_nibbles + 1'b1;
-                  end
-                end else if (is_ascii_space(curr_byte)) begin
-                  if (r_data_nibbles == 0) begin
-                    st_state          <= ST_ERROR_SKIP;
-                    r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                    r_skip_err_detail <= 32'h0000_0003;
-                  end else begin
-                    st_state <= ST_TRAIL_WRITE;
-                  end
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0004;
-                end
-              end
-
-              ST_BULK_WORDS_START: begin
-                if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_BULK_WORDS_START;
-                end else if (curr_byte == 8'h30) begin
-                  st_state        <= ST_BULK_WORDS_ZERO;
-                  r_build_words   <= '0;
-                  r_words_nibbles <= '0;
-                end else if (is_ascii_hex(curr_byte)) begin
-                  st_state        <= ST_BULK_WORDS_BODY;
-                  r_build_words   <= {28'h0, ascii_hex_to_nibble(curr_byte)};
-                  r_words_nibbles <= 3'd1;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0005;
-                end
-              end
-
-              ST_BULK_WORDS_ZERO: begin
-                if ((curr_byte == 8'h78) || (curr_byte == 8'h58)) begin
-                  st_state <= ST_BULK_WORDS_BODY;
-                end else if (is_ascii_hex(curr_byte)) begin
-                  next_value21     = {28'h0, ascii_hex_to_nibble(curr_byte)};
-                  st_state         <= ST_BULK_WORDS_BODY;
-                  r_build_words    <= next_value21;
-                  r_words_nibbles  <= 3'd2;
-                end else if (is_ascii_space(curr_byte)) begin
-                  r_build_words   <= '0;
-                  r_words_nibbles <= 3'd1;
-                  st_state        <= ST_TRAIL_BULK;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0006;
-                end
-              end
-
-              ST_BULK_WORDS_BODY: begin
-                if (is_ascii_hex(curr_byte)) begin
-                  if (r_words_nibbles >= 3'd6) begin
-                    st_state          <= ST_ERROR_SKIP;
-                    r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                    r_skip_err_detail <= 32'h0000_0005;
-                  end else begin
-                    next_value21     = {r_build_words[27:0], ascii_hex_to_nibble(curr_byte)};
-                    r_build_words    <= next_value21;
-                    r_words_nibbles  <= r_words_nibbles + 1'b1;
-                  end
-                end else if (is_ascii_space(curr_byte)) begin
-                  if (r_words_nibbles == 0) begin
-                    st_state          <= ST_ERROR_SKIP;
-                    r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                    r_skip_err_detail <= 32'h0000_0005;
-                  end else begin
-                    st_state <= ST_TRAIL_BULK;
-                  end
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0006;
-                end
-              end
-
-              ST_TRAIL_READ: begin
-                if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_TRAIL_READ;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0002;
-                end
-              end
-
-              ST_TRAIL_WRITE: begin
-                if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_TRAIL_WRITE;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0004;
-                end
-              end
-
-              ST_TRAIL_BULK: begin
-                if (is_ascii_space(curr_byte)) begin
-                  st_state <= ST_TRAIL_BULK;
-                end else begin
-                  st_state          <= ST_ERROR_SKIP;
-                  r_skip_err_code   <= ERR_BAD_ASCII_FIELD;
-                  r_skip_err_detail <= 32'h0000_0006;
-                end
-              end
-
-              ST_ERROR_SKIP: begin
-                st_state <= ST_ERROR_SKIP;
-              end
-
-              default: begin
-                st_state <= ST_IDLE;
-              end
-            endcase
-          end
+          r_overflow <= 1'b1;
         end
-      end else if (I_RX_VALID && r_cmd_valid) begin
-        `SDRAM_ASCII_LOG_TRACE($sformatf("ignore_while_busy byte=0x%02h", I_RX_DATA));
       end
     end
   end
 
 endmodule
-
-`undef SDRAM_ASCII_LOG_DEBUG
-`undef SDRAM_ASCII_LOG_TRACE

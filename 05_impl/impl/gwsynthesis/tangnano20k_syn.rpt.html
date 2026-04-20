@@ -59,6 +59,7 @@ table.detail_table td.label { min-width: 100px; width: 8%;}
 C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\gowin_pll\gowin_pll.v<br>
 C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv<br>
 C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_proto_pkg.sv<br>
+C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_evt_if.sv<br>
 C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv<br>
 C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_memtest_ctrl.sv<br>
 C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_access_engine.sv<br>
@@ -76,7 +77,6 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli_e
 C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli_pkg.sv<br>
 C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_src_async_bridge.sv<br>
 C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tap.sv<br>
-C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_testsrc1.sv<br>
 </td>
 </tr>
 <tr>
@@ -101,7 +101,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">Created Time</td>
-<td>Mon Apr 20 20:25:37 2026
+<td>Mon Apr 20 21:30:12 2026
 </td>
 </tr>
 <tr>
@@ -117,11 +117,11 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">Synthesis Process</td>
-<td>Running parser:<br/>&nbsp;&nbsp;&nbsp;&nbsp;CPU time = 0h 0m 0.484s, Elapsed time = 0h 0m 0.531s, Peak memory usage = 219.562MB<br/>Running netlist conversion:<br/>&nbsp;&nbsp;&nbsp;&nbsp;CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s, Peak memory usage = 0MB<br/>Running device independent optimization:<br/>&nbsp;&nbsp;&nbsp;&nbsp;Optimizing Phase 0: CPU time = 0h 0m 0.843s, Elapsed time = 0h 0m 0.844s, Peak memory usage = 219.562MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Optimizing Phase 1: CPU time = 0h 0m 0.25s, Elapsed time = 0h 0m 0.245s, Peak memory usage = 219.562MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Optimizing Phase 2: CPU time = 0h 0m 0.671s, Elapsed time = 0h 0m 0.694s, Peak memory usage = 219.562MB<br/>Running inference:<br/>&nbsp;&nbsp;&nbsp;&nbsp;Inferring Phase 0: CPU time = 0h 0m 0.375s, Elapsed time = 0h 0m 0.432s, Peak memory usage = 219.562MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Inferring Phase 1: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0.008s, Peak memory usage = 219.562MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Inferring Phase 2: CPU time = 0h 0m 0.031s, Elapsed time = 0h 0m 0.028s, Peak memory usage = 219.562MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Inferring Phase 3: CPU time = 0h 0m 0.031s, Elapsed time = 0h 0m 0.022s, Peak memory usage = 219.562MB<br/>Running technical mapping:<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 0: CPU time = 0h 0m 0.937s, Elapsed time = 0h 0m 1s, Peak memory usage = 219.562MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 1: CPU time = 0h 0m 0.203s, Elapsed time = 0h 0m 0.197s, Peak memory usage = 219.562MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 2: CPU time = 0h 0m 0.203s, Elapsed time = 0h 0m 0.202s, Peak memory usage = 219.562MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 3: CPU time = 0h 0m 16s, Elapsed time = 0h 0m 17s, Peak memory usage = 244.637MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 4: CPU time = 0h 0m 0.312s, Elapsed time = 0h 0m 0.339s, Peak memory usage = 244.637MB<br/>Generate output files:<br/>&nbsp;&nbsp;&nbsp;&nbsp;CPU time = 0h 0m 0.25s, Elapsed time = 0h 0m 0.294s, Peak memory usage = 244.637MB<br/></td>
+<td>Running parser:<br/>&nbsp;&nbsp;&nbsp;&nbsp;CPU time = 0h 0m 0.375s, Elapsed time = 0h 0m 0.414s, Peak memory usage = 196.324MB<br/>Running netlist conversion:<br/>&nbsp;&nbsp;&nbsp;&nbsp;CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s, Peak memory usage = 0MB<br/>Running device independent optimization:<br/>&nbsp;&nbsp;&nbsp;&nbsp;Optimizing Phase 0: CPU time = 0h 0m 0.484s, Elapsed time = 0h 0m 0.503s, Peak memory usage = 196.324MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Optimizing Phase 1: CPU time = 0h 0m 0.171s, Elapsed time = 0h 0m 0.173s, Peak memory usage = 196.324MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Optimizing Phase 2: CPU time = 0h 0m 0.562s, Elapsed time = 0h 0m 0.55s, Peak memory usage = 196.324MB<br/>Running inference:<br/>&nbsp;&nbsp;&nbsp;&nbsp;Inferring Phase 0: CPU time = 0h 0m 0.312s, Elapsed time = 0h 0m 0.356s, Peak memory usage = 196.324MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Inferring Phase 1: CPU time = 0h 0m 0.015s, Elapsed time = 0h 0m 0.006s, Peak memory usage = 196.324MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Inferring Phase 2: CPU time = 0h 0m 0.015s, Elapsed time = 0h 0m 0.019s, Peak memory usage = 196.324MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Inferring Phase 3: CPU time = 0h 0m 0.015s, Elapsed time = 0h 0m 0.015s, Peak memory usage = 196.324MB<br/>Running technical mapping:<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 0: CPU time = 0h 0m 0.609s, Elapsed time = 0h 0m 0.608s, Peak memory usage = 196.324MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 1: CPU time = 0h 0m 0.125s, Elapsed time = 0h 0m 0.121s, Peak memory usage = 196.324MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 2: CPU time = 0h 0m 0.14s, Elapsed time = 0h 0m 0.137s, Peak memory usage = 196.324MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 3: CPU time = 0h 0m 15s, Elapsed time = 0h 0m 15s, Peak memory usage = 221.891MB<br/>&nbsp;&nbsp;&nbsp;&nbsp;Tech-Mapping Phase 4: CPU time = 0h 0m 0.187s, Elapsed time = 0h 0m 0.218s, Peak memory usage = 221.891MB<br/>Generate output files:<br/>&nbsp;&nbsp;&nbsp;&nbsp;CPU time = 0h 0m 0.171s, Elapsed time = 0h 0m 0.201s, Peak memory usage = 221.891MB<br/></td>
 </tr>
 <tr>
 <td class="label">Total Time and Memory Usage</td>
-<td>CPU time = 0h 0m 20s, Elapsed time = 0h 0m 21s, Peak memory usage = 244.637MB</td>
+<td>CPU time = 0h 0m 18s, Elapsed time = 0h 0m 18s, Peak memory usage = 221.891MB</td>
 </tr>
 </table>
 <h1><a name="resource">Resource</a></h1>
@@ -157,11 +157,11 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label"><b>Register </b></td>
-<td>3370</td>
+<td>2474</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspDFF</td>
-<td>91</td>
+<td>92</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspDFFE</td>
@@ -189,51 +189,51 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspDFFC</td>
-<td>303</td>
+<td>268</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspDFFCE</td>
-<td>2933</td>
+<td>2071</td>
 </tr>
 <tr>
 <td class="label"><b>LUT </b></td>
-<td>5677</td>
+<td>4542</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspLUT2</td>
-<td>522</td>
+<td>418</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspLUT3</td>
-<td>1736</td>
+<td>1240</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspLUT4</td>
-<td>3419</td>
+<td>2884</td>
 </tr>
 <tr>
 <td class="label"><b>ALU </b></td>
-<td>336</td>
+<td>295</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspALU</td>
-<td>336</td>
+<td>295</td>
 </tr>
 <tr>
 <td class="label"><b>SSRAM </b></td>
-<td>83</td>
+<td>89</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspRAM16SDP4</td>
-<td>83</td>
+<td>89</td>
 </tr>
 <tr>
 <td class="label"><b>INV </b></td>
-<td>10</td>
+<td>11</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp&nbsp&nbspINV</td>
-<td>10</td>
+<td>11</td>
 </tr>
 <tr>
 <td class="label"><b>IOLOGIC </b></td>
@@ -273,13 +273,13 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">Logic</td>
-<td>6521(5687 LUT, 336 ALU, 83 RAM16) / 20736</td>
-<td>32%</td>
+<td>5382(4553 LUT, 295 ALU, 89 RAM16) / 20736</td>
+<td>26%</td>
 </tr>
 <tr>
 <td class="label">Register</td>
-<td>3370 / 15915</td>
-<td>22%</td>
+<td>2474 / 15915</td>
+<td>16%</td>
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp--Register as Latch</td>
@@ -288,8 +288,8 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">&nbsp&nbsp--Register as FF</td>
-<td>3370 / 15915</td>
-<td>22%</td>
+<td>2474 / 15915</td>
+<td>16%</td>
 </tr>
 <tr>
 <td class="label">BSRAM</td>
@@ -387,16 +387,16 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>1</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT.default_gen_clk</td>
 <td>48.000(MHz)</td>
-<td>79.283(MHz)</td>
-<td>13</td>
+<td>86.520(MHz)</td>
+<td>12</td>
 <td>TOP</td>
 </tr>
 <tr>
 <td>2</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUTD.default_gen_clk</td>
 <td>24.000(MHz)</td>
-<td>62.523(MHz)</td>
-<td>14</td>
+<td>68.162(MHz)</td>
+<td>13</td>
 <td>TOP</td>
 </tr>
 </table>
@@ -406,11 +406,11 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <table class="summary_table">
 <tr>
 <td class="label">Slack</td>
-<td>8.220</td>
+<td>9.275</td>
 </tr>
 <tr>
 <td class="label">Data Arrival Time</td>
-<td>13.438</td>
+<td>12.383</td>
 </tr>
 <tr>
 <td class="label">Data Required Time</td>
@@ -456,7 +456,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -472,7 +472,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.232</td>
 <td>tC2Q</td>
 <td>RF</td>
-<td>211</td>
+<td>86</td>
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_2_s1/Q</td>
 </tr>
 <tr>
@@ -481,7 +481,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/I1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s3/I1</td>
 </tr>
 <tr>
 <td>2.121</td>
@@ -489,7 +489,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tINS</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s3/F</td>
 </tr>
 <tr>
 <td>2.595</td>
@@ -497,7 +497,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/I1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/I1</td>
 </tr>
 <tr>
 <td>3.150</td>
@@ -505,7 +505,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tINS</td>
 <td>FF</td>
 <td>2</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/F</td>
 </tr>
 <tr>
 <td>3.624</td>
@@ -513,15 +513,15 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s0/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/I0</td>
 </tr>
 <tr>
 <td>4.141</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
-<td>4</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s0/F</td>
+<td>5</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/F</td>
 </tr>
 <tr>
 <td>4.615</td>
@@ -529,18 +529,18 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s4/I2</td>
 </tr>
 <tr>
-<td>5.132</td>
-<td>0.517</td>
+<td>5.068</td>
+<td>0.453</td>
 <td>tINS</td>
 <td>FF</td>
 <td>26</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s4/F</td>
 </tr>
 <tr>
-<td>5.606</td>
+<td>5.542</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -548,7 +548,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_summary_26_s/I1</td>
 </tr>
 <tr>
-<td>6.161</td>
+<td>6.097</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
@@ -556,55 +556,39 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_summary_26_s/F</td>
 </tr>
 <tr>
-<td>6.635</td>
+<td>6.571</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s1/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/I0</td>
 </tr>
 <tr>
-<td>7.152</td>
+<td>7.088</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s1/F</td>
-</tr>
-<tr>
-<td>7.626</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/I1</td>
-</tr>
-<tr>
-<td>8.181</td>
-<td>0.555</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
 <td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/F</td>
 </tr>
 <tr>
-<td>8.655</td>
+<td>7.562</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s3/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s/I1</td>
 </tr>
 <tr>
-<td>9.172</td>
-<td>0.517</td>
+<td>8.117</td>
+<td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
-<td>32</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s3/F</td>
+<td>33</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s/F</td>
 </tr>
 <tr>
-<td>9.646</td>
+<td>8.591</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -612,7 +596,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n913_s18/I2</td>
 </tr>
 <tr>
-<td>10.099</td>
+<td>9.044</td>
 <td>0.453</td>
 <td>tINS</td>
 <td>FF</td>
@@ -620,7 +604,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n913_s18/F</td>
 </tr>
 <tr>
-<td>10.573</td>
+<td>9.518</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -628,7 +612,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n909_s19/I1</td>
 </tr>
 <tr>
-<td>11.128</td>
+<td>10.073</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
@@ -636,7 +620,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n909_s19/F</td>
 </tr>
 <tr>
-<td>11.602</td>
+<td>10.547</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -644,7 +628,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n909_s15/I3</td>
 </tr>
 <tr>
-<td>11.973</td>
+<td>10.918</td>
 <td>0.371</td>
 <td>tINS</td>
 <td>FF</td>
@@ -652,7 +636,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n909_s15/F</td>
 </tr>
 <tr>
-<td>12.447</td>
+<td>11.392</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -660,7 +644,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n909_s14/I0</td>
 </tr>
 <tr>
-<td>12.964</td>
+<td>11.909</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
@@ -668,7 +652,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n909_s14/F</td>
 </tr>
 <tr>
-<td>13.438</td>
+<td>12.383</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -699,7 +683,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -731,12 +715,12 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">Logic Level:</td>
-<td>13</td>
+<td>12</td>
 </tr>
 <tr>
 <td class="label">Arrival Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 <tr>
-<td class="label">Arrival Data Path Delay:</td><td> cell: 6.184, 49.166%; route: 6.162, 48.990%; tC2Q: 0.232, 1.844%</td></tr>
+<td class="label">Arrival Data Path Delay:</td><td> cell: 5.603, 48.624%; route: 5.688, 49.363%; tC2Q: 0.232, 2.013%</td></tr>
 <tr>
 <td class="label">Required Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 </table>
@@ -746,11 +730,11 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <table class="summary_table">
 <tr>
 <td class="label">Slack</td>
-<td>8.302</td>
+<td>9.357</td>
 </tr>
 <tr>
 <td class="label">Data Arrival Time</td>
-<td>13.356</td>
+<td>12.301</td>
 </tr>
 <tr>
 <td class="label">Data Required Time</td>
@@ -796,7 +780,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -812,7 +796,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.232</td>
 <td>tC2Q</td>
 <td>RF</td>
-<td>211</td>
+<td>86</td>
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_2_s1/Q</td>
 </tr>
 <tr>
@@ -821,7 +805,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/I1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s3/I1</td>
 </tr>
 <tr>
 <td>2.121</td>
@@ -829,7 +813,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tINS</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s3/F</td>
 </tr>
 <tr>
 <td>2.595</td>
@@ -837,7 +821,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/I1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/I1</td>
 </tr>
 <tr>
 <td>3.150</td>
@@ -845,7 +829,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tINS</td>
 <td>FF</td>
 <td>2</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/F</td>
 </tr>
 <tr>
 <td>3.624</td>
@@ -853,15 +837,15 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s0/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/I0</td>
 </tr>
 <tr>
 <td>4.141</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
-<td>4</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s0/F</td>
+<td>5</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/F</td>
 </tr>
 <tr>
 <td>4.615</td>
@@ -869,18 +853,18 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s4/I2</td>
 </tr>
 <tr>
-<td>5.132</td>
-<td>0.517</td>
+<td>5.068</td>
+<td>0.453</td>
 <td>tINS</td>
 <td>FF</td>
 <td>26</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s4/F</td>
 </tr>
 <tr>
-<td>5.606</td>
+<td>5.542</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -888,7 +872,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_summary_26_s/I1</td>
 </tr>
 <tr>
-<td>6.161</td>
+<td>6.097</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
@@ -896,55 +880,39 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_summary_26_s/F</td>
 </tr>
 <tr>
-<td>6.635</td>
+<td>6.571</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s1/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/I0</td>
 </tr>
 <tr>
-<td>7.152</td>
+<td>7.088</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s1/F</td>
-</tr>
-<tr>
-<td>7.626</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/I1</td>
-</tr>
-<tr>
-<td>8.181</td>
-<td>0.555</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
 <td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/F</td>
 </tr>
 <tr>
-<td>8.655</td>
+<td>7.562</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s3/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s/I1</td>
 </tr>
 <tr>
-<td>9.172</td>
-<td>0.517</td>
+<td>8.117</td>
+<td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
-<td>32</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s3/F</td>
+<td>33</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s/F</td>
 </tr>
 <tr>
-<td>9.646</td>
+<td>8.591</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -952,7 +920,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n492_s37/I3</td>
 </tr>
 <tr>
-<td>10.017</td>
+<td>8.962</td>
 <td>0.371</td>
 <td>tINS</td>
 <td>FF</td>
@@ -960,7 +928,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n492_s37/F</td>
 </tr>
 <tr>
-<td>10.491</td>
+<td>9.436</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -968,7 +936,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n492_s32/I0</td>
 </tr>
 <tr>
-<td>11.008</td>
+<td>9.953</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
@@ -976,7 +944,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n492_s32/F</td>
 </tr>
 <tr>
-<td>11.482</td>
+<td>10.427</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -984,7 +952,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n492_s29/I1</td>
 </tr>
 <tr>
-<td>12.037</td>
+<td>10.982</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
@@ -992,7 +960,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n492_s29/F</td>
 </tr>
 <tr>
-<td>12.511</td>
+<td>11.456</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -1000,7 +968,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n492_s27/I3</td>
 </tr>
 <tr>
-<td>12.882</td>
+<td>11.827</td>
 <td>0.371</td>
 <td>tINS</td>
 <td>FF</td>
@@ -1008,7 +976,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n492_s27/F</td>
 </tr>
 <tr>
-<td>13.356</td>
+<td>12.301</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -1039,7 +1007,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -1071,12 +1039,12 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">Logic Level:</td>
-<td>13</td>
+<td>12</td>
 </tr>
 <tr>
 <td class="label">Arrival Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 <tr>
-<td class="label">Arrival Data Path Delay:</td><td> cell: 6.102, 48.832%; route: 6.162, 49.311%; tC2Q: 0.232, 1.857%</td></tr>
+<td class="label">Arrival Data Path Delay:</td><td> cell: 5.521, 48.256%; route: 5.688, 49.716%; tC2Q: 0.232, 2.028%</td></tr>
 <tr>
 <td class="label">Required Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 </table>
@@ -1086,11 +1054,11 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <table class="summary_table">
 <tr>
 <td class="label">Slack</td>
-<td>8.322</td>
+<td>9.377</td>
 </tr>
 <tr>
 <td class="label">Data Arrival Time</td>
-<td>13.336</td>
+<td>12.281</td>
 </tr>
 <tr>
 <td class="label">Data Required Time</td>
@@ -1136,7 +1104,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -1152,7 +1120,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.232</td>
 <td>tC2Q</td>
 <td>RF</td>
-<td>211</td>
+<td>86</td>
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_2_s1/Q</td>
 </tr>
 <tr>
@@ -1161,7 +1129,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/I1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s3/I1</td>
 </tr>
 <tr>
 <td>2.121</td>
@@ -1169,7 +1137,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tINS</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s3/F</td>
 </tr>
 <tr>
 <td>2.595</td>
@@ -1177,7 +1145,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/I1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/I1</td>
 </tr>
 <tr>
 <td>3.150</td>
@@ -1185,7 +1153,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tINS</td>
 <td>FF</td>
 <td>2</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/F</td>
 </tr>
 <tr>
 <td>3.624</td>
@@ -1193,15 +1161,15 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s0/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/I0</td>
 </tr>
 <tr>
 <td>4.141</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
-<td>4</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s0/F</td>
+<td>5</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/F</td>
 </tr>
 <tr>
 <td>4.615</td>
@@ -1209,18 +1177,18 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s4/I2</td>
 </tr>
 <tr>
-<td>5.132</td>
-<td>0.517</td>
+<td>5.068</td>
+<td>0.453</td>
 <td>tINS</td>
 <td>FF</td>
 <td>26</td>
-<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s4/F</td>
 </tr>
 <tr>
-<td>5.606</td>
+<td>5.542</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -1228,7 +1196,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_summary_26_s/I1</td>
 </tr>
 <tr>
-<td>6.161</td>
+<td>6.097</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
@@ -1236,55 +1204,39 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_summary_26_s/F</td>
 </tr>
 <tr>
-<td>6.635</td>
+<td>6.571</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s1/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/I0</td>
 </tr>
 <tr>
-<td>7.152</td>
+<td>7.088</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s1/F</td>
-</tr>
-<tr>
-<td>7.626</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/I1</td>
-</tr>
-<tr>
-<td>8.181</td>
-<td>0.555</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
 <td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/F</td>
 </tr>
 <tr>
-<td>8.655</td>
+<td>7.562</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s3/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s/I1</td>
 </tr>
 <tr>
-<td>9.172</td>
-<td>0.517</td>
+<td>8.117</td>
+<td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
-<td>32</td>
-<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s3/F</td>
+<td>33</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s/F</td>
 </tr>
 <tr>
-<td>9.646</td>
+<td>8.591</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -1292,7 +1244,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n913_s18/I2</td>
 </tr>
 <tr>
-<td>10.099</td>
+<td>9.044</td>
 <td>0.453</td>
 <td>tINS</td>
 <td>FF</td>
@@ -1300,7 +1252,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n913_s18/F</td>
 </tr>
 <tr>
-<td>10.573</td>
+<td>9.518</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -1308,7 +1260,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n911_s17/I2</td>
 </tr>
 <tr>
-<td>11.026</td>
+<td>9.971</td>
 <td>0.453</td>
 <td>tINS</td>
 <td>FF</td>
@@ -1316,7 +1268,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n911_s17/F</td>
 </tr>
 <tr>
-<td>11.500</td>
+<td>10.445</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -1324,7 +1276,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n911_s15/I3</td>
 </tr>
 <tr>
-<td>11.871</td>
+<td>10.816</td>
 <td>0.371</td>
 <td>tINS</td>
 <td>FF</td>
@@ -1332,7 +1284,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n911_s15/F</td>
 </tr>
 <tr>
-<td>12.345</td>
+<td>11.290</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -1340,7 +1292,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n911_s14/I0</td>
 </tr>
 <tr>
-<td>12.862</td>
+<td>11.807</td>
 <td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
@@ -1348,7 +1300,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n911_s14/F</td>
 </tr>
 <tr>
-<td>13.336</td>
+<td>12.281</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
@@ -1379,7 +1331,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -1411,12 +1363,12 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">Logic Level:</td>
-<td>13</td>
+<td>12</td>
 </tr>
 <tr>
 <td class="label">Arrival Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 <tr>
-<td class="label">Arrival Data Path Delay:</td><td> cell: 6.082, 48.750%; route: 6.162, 49.390%; tC2Q: 0.232, 1.860%</td></tr>
+<td class="label">Arrival Data Path Delay:</td><td> cell: 5.501, 48.166%; route: 5.688, 49.803%; tC2Q: 0.232, 2.031%</td></tr>
 <tr>
 <td class="label">Required Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 </table>
@@ -1426,11 +1378,11 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <table class="summary_table">
 <tr>
 <td class="label">Slack</td>
-<td>8.327</td>
+<td>9.523</td>
 </tr>
 <tr>
 <td class="label">Data Arrival Time</td>
-<td>13.331</td>
+<td>12.135</td>
 </tr>
 <tr>
 <td class="label">Data Required Time</td>
@@ -1438,11 +1390,11 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">From</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_1_s1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_2_s1</td>
 </tr>
 <tr>
 <td class="label">To</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_retry_addr_12_s0</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/O_sdrc_cmd_ack_s1</td>
 </tr>
 <tr>
 <td class="label">Launch Clk</td>
@@ -1476,7 +1428,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -1485,15 +1437,15 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>RR</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_1_s1/CLK</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_2_s1/CLK</td>
 </tr>
 <tr>
 <td>1.092</td>
 <td>0.232</td>
 <td>tC2Q</td>
 <td>RF</td>
-<td>167</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_1_s1/Q</td>
+<td>86</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_2_s1/Q</td>
 </tr>
 <tr>
 <td>1.566</td>
@@ -1501,15 +1453,15 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s3/I1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s3/I1</td>
 </tr>
 <tr>
 <td>2.121</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
-<td>30</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s3/F</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s3/F</td>
 </tr>
 <tr>
 <td>2.595</td>
@@ -1517,47 +1469,47 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s1/I0</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/I1</td>
 </tr>
 <tr>
-<td>3.112</td>
-<td>0.517</td>
-<td>tINS</td>
-<td>FF</td>
-<td>40</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s1/F</td>
-</tr>
-<tr>
-<td>3.586</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_2_s/I2</td>
-</tr>
-<tr>
-<td>4.039</td>
-<td>0.453</td>
-<td>tINS</td>
-<td>FF</td>
-<td>7</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_2_s/F</td>
-</tr>
-<tr>
-<td>4.513</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3586_s4/I1</td>
-</tr>
-<tr>
-<td>5.068</td>
+<td>3.150</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
 <td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3586_s4/F</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s2/F</td>
+</tr>
+<tr>
+<td>3.624</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/I0</td>
+</tr>
+<tr>
+<td>4.141</td>
+<td>0.517</td>
+<td>tINS</td>
+<td>FF</td>
+<td>5</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s1/F</td>
+</tr>
+<tr>
+<td>4.615</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s4/I2</td>
+</tr>
+<tr>
+<td>5.068</td>
+<td>0.453</td>
+<td>tINS</td>
+<td>FF</td>
+<td>26</td>
+<td>u_sdram_emb_hostif_ctrl/l_memtest_ctrl_summary_20_s4/F</td>
 </tr>
 <tr>
 <td>5.542</td>
@@ -1565,151 +1517,119 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3585_s6/I3</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_summary_26_s/I1</td>
 </tr>
 <tr>
-<td>5.913</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3585_s6/F</td>
-</tr>
-<tr>
-<td>6.387</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3584_s5/I3</td>
-</tr>
-<tr>
-<td>6.758</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3584_s5/F</td>
-</tr>
-<tr>
-<td>7.232</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3583_s5/I3</td>
-</tr>
-<tr>
-<td>7.603</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3583_s5/F</td>
-</tr>
-<tr>
-<td>8.077</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3582_s5/I3</td>
-</tr>
-<tr>
-<td>8.448</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3582_s5/F</td>
-</tr>
-<tr>
-<td>8.922</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3581_s5/I3</td>
-</tr>
-<tr>
-<td>9.293</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3581_s5/F</td>
-</tr>
-<tr>
-<td>9.767</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3580_s7/I3</td>
-</tr>
-<tr>
-<td>10.138</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3580_s7/F</td>
-</tr>
-<tr>
-<td>10.612</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3579_s6/I3</td>
-</tr>
-<tr>
-<td>10.983</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>3</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3579_s6/F</td>
-</tr>
-<tr>
-<td>11.457</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3578_s6/I3</td>
-</tr>
-<tr>
-<td>11.828</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>9</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3578_s6/F</td>
-</tr>
-<tr>
-<td>12.302</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3577_s3/I1</td>
-</tr>
-<tr>
-<td>12.857</td>
+<td>6.097</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3577_s3/F</td>
+<td>3</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_summary_26_s/F</td>
 </tr>
 <tr>
-<td>13.331</td>
+<td>6.571</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_retry_addr_12_s0/D</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/I0</td>
+</tr>
+<tr>
+<td>7.088</td>
+<td>0.517</td>
+<td>tINS</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s0/F</td>
+</tr>
+<tr>
+<td>7.562</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s/I1</td>
+</tr>
+<tr>
+<td>8.117</td>
+<td>0.555</td>
+<td>tINS</td>
+<td>FF</td>
+<td>33</td>
+<td>u_sdram_emb_hostif_ctrl/l_hostif_sdrc_cmd_en_s/F</td>
+</tr>
+<tr>
+<td>8.591</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n913_s18/I2</td>
+</tr>
+<tr>
+<td>9.044</td>
+<td>0.453</td>
+<td>tINS</td>
+<td>FF</td>
+<td>14</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n913_s18/F</td>
+</tr>
+<tr>
+<td>9.518</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n94_s29/I3</td>
+</tr>
+<tr>
+<td>9.889</td>
+<td>0.371</td>
+<td>tINS</td>
+<td>FF</td>
+<td>1</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n94_s29/F</td>
+</tr>
+<tr>
+<td>10.363</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n94_s23/I3</td>
+</tr>
+<tr>
+<td>10.734</td>
+<td>0.371</td>
+<td>tINS</td>
+<td>FF</td>
+<td>1</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n94_s23/F</td>
+</tr>
+<tr>
+<td>11.208</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n94_s22/I2</td>
+</tr>
+<tr>
+<td>11.661</td>
+<td>0.453</td>
+<td>tINS</td>
+<td>FF</td>
+<td>1</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/n94_s22/F</td>
+</tr>
+<tr>
+<td>12.135</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/O_sdrc_cmd_ack_s1/D</td>
 </tr>
 </table>
 <b>Data Required Path:</b>
@@ -1735,7 +1655,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -1744,7 +1664,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>RR</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_retry_addr_12_s0/CLK</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/O_sdrc_cmd_ack_s1/CLK</td>
 </tr>
 <tr>
 <td>21.658</td>
@@ -1752,7 +1672,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tSu</td>
 <td> </td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_retry_addr_12_s0</td>
+<td>u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/O_sdrc_cmd_ack_s1</td>
 </tr>
 </table>
 <b>Path Statistics:</b>
@@ -1767,12 +1687,12 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">Logic Level:</td>
-<td>14</td>
+<td>12</td>
 </tr>
 <tr>
 <td class="label">Arrival Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 <tr>
-<td class="label">Arrival Data Path Delay:</td><td> cell: 5.603, 44.928%; route: 6.636, 53.212%; tC2Q: 0.232, 1.860%</td></tr>
+<td class="label">Arrival Data Path Delay:</td><td> cell: 5.355, 47.494%; route: 5.688, 50.448%; tC2Q: 0.232, 2.058%</td></tr>
 <tr>
 <td class="label">Required Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 </table>
@@ -1782,11 +1702,11 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <table class="summary_table">
 <tr>
 <td class="label">Slack</td>
-<td>8.327</td>
+<td>9.643</td>
 </tr>
 <tr>
 <td class="label">Data Arrival Time</td>
-<td>13.331</td>
+<td>12.015</td>
 </tr>
 <tr>
 <td class="label">Data Required Time</td>
@@ -1798,7 +1718,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">To</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_retry_addr_15_s0</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/r_evt_push_arg1_5_s0</td>
 </tr>
 <tr>
 <td class="label">Launch Clk</td>
@@ -1832,7 +1752,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -1848,7 +1768,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.232</td>
 <td>tC2Q</td>
 <td>RF</td>
-<td>167</td>
+<td>86</td>
 <td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/st_state_1_s1/Q</td>
 </tr>
 <tr>
@@ -1857,15 +1777,15 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s3/I1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n8046_s76/I1</td>
 </tr>
 <tr>
 <td>2.121</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
-<td>30</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s3/F</td>
+<td>5</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n8046_s76/F</td>
 </tr>
 <tr>
 <td>2.595</td>
@@ -1873,79 +1793,79 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s1/I0</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n8046_s73/I3</td>
 </tr>
 <tr>
-<td>3.112</td>
-<td>0.517</td>
+<td>2.966</td>
+<td>0.371</td>
 <td>tINS</td>
 <td>FF</td>
-<td>40</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s1/F</td>
+<td>39</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n8046_s73/F</td>
 </tr>
 <tr>
-<td>3.586</td>
+<td>3.440</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_2_s/I2</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s4/I3</td>
 </tr>
 <tr>
-<td>4.039</td>
+<td>3.811</td>
+<td>0.371</td>
+<td>tINS</td>
+<td>FF</td>
+<td>44</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_7_s4/F</td>
+</tr>
+<tr>
+<td>4.285</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_5_s/I2</td>
+</tr>
+<tr>
+<td>4.738</td>
 <td>0.453</td>
 <td>tINS</td>
 <td>FF</td>
-<td>7</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_2_s/F</td>
+<td>5</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/l_memtest_ctrl_detail_5_s/F</td>
 </tr>
 <tr>
-<td>4.513</td>
+<td>5.212</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3586_s4/I1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s11/I1</td>
 </tr>
 <tr>
-<td>5.068</td>
+<td>5.767</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3586_s4/F</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s11/F</td>
 </tr>
 <tr>
-<td>5.542</td>
+<td>6.241</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3585_s6/I3</td>
-</tr>
-<tr>
-<td>5.913</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3585_s6/F</td>
-</tr>
-<tr>
-<td>6.387</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3584_s5/I3</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s10/I0</td>
 </tr>
 <tr>
 <td>6.758</td>
-<td>0.371</td>
+<td>0.517</td>
 <td>tINS</td>
 <td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3584_s5/F</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s10/F</td>
 </tr>
 <tr>
 <td>7.232</td>
@@ -1953,15 +1873,15 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3583_s5/I3</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s8/I3</td>
 </tr>
 <tr>
 <td>7.603</td>
 <td>0.371</td>
 <td>tINS</td>
 <td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3583_s5/F</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s8/F</td>
 </tr>
 <tr>
 <td>8.077</td>
@@ -1969,103 +1889,71 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3582_s5/I3</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s6/I1</td>
 </tr>
 <tr>
-<td>8.448</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3582_s5/F</td>
-</tr>
-<tr>
-<td>8.922</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3581_s5/I3</td>
-</tr>
-<tr>
-<td>9.293</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3581_s5/F</td>
-</tr>
-<tr>
-<td>9.767</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3580_s7/I3</td>
-</tr>
-<tr>
-<td>10.138</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>2</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3580_s7/F</td>
-</tr>
-<tr>
-<td>10.612</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3579_s6/I3</td>
-</tr>
-<tr>
-<td>10.983</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>3</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3579_s6/F</td>
-</tr>
-<tr>
-<td>11.457</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3578_s6/I3</td>
-</tr>
-<tr>
-<td>11.828</td>
-<td>0.371</td>
-<td>tINS</td>
-<td>FF</td>
-<td>9</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3578_s6/F</td>
-</tr>
-<tr>
-<td>12.302</td>
-<td>0.474</td>
-<td>tNET</td>
-<td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3574_s3/I1</td>
-</tr>
-<tr>
-<td>12.857</td>
+<td>8.632</td>
 <td>0.555</td>
 <td>tINS</td>
 <td>FF</td>
-<td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/n3574_s3/F</td>
+<td>2</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s6/F</td>
 </tr>
 <tr>
-<td>13.331</td>
+<td>9.106</td>
 <td>0.474</td>
 <td>tNET</td>
 <td>FF</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_retry_addr_15_s0/D</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s4/I0</td>
+</tr>
+<tr>
+<td>9.623</td>
+<td>0.517</td>
+<td>tINS</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s4/F</td>
+</tr>
+<tr>
+<td>10.097</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s1/I2</td>
+</tr>
+<tr>
+<td>10.550</td>
+<td>0.453</td>
+<td>tINS</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s1/F</td>
+</tr>
+<tr>
+<td>11.024</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s0/I0</td>
+</tr>
+<tr>
+<td>11.541</td>
+<td>0.517</td>
+<td>tINS</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/n5568_s0/F</td>
+</tr>
+<tr>
+<td>12.015</td>
+<td>0.474</td>
+<td>tNET</td>
+<td>FF</td>
+<td>1</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/r_evt_push_arg1_5_s0/D</td>
 </tr>
 </table>
 <b>Data Required Path:</b>
@@ -2091,7 +1979,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>0.500</td>
 <td>tCL</td>
 <td>RR</td>
-<td>1721</td>
+<td>1657</td>
 <td>u0_gowin_pll/rpll_inst/CLKOUT</td>
 </tr>
 <tr>
@@ -2100,7 +1988,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tNET</td>
 <td>RR</td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_retry_addr_15_s0/CLK</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/r_evt_push_arg1_5_s0/CLK</td>
 </tr>
 <tr>
 <td>21.658</td>
@@ -2108,7 +1996,7 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 <td>tSu</td>
 <td> </td>
 <td>1</td>
-<td>u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/r_retry_addr_15_s0</td>
+<td>u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/r_evt_push_arg1_5_s0</td>
 </tr>
 </table>
 <b>Path Statistics:</b>
@@ -2123,12 +2011,12 @@ C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tests
 </tr>
 <tr>
 <td class="label">Logic Level:</td>
-<td>14</td>
+<td>12</td>
 </tr>
 <tr>
 <td class="label">Arrival Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 <tr>
-<td class="label">Arrival Data Path Delay:</td><td> cell: 5.603, 44.928%; route: 6.636, 53.212%; tC2Q: 0.232, 1.860%</td></tr>
+<td class="label">Arrival Data Path Delay:</td><td> cell: 5.235, 46.930%; route: 5.688, 50.990%; tC2Q: 0.232, 2.080%</td></tr>
 <tr>
 <td class="label">Required Clock Path Delay:</td><td> cell: 0.000, 0.000%; route: 0.360, 100.000%</td></tr>
 </table>

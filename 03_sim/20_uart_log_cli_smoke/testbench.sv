@@ -4,6 +4,7 @@
 `include "../../01_src/uart_lite/uart_tx_stream.sv"
 `include "../../01_src/sync_fifo_ae_af.sv"
 `include "../../01_src/uart_log_cli/uart_log_cli_pkg.sv"
+`include "../../01_src/uart_log_cli/uart_log_evt_if.sv"
 `include "../../01_src/uart_log_cli/uart_log_tap.sv"
 `include "../../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv"
 `include "../../01_src/uart_log_cli/uart_log_testsrc1.sv"
@@ -17,7 +18,7 @@ module testbench;
   localparam int unsigned CLK_HZ = 1_000_000;
   localparam int unsigned BAUD = 100_000;
   localparam int unsigned NUM_SRC = 1;
-  localparam int unsigned PERIOD_CYCLES = 4000;
+  localparam int unsigned PERIOD_CYCLES = 100;
   localparam int unsigned SOFT_RESET_HOLD_CYCLES = CLK_HZ / 1000;
   localparam time CLK_PERIOD = 1000ns;
   localparam time BIT_PERIOD = 10000ns;
@@ -29,16 +30,8 @@ module testbench;
   logic tb_soft_reset_req;
   logic tb_soft_rst_n;
   logic [$clog2(SOFT_RESET_HOLD_CYCLES + 1)-1:0] tb_soft_reset_cnt;
-  logic tb_mirror_valid;
-  logic [7:0] tb_mirror_data;
 
-  logic [NUM_SRC-1:0] tb_src_evt_valid;
-  logic [NUM_SRC*8-1:0] tb_src_evt_id;
-  logic [NUM_SRC*32-1:0] tb_src_arg0;
-  logic [NUM_SRC*32-1:0] tb_src_arg1;
-  logic [NUM_SRC*32-1:0] tb_src_arg2;
-  logic [NUM_SRC-1:0] tb_src_evt_ready;
-  logic [NUM_SRC-1:0] tb_src_enable;
+  uart_log_evt_if tb_src_if [NUM_SRC] ();
 
   logic tb_src0_evt_valid;
   logic [7:0] tb_src0_evt_id;
@@ -46,11 +39,11 @@ module testbench;
   logic [31:0] tb_src0_arg1;
   logic [31:0] tb_src0_arg2;
 
-  assign tb_src_evt_valid[0] = tb_src0_evt_valid;
-  assign tb_src_evt_id[7:0]  = tb_src0_evt_id;
-  assign tb_src_arg0[31:0]   = tb_src0_arg0;
-  assign tb_src_arg1[31:0]   = tb_src0_arg1;
-  assign tb_src_arg2[31:0]   = tb_src0_arg2;
+  assign tb_src_if[0].evt_valid = tb_src0_evt_valid;
+  assign tb_src_if[0].evt_id    = tb_src0_evt_id;
+  assign tb_src_if[0].arg0      = tb_src0_arg0;
+  assign tb_src_if[0].arg1      = tb_src0_arg1;
+  assign tb_src_if[0].arg2      = tb_src0_arg2;
 
   initial begin
     tb_clk = 1'b0;
@@ -61,13 +54,12 @@ module testbench;
 
   initial begin
     #(60ms);
-    $display("timeout debug: rst_n=%0b soft_rst_n=%0b src_valid=%0b src_ready=%0b src_enable=%0b mirror_valid=%0b frame_active=%0b shared_empty=%0b tap_valid=%0b pending=%0b tx_state=%0d frame_idx=%0d tx_busy=%0b tx_done=%0b tx_start=%0b",
+    $display("timeout debug: rst_n=%0b soft_rst_n=%0b src_valid=%0b src_ready=%0b src_enable=%0b frame_active=%0b shared_empty=%0b tap_valid=%0b pending=%0b tx_state=%0d frame_idx=%0d tx_busy=%0b tx_done=%0b tx_start=%0b",
       tb_rst_n,
       tb_soft_rst_n,
       tb_src0_evt_valid,
-      tb_src_evt_ready[0],
-      tb_src_enable[0],
-      tb_mirror_valid,
+      tb_src_if[0].evt_ready,
+      tb_src_if[0].enable,
       u_uart_log_cli.r_frame_active,
       u_uart_log_cli.s_shared_empty,
       u_uart_log_cli.s_tap_tvalid[0],
@@ -104,8 +96,8 @@ module testbench;
   ) u_uart_log_testsrc1 (
     .I_CLK(tb_clk),
     .I_RST_N(tb_rst_n && tb_soft_rst_n),
-    .I_ENABLE(tb_src_enable[0]),
-    .I_EVT_READY(tb_src_evt_ready[0]),
+    .I_ENABLE(tb_src_if[0].enable),
+    .I_EVT_READY(tb_src_if[0].evt_ready),
     .O_EVT_VALID(tb_src0_evt_valid),
     .O_EVT_ID(tb_src0_evt_id),
     .O_ARG0(tb_src0_arg0),
@@ -122,26 +114,11 @@ module testbench;
     .I_RST_N(tb_rst_n && tb_soft_rst_n),
     .I_UART_RX(tb_uart_rx),
     .O_UART_TX(tb_uart_tx),
-    .I_SRC_EVT_VALID(tb_src_evt_valid),
-    .I_SRC_EVT_ID(tb_src_evt_id),
-    .I_SRC_ARG0(tb_src_arg0),
-    .I_SRC_ARG1(tb_src_arg1),
-    .I_SRC_ARG2(tb_src_arg2),
-    .O_SRC_EVT_READY(tb_src_evt_ready),
-    .O_SRC_ENABLE(tb_src_enable),
+    .SRC_IF(tb_src_if),
     .O_LOG_SRC_SEL(),
     .O_SOFT_RESET_REQ(tb_soft_reset_req),
-    .O_STATUS_REQ_VALID(),
-    .O_STATUS_REQ_KEY(),
-    .I_RAW_RX_BYPASS(1'b0),
-    .I_RAW_TX_MODE(1'b0),
-    .I_RAW_TX_VALID(1'b0),
-    .I_RAW_TX_DATA(8'h00),
-    .O_RAW_TX_READY(),
     .O_CLI_RX_VALID(),
-    .O_CLI_RX_DATA(),
-    .O_MIRROR_VALID(tb_mirror_valid),
-    .O_MIRROR_DATA(tb_mirror_data)
+    .O_CLI_RX_DATA()
   );
 
 `include "testcase_smoke.svh"

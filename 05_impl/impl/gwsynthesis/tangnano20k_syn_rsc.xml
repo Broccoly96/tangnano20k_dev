@@ -1,28 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Module name="tangnano20k_top" Lut="7" T_Register="3370(0)" T_Alu="336(0)" T_Lut="5687(7)" T_Bsram="17(0)" T_Ssram="83(0)">
+<Module name="tangnano20k_top" Lut="8" T_Register="2474(0)" T_Alu="295(0)" T_Lut="4553(8)" T_Bsram="17(0)" T_Ssram="89(0)">
  <SubModule name="u0_gowin_pll"/>
  <SubModule name="u0_reset_mng" Register="4" Lut="1" T_Register="4(4)" T_Lut="1(1)"/>
- <SubModule name="u_uart_log_testsrc1" Register="94" Alu="32" Lut="58" T_Register="94(94)" T_Alu="32(32)" T_Lut="58(58)"/>
- <SubModule name="u_sdram_test_evt_bridge" Register="24" Alu="3" Lut="15" Ssram="24" T_Register="24(24)" T_Alu="3(3)" T_Lut="15(15)" T_Ssram="24(24)"/>
- <SubModule name="u_sdram_host_evt_bridge" Register="24" Alu="3" Lut="16" Ssram="26" T_Register="24(24)" T_Alu="3(3)" T_Lut="16(16)" T_Ssram="26(26)"/>
+ <SubModule name="u_sdram_test_evt_bridge" Register="24" Alu="3" Lut="16" Ssram="24" T_Register="24(24)" T_Alu="3(3)" T_Lut="16(16)" T_Ssram="24(24)"/>
+ <SubModule name="u_sdram_host_evt_bridge" Register="24" Alu="3" Lut="15" Ssram="26" T_Register="24(24)" T_Alu="3(3)" T_Lut="15(15)" T_Ssram="26(26)"/>
  <SubModule name="u_cli_rx_bridge" Register="38" Alu="5" Lut="25" Ssram="2" T_Register="38(38)" T_Alu="5(5)" T_Lut="25(25)" T_Ssram="2(2)"/>
- <SubModule name="u_sdram_emb_hostif_ctrl" Register="35" Alu="13" Lut="187" T_Register="1461(35)" T_Alu="234(13)" T_Lut="3431(187)" T_Bsram="2(0)">
-  <SubModule name="u_sdram_memtest_ctrl" Register="500" Alu="157" Lut="916" T_Register="500(500)" T_Alu="157(157)" T_Lut="916(916)"/>
-  <SubModule name="u_sdram_status_reg_map" Alu="5" T_Alu="5(5)"/>
-  <SubModule name="u_sdram_uart_bridge_ctrl" Register="401" Lut="1136" T_Register="926(401)" T_Alu="59(0)" T_Lut="2328(1136)" T_Bsram="2(0)">
-   <SubModule name="u_sdram_uart_ascii_ctrl" Register="274" Alu="4" Lut="693" T_Register="274(274)" T_Alu="4(4)" T_Lut="693(693)"/>
-   <SubModule name="u_sdram_uart_access_engine" Register="251" Alu="55" Lut="499" Bsram="2" T_Register="251(251)" T_Alu="55(55)" T_Lut="499(499)" T_Bsram="2(2)"/>
+ <SubModule name="u_sdram_emb_hostif_ctrl" Register="35" Alu="13" Lut="173" T_Register="1397(35)" T_Alu="233(13)" T_Lut="2880(173)" T_Bsram="2(0)">
+  <SubModule name="u_sdram_memtest_ctrl" Register="460" Alu="105" Lut="688" T_Register="460(460)" T_Alu="105(105)" T_Lut="688(688)"/>
+  <SubModule name="u_sdram_uart_bridge_ctrl" Register="401" Lut="1107" T_Register="902(401)" T_Alu="115(0)" T_Lut="2019(1107)" T_Bsram="2(0)">
+   <SubModule name="u_sdram_uart_ascii_ctrl" Register="250" Alu="60" Lut="411" T_Register="250(250)" T_Alu="60(60)" T_Lut="411(411)"/>
+   <SubModule name="u_sdram_uart_access_engine" Register="251" Alu="55" Lut="501" Bsram="2" T_Register="251(251)" T_Alu="55(55)" T_Lut="501(501)" T_Bsram="2(2)"/>
   </SubModule>
  </SubModule>
  <SubModule name="u_embedded_sdram_hs" Register="158" Alu="15" Lut="253" T_Register="158(158)" T_Alu="15(15)" T_Lut="253(253)"/>
- <SubModule name="u_uart_log_cli" Register="763" Alu="32" Lut="1363" T_Register="1567(763)" T_Alu="44(32)" T_Lut="1881(1363)" T_Bsram="15(0)" T_Ssram="31(0)">
-  <SubModule name="u_uart_rx" Register="39" Lut="61" T_Register="39(39)" T_Lut="61(61)"/>
-  <SubModule name="u_uart_tx" Register="33" Lut="67" T_Register="33(33)" T_Lut="67(67)"/>
-  <SubModule name="g_log_tap[0].u_tap" Register="203" Lut="116" T_Register="203(203)" T_Lut="116(116)"/>
-  <SubModule name="g_log_tap[1].u_tap" Register="12" Lut="22" Ssram="31" T_Register="12(12)" T_Lut="22(22)" T_Ssram="31(31)"/>
-  <SubModule name="g_log_tap[2].u_tap" Register="483" Lut="178" T_Register="483(483)" T_Lut="178(178)"/>
-  <SubModule name="u_evt_fifo" T_Register="34(0)" T_Alu="12(0)" T_Lut="74(0)" T_Bsram="15(0)">
-   <SubModule name="u_sim_fifo" Register="34" Alu="12" Lut="74" Bsram="15" T_Register="34(34)" T_Alu="12(12)" T_Lut="74(74)" T_Bsram="15(15)"/>
+ <SubModule name="u_uart_log_cli" Register="228" Alu="24" Lut="887" Ssram="6" T_Register="829(228)" T_Alu="36(24)" T_Lut="1355(887)" T_Bsram="15(0)" T_Ssram="37(6)">
+  <SubModule name="u_uart_rx" Register="39" Lut="62" T_Register="39(39)" T_Lut="62(62)"/>
+  <SubModule name="u_uart_tx" Register="33" Lut="59" T_Register="33(33)" T_Lut="59(59)"/>
+  <SubModule name="g_log_tap[1].g_enabled_tap.u_tap" Register="12" Lut="20" Ssram="31" T_Register="12(12)" T_Lut="20(20)" T_Ssram="31(31)"/>
+  <SubModule name="g_log_tap[2].g_enabled_tap.u_tap" Register="483" Lut="255" T_Register="483(483)" T_Lut="255(255)"/>
+  <SubModule name="u_evt_fifo" T_Register="34(0)" T_Alu="12(0)" T_Lut="72(0)" T_Bsram="15(0)">
+   <SubModule name="u_sim_fifo" Register="34" Alu="12" Lut="72" Bsram="15" T_Register="34(34)" T_Alu="12(12)" T_Lut="72(72)" T_Bsram="15(15)"/>
   </SubModule>
  </SubModule>
 </Module>

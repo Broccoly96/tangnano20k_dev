@@ -14,11 +14,11 @@
 
     log_info("BRIDGE CTRL TB", "case: unaligned read is rejected");
     send_text("SR 00002\n");
-    expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_0002, 32'h0000_00B0, "unaligned read");
+    expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_0002, 32'h0000_004C, "unaligned read");
 
     log_info("BRIDGE CTRL TB", "case: out-of-range read is rejected");
     send_text("SR 000B4\n");
-    expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_00B4, 32'h0000_00B0, "range read");
+    expect_event(EVT_CMD_ERR, ERR_ADDR_RANGE, 32'h0000_00B4, 32'h0000_004C, "range read");
 
     log_info("BRIDGE CTRL TB", "case: control write restarts selftest");
     restart_count_before = tb_restart_count;
@@ -53,8 +53,8 @@
     expect_event(
       EVT_CMD_ERR,
       ERR_UNSUPPORTED,
-      32'h0000_0040,
-      32'h0000_0001,
+      32'h0000_0000,
+      32'h0000_0000,
       "unsupported bulk"
     );
 

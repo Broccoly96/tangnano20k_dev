@@ -9,6 +9,7 @@
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_pll/gowin_pll.v" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_hs_cmd_pkg.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_proto_pkg.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_evt_if.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_memtest_ctrl.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv" type="file.verilog" enable="1"/>
@@ -26,7 +27,6 @@
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_pkg.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_tap.sv" type="file.verilog" enable="1"/>
-        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_testsrc1.sv" type="file.verilog" enable="1"/>
         <File path="src/tangnano20k.cst" type="file.cst" enable="1"/>
         <File path="src/tangnano20k.sdc" type="file.sdc" enable="1"/>
     </FileList>

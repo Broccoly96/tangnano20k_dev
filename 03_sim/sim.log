@@ -1,5 +1,5 @@
 # vsim -c work.testbench -voptargs="+acc" -do "run -all; quit -code 0" -l sim.log 
-# Start time: 20:25:04 on Apr 20,2026
+# Start time: 21:29:17 on Apr 20,2026
 # //  ModelSim - Lattice FPGA Edition 2023.3 Jul 18 2023
 # //
 # //  Copyright 1991-2023 Mentor Graphics Corporation
@@ -17,6 +17,7 @@
 # Loading work.sdram_hs_cmd_pkg
 # Loading work.tb_log_pkg
 # Loading work.testbench
+# Loading work.uart_log_evt_if
 # Loading work.sdram_emb_hostif_ctrl
 # Loading work.sdram_memtest_ctrl
 # Loading work.sdram_status_reg_map
@@ -31,5 +32,5 @@
 # [20130.000 ns][INFO ][TOP HS SMOKE] PASS
 # ** Note: $finish    : C:/Electronics/GitHubProjects/tangnano20k_dev/03_sim/01_tangnano20k_top/testcase_hs_smoke.svh(48)
 #    Time: 20130 ns  Iteration: 1  Instance: /testbench
-# End time: 20:25:04 on Apr 20,2026, Elapsed time: 0:00:00
+# End time: 21:29:18 on Apr 20,2026, Elapsed time: 0:00:01
 # Errors: 0, Warnings: 0

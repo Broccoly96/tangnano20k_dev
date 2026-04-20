@@ -25,7 +25,7 @@ module sdram_memtest_ctrl #(
   parameter logic [7:0]  FIXED_COL_START = 8'd5,
   parameter int unsigned POST_INIT_WAIT_CYCLES = 20_000,
   parameter int unsigned POST_WRITE_TO_READ_GAP_CYCLES = 4,
-  parameter int unsigned CLEAR_WORDS = 2_097_152,
+  parameter int unsigned CLEAR_WORDS = TEST_WORDS,
   parameter int unsigned READ_DATA_LATENCY_CYCLES =
     sdram_hs_cmd_pkg::SDRAM_HS_READ_DATA_LATENCY_CYCLES
 ) (

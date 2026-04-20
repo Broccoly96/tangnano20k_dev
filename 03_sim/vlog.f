@@ -4,8 +4,6 @@
 +define+SIM
 +define+DISABLE_TIMING_CHECKS
 
-..\00_ip\embedded_sdram\tb\prim_sim.v
-..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v
 ..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo
 
 ..\02_tb\tb_log_pkg.sv
@@ -13,6 +11,7 @@
 
 ..\01_src\sync_fifo_ae_af.sv
 ..\01_src\uart_log_cli\uart_log_cli_pkg.sv
+..\01_src\uart_log_cli\uart_log_evt_if.sv
 ..\01_src\uart_log_cli\uart_log_src_async_bridge.sv
 ..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv
 ..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv

@@ -16,11 +16,6 @@ module sdram_uart_bridge_ctrl (
   input  logic        I_HOST_ACCESS_ENABLE,
   input  logic        I_CLI_RX_VALID,
   input  logic [7:0]  I_CLI_RX_DATA,
-  output logic        O_RAW_RX_BYPASS,
-  output logic        O_RAW_TX_MODE,
-  output logic        O_RAW_TX_VALID,
-  output logic [7:0]  O_RAW_TX_DATA,
-  input  logic        I_RAW_TX_READY,
   input  logic        I_SDRC_INIT_DONE,
   input  logic        I_SDRC_READY,
   input  logic        I_SDRC_CMD_ACK,
@@ -40,7 +35,7 @@ module sdram_uart_bridge_ctrl (
   output logic        O_SDRC_ACTIVE,
   output logic [31:0] O_HOST_DBG_SUMMARY,
   output logic [31:0] O_HOST_DBG_DETAIL,
-  output logic [831:0] O_HOST_DBG_RD_BEATS,
+  output logic [31:0] O_HOST_DBG_RD_BEATS,
   output logic        O_EVT_VALID,
   output logic [7:0]  O_EVT_ID,
   output logic [31:0] O_EVT_ARG0,
@@ -55,7 +50,7 @@ module sdram_uart_bridge_ctrl (
   localparam int unsigned EVT_FIFO_DEPTH = 2;
   localparam int unsigned EVT_FIFO_PTR_W = $clog2(EVT_FIFO_DEPTH);
   localparam int unsigned EVT_FIFO_CNT_W = $clog2(EVT_FIFO_DEPTH + 1);
-  localparam logic [20:0] STATUS_ADDR_MAX = 21'h000B0;
+  localparam logic [20:0] STATUS_ADDR_MAX = 21'h0004C;
   localparam logic [20:0] STATUS_CTRL_ADDR = 21'h0003C;
 
   logic        s_ascii_cmd_valid;
@@ -105,16 +100,11 @@ module sdram_uart_bridge_ctrl (
   logic        s_evt_push;
   logic        s_evt_pop;
 
-  assign O_RAW_RX_BYPASS = 1'b0;
-  assign O_RAW_TX_MODE   = 1'b0;
-  assign O_RAW_TX_VALID  = 1'b0;
-  assign O_RAW_TX_DATA   = 8'h00;
-
   assign O_STATUS_ADDR   = r_read_addr[15:0];
 
   assign O_CMD_BUSY      = r_cmd_busy || r_read_rsp_pending || l_access_busy;
   assign O_SDRC_ACTIVE   = l_access_busy;
-  assign O_HOST_DBG_RD_BEATS = {{800{1'b0}}, l_access_dbg_rd_beats};
+  assign O_HOST_DBG_RD_BEATS = l_access_dbg_rd_beats;
   assign s_access_evt_can_push = l_access_evt_valid && !s_evt_fifo_full && !r_evt_push_valid;
   assign l_access_evt_ready = s_access_evt_can_push;
   assign s_evt_fifo_full  = (r_evt_count == EVT_FIFO_DEPTH);
@@ -286,7 +276,7 @@ module sdram_uart_bridge_ctrl (
           push_event(EVT_CMD_ERR, ERR_BUSY, {11'h000, s_ascii_cmd_addr}, 32'h0000_0000);
         end else if (s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_READ)) begin
           if ((s_ascii_cmd_addr > STATUS_ADDR_MAX) || (s_ascii_cmd_addr[1:0] != 2'b00)) begin
-            push_event(EVT_CMD_ERR, ERR_ADDR_RANGE, {11'h000, s_ascii_cmd_addr}, 32'h0000_00B0);
+            push_event(EVT_CMD_ERR, ERR_ADDR_RANGE, {11'h000, s_ascii_cmd_addr}, 32'h0000_004C);
           end else begin
             r_read_addr        <= s_ascii_cmd_addr;
             r_read_rsp_pending <= 1'b1;

@@ -22,21 +22,8 @@ module testbench;
   logic        tb_rst_n;
   logic        tb_cli_rx_valid;
   logic [7:0]  tb_cli_rx_data;
-  logic        tb_raw_rx_bypass;
-  logic        tb_raw_tx_mode;
-  logic        tb_raw_tx_valid;
-  logic [7:0]  tb_raw_tx_data;
-  logic        tb_raw_tx_ready;
-  logic        tb_test_evt_valid;
-  logic [7:0]  tb_test_evt_id;
-  logic [31:0] tb_test_evt_arg0;
-  logic [31:0] tb_test_evt_arg1;
-  logic [31:0] tb_test_evt_arg2;
-  logic        tb_host_evt_valid;
-  logic [7:0]  tb_host_evt_id;
-  logic [31:0] tb_host_evt_arg0;
-  logic [31:0] tb_host_evt_arg1;
-  logic [31:0] tb_host_evt_arg2;
+  uart_log_evt_if tb_test_evt_if ();
+  uart_log_evt_if tb_host_evt_if ();
   logic [31:0] tb_sdrc_rd_data;
   logic        tb_sdrc_cmd_ack;
   logic        tb_sdrc_init_done;
@@ -62,6 +49,11 @@ module testbench;
   int unsigned s_refresh_count;
   int unsigned s_cmd_count;
 
+  assign tb_test_evt_if.evt_ready = 1'b1;
+  assign tb_test_evt_if.enable    = 1'b1;
+  assign tb_host_evt_if.evt_ready = 1'b1;
+  assign tb_host_evt_if.enable    = 1'b1;
+
   initial begin
     tb_log_pkg::configure_logging(tb_log_pkg::LOG_INFO);
     tb_clk = 1'b0;
@@ -72,7 +64,6 @@ module testbench;
     tb_rst_n = 1'b0;
     tb_cli_rx_valid = 1'b0;
     tb_cli_rx_data = 8'h00;
-    tb_raw_tx_ready = 1'b1;
     tb_sdrc_init_done = 1'b0;
     repeat (16) @(posedge tb_clk);
     tb_rst_n = 1'b1;
@@ -190,23 +181,8 @@ module testbench;
     .I_RST_N(tb_rst_n),
     .I_CLI_RX_VALID(tb_cli_rx_valid),
     .I_CLI_RX_DATA(tb_cli_rx_data),
-    .O_RAW_RX_BYPASS(tb_raw_rx_bypass),
-    .O_RAW_TX_MODE(tb_raw_tx_mode),
-    .O_RAW_TX_VALID(tb_raw_tx_valid),
-    .O_RAW_TX_DATA(tb_raw_tx_data),
-    .I_RAW_TX_READY(tb_raw_tx_ready),
-    .O_TEST_EVT_VALID(tb_test_evt_valid),
-    .O_TEST_EVT_ID(tb_test_evt_id),
-    .O_TEST_EVT_ARG0(tb_test_evt_arg0),
-    .O_TEST_EVT_ARG1(tb_test_evt_arg1),
-    .O_TEST_EVT_ARG2(tb_test_evt_arg2),
-    .I_TEST_EVT_READY(1'b1),
-    .O_HOST_EVT_VALID(tb_host_evt_valid),
-    .O_HOST_EVT_ID(tb_host_evt_id),
-    .O_HOST_EVT_ARG0(tb_host_evt_arg0),
-    .O_HOST_EVT_ARG1(tb_host_evt_arg1),
-    .O_HOST_EVT_ARG2(tb_host_evt_arg2),
-    .I_HOST_EVT_READY(1'b1),
+    .TEST_EVT_IF(tb_test_evt_if),
+    .HOST_EVT_IF(tb_host_evt_if),
     .I_SDRC_RD_DATA(tb_sdrc_rd_data),
     .I_SDRC_CMD_ACK(tb_sdrc_cmd_ack),
     .I_SDRC_INIT_DONE(tb_sdrc_init_done),

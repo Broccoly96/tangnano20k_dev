@@ -6,9 +6,11 @@
     tb_test_fail             = 1'b0;
     tb_host_busy             = 1'b1;
     tb_sdrc_reset_active     = 1'b0;
-    tb_sdrc_busy_n           = 1'b1;
-    tb_sdrc_rd_valid         = 1'b0;
-    tb_sdrc_wrd_ack          = 1'b1;
+    tb_sdrc_cmd_en           = 1'b1;
+    tb_sdrc_cmd              = 3'h3;
+    tb_sdrc_cmd_ack          = 1'b1;
+    tb_sdrc_read_sample_valid= 1'b0;
+    tb_sdrc_refresh_status   = 32'h5200_1234;
     tb_sdrc_rd_data          = 32'h89AB_CDEF;
     tb_memtest_summary       = 32'h1122_3344;
     tb_memtest_state         = 8'h0D;
@@ -27,10 +29,7 @@
     tb_memtest_ctrl_detail   = 32'hCAFE_BABE;
     tb_host_dbg_summary      = 32'h480F_1A19;
     tb_host_dbg_detail       = 32'h0000_A123;
-    tb_host_dbg_rd_beats     = '0;
-    for (int idx = 0; idx < 26; idx++) begin
-      tb_host_dbg_rd_beats[idx*32 +: 32] = 32'hBA00_0000 + idx;
-    end
+    tb_host_dbg_rd_beats     = 32'hBA00_0000;
 
     expect_word(16'h0000, 32'h050D_03A8, "summary");
     tb_sdrc_reset_active = 1'b1;
@@ -49,14 +48,13 @@
     expect_word(16'h002C, 32'h5555_AAAA, "retry data2");
     expect_word(16'h0030, 32'hDEAD_BEEF, "ctrl summary");
     expect_word(16'h0034, 32'hCAFE_BABE, "ctrl detail");
-    expect_word(16'h0038, 32'h47B5_0038, "handshake summary");
+    expect_word(16'h0038, 32'h48BB_4038, "handshake summary");
     expect_word(16'h003C, 32'h89AB_CDEF, "latest rd data");
     expect_word(16'h0040, 32'h480F_1A19, "host debug summary");
     expect_word(16'h0044, 32'h0000_A123, "host debug detail");
-    expect_word(16'h0048, 32'hBA00_0000, "host debug beat0");
-    expect_word(16'h004C, 32'hBA00_0001, "host debug beat1");
-    expect_word(16'h00AC, 32'hBA00_0019, "host debug beat25");
-    expect_word(16'h00B0, 32'h0000_0000, "host debug outside range");
+    expect_word(16'h0048, 32'h5200_1234, "refresh status");
+    expect_word(16'h004C, 32'hBA00_0000, "host debug word");
+    expect_word(16'h0050, 32'h0000_0000, "host debug outside range");
 
     log_info("STATUS MAP TB", "sdram_status_reg_map smoke test passed");
     $finish;

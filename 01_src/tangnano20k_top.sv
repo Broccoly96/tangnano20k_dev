@@ -2,6 +2,7 @@
 // Name         : tangnano20k_top
 // Description  : top module
 //---------------------------------------------------------------------------------------------
+`include "uart_log_cli/uart_log_evt_if.sv"
 `include "uart_log_cli/uart_log_src_async_bridge.sv"
 `include "uart_log_cli/uart_log_cli_byte_async_bridge.sv"
 
@@ -72,7 +73,7 @@ module tangnano20k_top(
   input   wire      PIN86_IOT14A,
   input   wire      PIN87_IOT30B,
   input   wire      PIN88_IOT30A,
-  // Embedded SDRAM
+  // Embedded SDRAM ports
   output           O_sdram_clk,
   output           O_sdram_cke,
   output           O_sdram_cs_n,
@@ -85,21 +86,25 @@ module tangnano20k_top(
   inout    [31:0]  IO_sdram_dq
   );
 
-  localparam int unsigned FPGA_INIT_WAIT         = 24000;
-  localparam int unsigned UART_LOG_CLK_HZ        = 24_000_000;
-  localparam int unsigned UART_LOG_BAUD          = 115_200;
-  localparam int unsigned UART_LOG_NUM_SRC       = 3;
-  localparam int unsigned SOFT_RESET_HOLD_CYCLES = UART_LOG_CLK_HZ;
-  localparam int unsigned SOFT_RESET_CNT_W       = $clog2(SOFT_RESET_HOLD_CYCLES + 1);
-  localparam int unsigned TESTSRC_CLK_HZ         = 24_000_000;
-  localparam int unsigned TESTSRC_PERIOD_CYCLES  = TESTSRC_CLK_HZ * 10;
-  localparam bit          SDRAM_MEMTEST_USE_FIXED_WINDOW_ADDR = 1'b0;
-  localparam logic [1:0]  SDRAM_MEMTEST_FIXED_BANK_ADDR = 2'd2;
-  localparam logic [10:0] SDRAM_MEMTEST_FIXED_ROW_ADDR = 11'd2;
-  localparam logic [7:0]  SDRAM_MEMTEST_FIXED_COL_START = 8'd5;
-  localparam int unsigned SDRAM_MEMTEST_BURST_WORDS = 1;
-  localparam int unsigned SDRAM_MEMTEST_TEST_WORDS  = 2097152;
+  localparam int unsigned                 FPGA_INIT_WAIT                      = 24000;
+  localparam int unsigned                 UART_LOG_CLK_HZ                     = 24_000_000;
+  localparam int unsigned                 UART_LOG_BAUD                       = 115_200;
+  localparam int unsigned                 UART_LOG_NUM_SRC                    = 3;
+  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK            = 3'b110;
+  localparam int unsigned                 SOFT_RESET_HOLD_CYCLES              = UART_LOG_CLK_HZ;
+  localparam int unsigned                 SOFT_RESET_CNT_W                    = $clog2(SOFT_RESET_HOLD_CYCLES + 1);
+  localparam bit                          SDRAM_MEMTEST_USE_FIXED_WINDOW_ADDR = 1'b0;
+  localparam logic [1:0]                  SDRAM_MEMTEST_FIXED_BANK_ADDR       = 2'd2;
+  localparam logic [10:0]                 SDRAM_MEMTEST_FIXED_ROW_ADDR        = 11'd2;
+  localparam logic [7:0]                  SDRAM_MEMTEST_FIXED_COL_START       = 8'd5;
+  localparam int unsigned                 SDRAM_MEMTEST_BURST_WORDS           = 1;
+  localparam int unsigned                 SDRAM_MEMTEST_TEST_WORDS            = 256;
+  localparam int unsigned                 SDRAM_MEMTEST_CLEAR_WORDS           = 256;
 
+  // Interface
+  uart_log_evt_if                l_uart_src_if [UART_LOG_NUM_SRC] ();
+  uart_log_evt_if                l_sdram_test_evt_if ();
+  uart_log_evt_if                l_sdram_host_evt_if ();
 
   // PLL
   wire        clk_24m_sys;
@@ -113,61 +118,21 @@ module tangnano20k_top(
   logic       button_s2;
 
   // UART to ESP_WROOM2
-  logic       uart_esp_tx;
-  logic       uart_esp_rx;
-  logic       soft_rst_req_24m;
-  logic       soft_rst_req_cli_24m;
-  logic       soft_rst_n;
-  logic [SOFT_RESET_CNT_W-1:0] r_soft_reset_cnt;
+  logic                         uart_esp_tx;
+  logic                         uart_esp_rx;
+  logic                         soft_rst_req_24m;
+  logic                         soft_rst_req_cli_24m;
+  logic                         soft_rst_n;
+  logic [SOFT_RESET_CNT_W-1:0]  soft_reset_cnt;
 
-  logic [UART_LOG_NUM_SRC-1:0]   l_src_evt_valid;
-  logic [UART_LOG_NUM_SRC*8-1:0] l_src_evt_id;
-  logic [UART_LOG_NUM_SRC*32-1:0] l_src_arg0;
-  logic [UART_LOG_NUM_SRC*32-1:0] l_src_arg1;
-  logic [UART_LOG_NUM_SRC*32-1:0] l_src_arg2;
-  logic [UART_LOG_NUM_SRC-1:0]   l_src_evt_ready;
-  logic [UART_LOG_NUM_SRC-1:0]   l_src_enable;
-  logic                          l_src0_evt_valid_24m;
-  logic [7:0]                    l_src0_evt_id_24m;
-  logic [31:0]                   l_src0_arg0_24m;
-  logic [31:0]                   l_src0_arg1_24m;
-  logic [31:0]                   l_src0_arg2_24m;
-  logic                          l_src0_enable_24m;
-  logic                          l_src0_evt_ready_24m;
-  logic                          l_src1_evt_valid_24m;
-  logic [7:0]                    l_src1_evt_id_24m;
-  logic [31:0]                   l_src1_arg0_24m;
-  logic [31:0]                   l_src1_arg1_24m;
-  logic [31:0]                   l_src1_arg2_24m;
-  logic                          l_src2_evt_valid_24m;
-  logic [7:0]                    l_src2_evt_id_24m;
-  logic [31:0]                   l_src2_arg0_24m;
-  logic [31:0]                   l_src2_arg1_24m;
-  logic [31:0]                   l_src2_arg2_24m;
-  logic                          l_src1_evt_valid_48m;
-  logic [7:0]                    l_src1_evt_id_48m;
-  logic [31:0]                   l_src1_arg0_48m;
-  logic [31:0]                   l_src1_arg1_48m;
-  logic [31:0]                   l_src1_arg2_48m;
-  logic                          l_src2_evt_valid_48m;
-  logic [7:0]                    l_src2_evt_id_48m;
-  logic [31:0]                   l_src2_arg0_48m;
-  logic [31:0]                   l_src2_arg1_48m;
-  logic [31:0]                   l_src2_arg2_48m;
-  logic                          l_src1_evt_ready_48m;
-  logic                          l_src2_evt_ready_48m;
-  logic                          l_src1_enable_48m;
-  logic                          l_src2_enable_48m;
+
+
+
   logic                          l_sdram_init_done;
   logic                          l_sdram_test_active;
   logic                          l_sdram_test_pass;
   logic                          l_sdram_test_fail;
   logic                          l_sdram_host_busy;
-  logic                          l_sdram_raw_rx_bypass_24m;
-  logic                          l_sdram_raw_tx_mode_24m;
-  logic                          l_sdram_raw_tx_valid_24m;
-  logic [7:0]                    l_sdram_raw_tx_data_24m;
-  logic                          l_sdram_raw_tx_ready_24m;
   logic                          l_cli_rx_valid_24m;
   logic [7:0]                    l_cli_rx_data_24m;
   logic                          l_cli_rx_valid_48m;
@@ -196,6 +161,16 @@ module tangnano20k_top(
   logic [3:0]                    l_hostif_sdrc_dqm;
   logic [31:0]                   l_hostif_sdrc_data;
   logic                          l_hostif_sdrc_read_sample_valid;
+
+  //---------------------------------------------------------------------------------------------
+  // System Onboard LED
+  //---------------------------------------------------------------------------------------------
+  assign PIN15_IOL47A_LED0 = ~rst_fpga_48m_n;
+  assign PIN16_IOL47B_LED1 = ~l_sdram_init_done;
+  assign PIN17_IOL49A_LED2 = ~l_sdram_test_pass;
+  assign PIN20_IOL51B_LED5 = ~l_sdram_test_fail;
+
+
   //---------------------------------------------------------------------------------------------
   // PLL
   //---------------------------------------------------------------------------------------------
@@ -221,23 +196,8 @@ module tangnano20k_top(
     .O_RST_FPGA_48M_N   (rst_fpga_48m_n)
   );
 
-  assign soft_rst_req_24m   = 1'b0;
-  assign I_sdrc_rst_n       = l_hostif_sdrc_rst_n;
-  assign I_sdrc_clk         = clk_48m_sdram;
-  assign I_sdram_clk        = clk_48m_sdram;
-  assign I_sdrc_cmd_en      = l_hostif_sdrc_cmd_en;
-  assign I_sdrc_cmd         = l_hostif_sdrc_cmd;
-  assign I_sdrc_precharge_ctrl = l_hostif_sdrc_precharge_ctrl;
-  assign I_sdram_selfrefresh = 1'b0;
-  assign I_sdram_power_down  = 1'b0;
-  assign I_sdrc_addr        = l_hostif_sdrc_addr;
-  assign I_sdrc_data_len    = l_hostif_sdrc_data_len;
-  assign I_sdrc_dqm         = l_hostif_sdrc_dqm;
-  assign I_sdrc_data        = l_hostif_sdrc_data;
-  assign l_sdram_raw_rx_bypass_24m = 1'b0;
-  assign l_sdram_raw_tx_mode_24m   = 1'b0;
-  assign l_sdram_raw_tx_valid_24m  = 1'b0;
-  assign l_sdram_raw_tx_data_24m   = 8'h00;
+  assign soft_rst_req_24m       = 1'b0;
+
 
   //---------------------------------------------------------------------------------------------
   // Soft reset pulse stretcher
@@ -247,87 +207,43 @@ module tangnano20k_top(
   // time survives the user-logic reset it requests.
   always_ff @(posedge clk_24m_sys or negedge rst_fpga_24m_n) begin
     if (~rst_fpga_24m_n) begin
-      r_soft_reset_cnt <= '0;
+      soft_reset_cnt <= '0;
       soft_rst_n       <= 1'b1;
     end else if (soft_rst_req_24m || soft_rst_req_cli_24m) begin
-      r_soft_reset_cnt <= SOFT_RESET_HOLD_CYCLES - 1;
+      soft_reset_cnt <= SOFT_RESET_HOLD_CYCLES - 1;
       soft_rst_n       <= 1'b0;
-    end else if (r_soft_reset_cnt != 0) begin
-      r_soft_reset_cnt <= r_soft_reset_cnt - 1'b1;
+    end else if (soft_reset_cnt != 0) begin
+      soft_reset_cnt <= soft_reset_cnt - 1'b1;
       soft_rst_n       <= 1'b0;
 //    end else if (button_s1) begin
 //      soft_rst_n       <= 1'b0;
     end else begin
-      r_soft_reset_cnt <= '0;
+      soft_reset_cnt <= '0;
       soft_rst_n       <= 1'b1;
     end
   end
 
   assign button_s1 = PIN88_IOT30A;
   assign button_s2 = PIN87_IOT30B;
-  //---------------------------------------------------------------------------------------------
-  // System Onboard LED
-  //---------------------------------------------------------------------------------------------
-  assign PIN15_IOL47A_LED0 = ~rst_fpga_48m_n;
-  assign PIN16_IOL47B_LED1 = ~l_sdram_init_done;
-  assign PIN17_IOL49A_LED2 = ~l_sdram_test_pass;
-  assign PIN20_IOL51B_LED5 = ~l_sdram_test_fail;
+
 
 
   //---------------------------------------------------------------------------------------------
   // UART debug log source wiring
   //---------------------------------------------------------------------------------------------
-  assign l_src_evt_valid[0]    = l_src0_evt_valid_24m;
-  assign l_src_evt_valid[1]    = l_src1_evt_valid_24m;
-  assign l_src_evt_valid[2]    = l_src2_evt_valid_24m;
-  assign l_src0_evt_ready_24m  = l_src_evt_ready[0];
-  assign l_src_evt_id[7:0]     = l_src0_evt_id_24m;
-  assign l_src_evt_id[15:8]    = l_src1_evt_id_24m;
-  assign l_src_evt_id[23:16]   = l_src2_evt_id_24m;
-  assign l_src_arg0[31:0]      = l_src0_arg0_24m;
-  assign l_src_arg0[63:32]     = l_src1_arg0_24m;
-  assign l_src_arg0[95:64]     = l_src2_arg0_24m;
-  assign l_src_arg1[31:0]      = l_src0_arg1_24m;
-  assign l_src_arg1[63:32]     = l_src1_arg1_24m;
-  assign l_src_arg1[95:64]     = l_src2_arg1_24m;
-  assign l_src_arg2[31:0]      = l_src0_arg2_24m;
-  assign l_src_arg2[63:32]     = l_src1_arg2_24m;
-  assign l_src_arg2[95:64]     = l_src2_arg2_24m;
-
-  uart_log_testsrc1 #(
-    .CLK_HZ         (TESTSRC_CLK_HZ),
-    .PERIOD_CYCLES  (TESTSRC_PERIOD_CYCLES)
-  ) u_uart_log_testsrc1 (
-    .I_CLK          (clk_24m_sys),
-    .I_RST_N        (rst_fpga_24m_n),
-    .I_ENABLE       (l_src_enable[0]),
-    .I_EVT_READY    (l_src0_evt_ready_24m),
-    .O_EVT_VALID    (l_src0_evt_valid_24m),
-    .O_EVT_ID       (l_src0_evt_id_24m),
-    .O_ARG0         (l_src0_arg0_24m),
-    .O_ARG1         (l_src0_arg1_24m),
-    .O_ARG2         (l_src0_arg2_24m)
-  );
+  assign l_uart_src_if[0].evt_valid = 1'b0;
+  assign l_uart_src_if[0].evt_id    = 8'h00;
+  assign l_uart_src_if[0].arg0      = 32'h0000_0000;
+  assign l_uart_src_if[0].arg1      = 32'h0000_0000;
+  assign l_uart_src_if[0].arg2      = 32'h0000_0000;
 
   uart_log_src_async_bridge u_sdram_test_evt_bridge (
     .I_SRC_CLK        (clk_48m_sdram),
     .I_SRC_RST_N      (rst_fpga_48m_n),
     .I_DST_CLK        (clk_24m_sys),
     .I_DST_RST_N      (rst_fpga_24m_n),
-    .I_DST_ENABLE     (l_src_enable[1]),
-    .O_SRC_ENABLE     (l_src1_enable_48m),
-    .I_SRC_EVT_VALID  (l_src1_evt_valid_48m),
-    .I_SRC_EVT_ID     (l_src1_evt_id_48m),
-    .I_SRC_ARG0       (l_src1_arg0_48m),
-    .I_SRC_ARG1       (l_src1_arg1_48m),
-    .I_SRC_ARG2       (l_src1_arg2_48m),
-    .O_SRC_EVT_READY  (l_src1_evt_ready_48m),
-    .O_DST_EVT_VALID  (l_src1_evt_valid_24m),
-    .O_DST_EVT_ID     (l_src1_evt_id_24m),
-    .O_DST_ARG0       (l_src1_arg0_24m),
-    .O_DST_ARG1       (l_src1_arg1_24m),
-    .O_DST_ARG2       (l_src1_arg2_24m),
-    .I_DST_EVT_READY  (l_src_evt_ready[1])
+    .SRC_IF           (l_sdram_test_evt_if),
+    .DST_IF           (l_uart_src_if[1])
   );
 
   uart_log_src_async_bridge u_sdram_host_evt_bridge (
@@ -335,20 +251,8 @@ module tangnano20k_top(
     .I_SRC_RST_N      (rst_fpga_48m_n),
     .I_DST_CLK        (clk_24m_sys),
     .I_DST_RST_N      (rst_fpga_24m_n),
-    .I_DST_ENABLE     (l_src_enable[2]),
-    .O_SRC_ENABLE     (l_src2_enable_48m),
-    .I_SRC_EVT_VALID  (l_src2_evt_valid_48m),
-    .I_SRC_EVT_ID     (l_src2_evt_id_48m),
-    .I_SRC_ARG0       (l_src2_arg0_48m),
-    .I_SRC_ARG1       (l_src2_arg1_48m),
-    .I_SRC_ARG2       (l_src2_arg2_48m),
-    .O_SRC_EVT_READY  (l_src2_evt_ready_48m),
-    .O_DST_EVT_VALID  (l_src2_evt_valid_24m),
-    .O_DST_EVT_ID     (l_src2_evt_id_24m),
-    .O_DST_ARG0       (l_src2_arg0_24m),
-    .O_DST_ARG1       (l_src2_arg1_24m),
-    .O_DST_ARG2       (l_src2_arg2_24m),
-    .I_DST_EVT_READY  (l_src_evt_ready[2])
+    .SRC_IF           (l_sdram_host_evt_if),
+    .DST_IF           (l_uart_src_if[2])
   );
 
   uart_log_cli_byte_async_bridge u_cli_rx_bridge (
@@ -371,75 +275,83 @@ module tangnano20k_top(
     .MEMTEST_FIXED_COL_START (SDRAM_MEMTEST_FIXED_COL_START),
     .MEMTEST_BURST_WORDS (SDRAM_MEMTEST_BURST_WORDS),
     .MEMTEST_TEST_WORDS (SDRAM_MEMTEST_TEST_WORDS),
+    .MEMTEST_CLEAR_WORDS(SDRAM_MEMTEST_CLEAR_WORDS),
     .MEMTEST_POST_INIT_WAIT_CYCLES (2_400_000),
     .MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES (16)
   ) u_sdram_emb_hostif_ctrl (
-    .I_CLK            (clk_48m_sdram),
-    .I_RST_N          (rst_fpga_48m_n),
-    .I_CLI_RX_VALID   (l_cli_rx_valid_48m),
-    .I_CLI_RX_DATA    (l_cli_rx_data_48m),
-    .O_RAW_RX_BYPASS  (),
-    .O_RAW_TX_MODE    (),
-    .O_RAW_TX_VALID   (),
-    .O_RAW_TX_DATA    (),
-    .I_RAW_TX_READY   (1'b1),
-    .O_TEST_EVT_VALID (l_src1_evt_valid_48m),
-    .O_TEST_EVT_ID    (l_src1_evt_id_48m),
-    .O_TEST_EVT_ARG0  (l_src1_arg0_48m),
-    .O_TEST_EVT_ARG1  (l_src1_arg1_48m),
-    .O_TEST_EVT_ARG2  (l_src1_arg2_48m),
-    .I_TEST_EVT_READY (l_src1_evt_ready_48m),
-    .O_HOST_EVT_VALID (l_src2_evt_valid_48m),
-    .O_HOST_EVT_ID    (l_src2_evt_id_48m),
-    .O_HOST_EVT_ARG0  (l_src2_arg0_48m),
-    .O_HOST_EVT_ARG1  (l_src2_arg1_48m),
-    .O_HOST_EVT_ARG2  (l_src2_arg2_48m),
-    .I_HOST_EVT_READY (l_src2_evt_ready_48m),
-    .O_INIT_DONE      (l_sdram_init_done),
-    .O_TEST_ACTIVE    (l_sdram_test_active),
-    .O_TEST_PASS      (l_sdram_test_pass),
-    .O_TEST_FAIL      (l_sdram_test_fail),
-    .O_HOST_BUSY      (l_sdram_host_busy),
-    .O_SDRC_RST_N     (l_hostif_sdrc_rst_n),
-    .I_SDRC_RD_DATA   (O_sdrc_data),
-    .I_SDRC_CMD_ACK   (O_sdrc_cmd_ack),
-    .I_SDRC_INIT_DONE (O_sdrc_init_done),
-    .O_SDRC_CMD_EN    (l_hostif_sdrc_cmd_en),
-    .O_SDRC_CMD       (l_hostif_sdrc_cmd),
-    .O_SDRC_PRECHARGE_CTRL(l_hostif_sdrc_precharge_ctrl),
-    .O_SDRC_ADDR      (l_hostif_sdrc_addr),
-    .O_SDRC_DATA_LEN  (l_hostif_sdrc_data_len),
-    .O_SDRC_DQM       (l_hostif_sdrc_dqm),
-    .O_SDRC_WR_DATA   (l_hostif_sdrc_data),
-    .O_SDRC_READ_SAMPLE_VALID(l_hostif_sdrc_read_sample_valid)
+    .I_CLK                    (clk_48m_sdram),
+    .I_RST_N                  (rst_fpga_48m_n),
+    .I_CLI_RX_VALID           (l_cli_rx_valid_48m),
+    .I_CLI_RX_DATA            (l_cli_rx_data_48m),
+    .O_INIT_DONE              (l_sdram_init_done),
+    .O_TEST_ACTIVE            (l_sdram_test_active),
+    .O_TEST_PASS              (l_sdram_test_pass),
+    .O_TEST_FAIL              (l_sdram_test_fail),
+    .O_HOST_BUSY              (l_sdram_host_busy),
+    // SDRAM User Interface
+    .O_SDRC_RST_N             (l_hostif_sdrc_rst_n),
+    .I_SDRC_RD_DATA           (O_sdrc_data),
+    .I_SDRC_CMD_ACK           (O_sdrc_cmd_ack),
+    .I_SDRC_INIT_DONE         (O_sdrc_init_done),
+    .O_SDRC_CMD_EN            (l_hostif_sdrc_cmd_en),
+    .O_SDRC_CMD               (l_hostif_sdrc_cmd),
+    .O_SDRC_PRECHARGE_CTRL    (l_hostif_sdrc_precharge_ctrl),
+    .O_SDRC_ADDR              (l_hostif_sdrc_addr),
+    .O_SDRC_DATA_LEN          (l_hostif_sdrc_data_len),
+    .O_SDRC_DQM               (l_hostif_sdrc_dqm),
+    .O_SDRC_WR_DATA           (l_hostif_sdrc_data),
+    .O_SDRC_READ_SAMPLE_VALID (l_hostif_sdrc_read_sample_valid),
+    //
+    .TEST_EVT_IF              (l_sdram_test_evt_if),
+    .HOST_EVT_IF              (l_sdram_host_evt_if)
   );
 
+
+  //---------------------------------------------------------------------------------------------
+  // GW2AR-18 embedded SDRAM controller IP
+  //    - O_sdram_* signals should be instantiated as I/O ports in the top module.
+  //      Gowin EDA will automatically connect them to the SDRAM.
+  //---------------------------------------------------------------------------------------------
+  assign I_sdrc_rst_n           = l_hostif_sdrc_rst_n;
+  assign I_sdrc_clk             = clk_48m_sdram;
+  assign I_sdram_clk            = clk_48m_sdram;
+  assign I_sdrc_cmd_en          = l_hostif_sdrc_cmd_en;
+  assign I_sdrc_cmd             = l_hostif_sdrc_cmd;
+  assign I_sdrc_precharge_ctrl  = l_hostif_sdrc_precharge_ctrl;
+  assign I_sdram_selfrefresh    = 1'b0;
+  assign I_sdram_power_down     = 1'b0;
+  assign I_sdrc_addr            = l_hostif_sdrc_addr;
+  assign I_sdrc_data_len        = l_hostif_sdrc_data_len;
+  assign I_sdrc_dqm             = l_hostif_sdrc_dqm;
+  assign I_sdrc_data            = l_hostif_sdrc_data;
+
+
 	embedded_sdram_hs u_embedded_sdram_hs(
-		.O_sdram_clk        (O_sdram_clk), //output O_sdram_clk
-		.O_sdram_cke        (O_sdram_cke), //output O_sdram_cke
-		.O_sdram_cs_n       (O_sdram_cs_n), //output O_sdram_cs_n
-		.O_sdram_cas_n      (O_sdram_cas_n), //output O_sdram_cas_n
-		.O_sdram_ras_n      (O_sdram_ras_n), //output O_sdram_ras_n
-		.O_sdram_wen_n      (O_sdram_wen_n), //output O_sdram_wen_n
-		.O_sdram_dqm        (O_sdram_dqm), //output [3:0] O_sdram_dqm
-		.O_sdram_addr       (O_sdram_addr), //output [10:0] O_sdram_addr
-		.O_sdram_ba         (O_sdram_ba), //output [1:0] O_sdram_ba
-		.IO_sdram_dq        (IO_sdram_dq), //inout [31:0] IO_sdram_dq
-		.I_sdrc_rst_n       (I_sdrc_rst_n), //input I_sdrc_rst_n
-		.I_sdrc_clk         (I_sdrc_clk), //input I_sdrc_clk
-		.I_sdram_clk        (I_sdram_clk), //input I_sdram_clk
-		.I_sdrc_cmd_en      (I_sdrc_cmd_en), //input I_sdrc_cmd_en
-		.I_sdrc_cmd         (I_sdrc_cmd), //input [2:0] I_sdrc_cmd
-		.I_sdrc_precharge_ctrl(I_sdrc_precharge_ctrl), //input I_sdrc_precharge_ctrl
-		.I_sdram_power_down (I_sdram_power_down), //input I_sdram_power_down
-		.I_sdram_selfrefresh(I_sdram_selfrefresh), //input I_sdram_selfrefresh
-		.I_sdrc_addr        (I_sdrc_addr), //input [20:0] I_sdrc_addr
-		.I_sdrc_dqm         (I_sdrc_dqm), //input [3:0] I_sdrc_dqm
-		.I_sdrc_data        (I_sdrc_data), //input [31:0] I_sdrc_data
-		.I_sdrc_data_len    (I_sdrc_data_len), //input [7:0] I_sdrc_data_len
-		.O_sdrc_data        (O_sdrc_data), //output [31:0] O_sdrc_data
-		.O_sdrc_init_done   (O_sdrc_init_done), //output O_sdrc_init_done
-		.O_sdrc_cmd_ack     (O_sdrc_cmd_ack) //output O_sdrc_cmd_ack
+		.O_sdram_clk            (O_sdram_clk),           // output O_sdram_clk
+		.O_sdram_cke            (O_sdram_cke),           // output O_sdram_cke
+		.O_sdram_cs_n           (O_sdram_cs_n),          // output O_sdram_cs_n
+		.O_sdram_cas_n          (O_sdram_cas_n),         // output O_sdram_cas_n
+		.O_sdram_ras_n          (O_sdram_ras_n),         // output O_sdram_ras_n
+		.O_sdram_wen_n          (O_sdram_wen_n),         // output O_sdram_wen_n
+		.O_sdram_dqm            (O_sdram_dqm),           // output [3:0] O_sdram_dqm
+		.O_sdram_addr           (O_sdram_addr),          // output [10:0] O_sdram_addr
+		.O_sdram_ba             (O_sdram_ba),            // output [1:0] O_sdram_ba
+		.IO_sdram_dq            (IO_sdram_dq),           // inout [31:0] IO_sdram_dq
+		.I_sdrc_rst_n           (I_sdrc_rst_n),          // input I_sdrc_rst_n
+		.I_sdrc_clk             (I_sdrc_clk),            // input I_sdrc_clk
+		.I_sdram_clk            (I_sdram_clk),           // input I_sdram_clk
+		.I_sdrc_cmd_en          (I_sdrc_cmd_en),         // input I_sdrc_cmd_en
+		.I_sdrc_cmd             (I_sdrc_cmd),            // input [2:0] I_sdrc_cmd
+		.I_sdrc_precharge_ctrl  (I_sdrc_precharge_ctrl), // input I_sdrc_precharge_ctrl
+		.I_sdram_power_down     (I_sdram_power_down),    // input I_sdram_power_down
+		.I_sdram_selfrefresh    (I_sdram_selfrefresh),   // input I_sdram_selfrefresh
+		.I_sdrc_addr            (I_sdrc_addr),           // input [20:0] I_sdrc_addr
+		.I_sdrc_dqm             (I_sdrc_dqm),            // input [3:0] I_sdrc_dqm
+		.I_sdrc_data            (I_sdrc_data),           // input [31:0] I_sdrc_data
+		.I_sdrc_data_len        (I_sdrc_data_len),       // input [7:0] I_sdrc_data_len
+		.O_sdrc_data            (O_sdrc_data),           // output [31:0] O_sdrc_data
+		.O_sdrc_init_done       (O_sdrc_init_done),      // output O_sdrc_init_done
+		.O_sdrc_cmd_ack         (O_sdrc_cmd_ack)         // output O_sdrc_cmd_ack
 	);
 
   //---------------------------------------------------------------------------------------------
@@ -448,32 +360,18 @@ module tangnano20k_top(
   uart_log_cli #(
     .CLK_HZ             (UART_LOG_CLK_HZ),
     .BAUD               (UART_LOG_BAUD),
-    .NUM_SRC            (UART_LOG_NUM_SRC)
+    .NUM_SRC            (UART_LOG_NUM_SRC),
+    .SRC_ENABLE_MASK    (UART_LOG_SRC_ENABLE_MASK)
   ) u_uart_log_cli (
     .I_CLK              (clk_24m_sys),
     .I_RST_N            (rst_fpga_24m_n),
     .I_UART_RX          (uart_esp_rx),
     .O_UART_TX          (uart_esp_tx),
-    .I_SRC_EVT_VALID    (l_src_evt_valid),
-    .I_SRC_EVT_ID       (l_src_evt_id),
-    .I_SRC_ARG0         (l_src_arg0),
-    .I_SRC_ARG1         (l_src_arg1),
-    .I_SRC_ARG2         (l_src_arg2),
-    .O_SRC_EVT_READY    (l_src_evt_ready),
-    .O_SRC_ENABLE       (l_src_enable),
+    .SRC_IF             (l_uart_src_if),
     .O_LOG_SRC_SEL      (),
     .O_SOFT_RESET_REQ   (soft_rst_req_cli_24m),
-    .O_STATUS_REQ_VALID (),
-    .O_STATUS_REQ_KEY   (),
-    .I_RAW_RX_BYPASS    (l_sdram_raw_rx_bypass_24m),
-    .I_RAW_TX_MODE      (l_sdram_raw_tx_mode_24m),
-    .I_RAW_TX_VALID     (l_sdram_raw_tx_valid_24m),
-    .I_RAW_TX_DATA      (l_sdram_raw_tx_data_24m),
-    .O_RAW_TX_READY     (l_sdram_raw_tx_ready_24m),
     .O_CLI_RX_VALID     (l_cli_rx_valid_24m),
-    .O_CLI_RX_DATA      (l_cli_rx_data_24m),
-    .O_MIRROR_VALID     (),
-    .O_MIRROR_DATA      ()
+    .O_CLI_RX_DATA      (l_cli_rx_data_24m)
   );
 
   assign uart_esp_rx       = PIN18_IOL49B_LED3;

@@ -11,9 +11,11 @@ module testbench;
   logic        tb_test_fail;
   logic        tb_host_busy;
   logic        tb_sdrc_reset_active;
-  logic        tb_sdrc_busy_n;
-  logic        tb_sdrc_rd_valid;
-  logic        tb_sdrc_wrd_ack;
+  logic        tb_sdrc_cmd_en;
+  logic [2:0]  tb_sdrc_cmd;
+  logic        tb_sdrc_cmd_ack;
+  logic        tb_sdrc_read_sample_valid;
+  logic [31:0] tb_sdrc_refresh_status;
   logic [31:0] tb_sdrc_rd_data;
   logic [31:0] tb_memtest_summary;
   logic [7:0]  tb_memtest_state;
@@ -32,7 +34,7 @@ module testbench;
   logic [31:0] tb_memtest_ctrl_detail;
   logic [31:0] tb_host_dbg_summary;
   logic [31:0] tb_host_dbg_detail;
-  logic [831:0] tb_host_dbg_rd_beats;
+  logic [31:0] tb_host_dbg_rd_beats;
   logic [31:0] tb_rd_data;
 
   initial begin
@@ -47,9 +49,11 @@ module testbench;
     .I_TEST_FAIL             (tb_test_fail),
     .I_HOST_BUSY             (tb_host_busy),
     .I_SDRC_RESET_ACTIVE     (tb_sdrc_reset_active),
-    .I_SDRC_BUSY_N           (tb_sdrc_busy_n),
-    .I_SDRC_RD_VALID         (tb_sdrc_rd_valid),
-    .I_SDRC_WRD_ACK          (tb_sdrc_wrd_ack),
+    .I_SDRC_CMD_EN           (tb_sdrc_cmd_en),
+    .I_SDRC_CMD              (tb_sdrc_cmd),
+    .I_SDRC_CMD_ACK          (tb_sdrc_cmd_ack),
+    .I_SDRC_READ_SAMPLE_VALID(tb_sdrc_read_sample_valid),
+    .I_SDRC_REFRESH_STATUS   (tb_sdrc_refresh_status),
     .I_SDRC_RD_DATA          (tb_sdrc_rd_data),
     .I_MEMTEST_SUMMARY       (tb_memtest_summary),
     .I_MEMTEST_STATE         (tb_memtest_state),

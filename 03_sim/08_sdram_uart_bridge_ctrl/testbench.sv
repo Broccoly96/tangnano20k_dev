@@ -42,7 +42,7 @@ module testbench;
   logic        tb_sdrc_active;
   logic [31:0] tb_host_dbg_summary;
   logic [31:0] tb_host_dbg_detail;
-  logic [831:0] tb_host_dbg_rd_beats;
+  logic [31:0] tb_host_dbg_rd_beats;
   logic        tb_evt_valid;
   logic [7:0]  tb_evt_id;
   logic [31:0] tb_evt_arg0;
@@ -109,11 +109,6 @@ module testbench;
     .I_HOST_ACCESS_ENABLE(tb_host_access_enable),
     .I_CLI_RX_VALID  (tb_cli_rx_valid),
     .I_CLI_RX_DATA   (tb_cli_rx_data),
-    .O_RAW_RX_BYPASS (),
-    .O_RAW_TX_MODE   (),
-    .O_RAW_TX_VALID  (),
-    .O_RAW_TX_DATA   (),
-    .I_RAW_TX_READY  (1'b0),
     .I_SDRC_INIT_DONE(tb_sdrc_init_done),
     .I_SDRC_READY    (tb_sdrc_ready),
     .I_SDRC_CMD_ACK  (tb_sdrc_cmd_ack),
