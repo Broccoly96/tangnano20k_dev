@@ -1,80 +1,78 @@
 # tangnano20k_dev
 
-FPGA development repository for the Tang Nano 20K.
-The current tree includes a working `uart_log_cli` integration for
-real hardware, with host-side log reception over an ESP WiFi
-UART-to-TCP bridge.
+FPGA development repository for the Sipeed Tang Nano 20K.
+The current top design focuses on the Gowin embedded SDRAM HS controller
+and a TCP-accessible `uart_log_cli` debug path.
+
+The verified hardware path is:
+
+```text
+FPGA uart_log_cli -> UART -> ESP UART-to-TCP bridge -> 192.168.10.40:2323
+```
 
 ## Overview
 
 - Target board: Sipeed Tang Nano 20K
+- Target device: Gowin GW2AR-18C
 - Main user RTL: [01_src](./01_src)
 - Simulation assets: [02_tb](./02_tb), [03_sim](./03_sim)
 - Gowin implementation project: [05_impl](./05_impl)
 - Host tools: [11_app](./11_app)
-- Current debug path:
-  `FPGA uart_log_cli -> UART -> ESP bridge -> TCP 192.168.10.40:2323`
+- Vendor IP: [00_ip](./00_ip), treated as read-only
 
-This repository can generate internal FPGA events, serialize them into
-UART log frames, and decode them on the host with the `debug_log` tool.
+The current production top is [tangnano20k_top.sv](./01_src/tangnano20k_top.sv).
+It instantiates `embedded_sdram_hs`, the SDRAM host/test control layer,
+and `uart_log_cli`.
 
 ## Directory Layout
 
-- [00_ip](./00_ip): Vendor / third-party IP
+- [00_ip](./00_ip): Vendor / third-party IP sources
 - [01_src](./01_src): User RTL
-- [02_tb](./02_tb): Testbench common packages and helpers
+- [02_tb](./02_tb): Common testbench packages, helpers, and BFMs
 - [03_sim](./03_sim): Testbench tops and testcases
-- [04_simlib](./04_simlib): Precompiled simulation libraries
-- [05_impl](./05_impl): Gowin project, SDC, CST, implementation outputs
+- [05_impl](./05_impl): Gowin project, constraints, and build outputs
 - [11_app](./11_app): Host-side tools and utility scripts
+- [docs](./docs): Design notes and SDRAM / TUI documentation
 
-## UART Log Bring-Up Status
+## Current RTL Status
 
-The current Tang Nano 20K top-level implementation enables
-`uart_log_cli` in
-[tangnano20k_top.sv](./01_src/tangnano20k_top.sv).
+The active SDRAM implementation uses the Gowin embedded SDRAM HS IP:
 
-- UART clock: `24 MHz`
-- UART baud: `115200`
-- Active sources:
-  - `0x01` heartbeat (`uart_log_testsrc1`)
-  - `0x02` embedded SDRAM self-test
-  - `0x03` embedded SDRAM host interface
-- Heartbeat source id: `0x01`
-- Heartbeat event id: `0x11`
-- Heartbeat period: `10 s`
-- Host transport: `tcp`
-- Default endpoint: `192.168.10.40:2323`
+- IP instance path: [00_ip/embedded_sdram_hs](./00_ip/embedded_sdram_hs)
+- Controller clock: `48 MHz`
+- Host / UART clock: `24 MHz`
+- SDRAM status-map version: `0x05`
+- Startup self-test: 256 words, single-word access pattern
+- Refresh scheduling: native HS `AUTO_REFRESH` command from user RTL
+- Raw `BR` / `BW` bulk transport: reserved and intentionally unsupported
+- Burst test commands: `BWT` and `BRT`, with RTL-generated data pattern
 
-Hardware verification has already confirmed continuous heartbeat
-reception over TCP with valid CRCs.
+The HS native command interface is driven directly by user RTL.
+The old `busy_n`, `rd_valid`, and `wrd_ack` style interface is no longer
+used by the production top.
 
-Embedded SDRAM host interface bring-up has reached simulation on the
-integrated top-side path:
+## UART Log Sources
 
-- self-test PASS can be observed on source `0x02`
-- host write ack uses event `0x30`
-- host read response uses event `0x31`
-- host command error uses event `0x3E`
+`uart_log_cli` is configured with three source slots.
+Production enables source indices 1 and 2 only.
 
-## Host Tool
+| Source index | Frame `src_id` | Producer             | Purpose                              |
+| ------------ | -------------- | -------------------- | ------------------------------------ |
+| 0            | `0x01`         | disabled             | Reserved / production disabled       |
+| 1            | `0x02`         | SDRAM self-test      | Startup and restart self-test events |
+| 2            | `0x03`         | SDRAM host interface | Status, single R/W, and burst events |
 
-The user-facing launcher is
-[11_app/debug_log_cli](./11_app/debug_log_cli).
+Source selection is controlled by `uart_log_cli` control bytes and is
+reported through system `EV_MODE_CHANGE` events.  There is no external
+`O_LOG_SRC_SEL` port in the production RTL.
 
-Main features:
+## Host Tools
 
-- Receive UART log frames over TCP
-- UART log frame parsing and CRC checking
-- Event decoding through YAML decode rules
-- Log filtering in the TUI
-- TCP receive statistics
-  - packet count
-  - byte count
-  - sequence loss
-  - CRC error count
+The compatibility launcher is:
 
-Launch example:
+[11_app/debug_log_cli/uart_log_tool.py](./11_app/debug_log_cli/uart_log_tool.py)
+
+Launch the TUI over TCP:
 
 ```powershell
 python .\11_app\debug_log_cli\uart_log_tool.py `
@@ -83,14 +81,18 @@ python .\11_app\debug_log_cli\uart_log_tool.py `
   --tcp-port 2323
 ```
 
-### Embedded SDRAM Host Command Sender
+The TUI includes SDRAM pages for:
 
-The repository now includes a minimal sender tool for the SDRAM host
-interface:
+- `SDRAM STS`: status-map decode and raw word view
+- `SDRAM RW`: single-word read/write and map-style reads
+- `SDRAM Map`: repeated single-word map read
+- `SDRAM Burst`: `BWT` / `BRT` burst test mode
+
+The command-line SDRAM helper is:
 
 [11_app/debug_log_cli/sdram_hostif_tool.py](./11_app/debug_log_cli/sdram_hostif_tool.py)
 
-Example flow:
+Example TCP flow:
 
 ```powershell
 python .\11_app\debug_log_cli\sdram_hostif_tool.py `
@@ -99,87 +101,113 @@ python .\11_app\debug_log_cli\sdram_hostif_tool.py `
 
 python .\11_app\debug_log_cli\sdram_hostif_tool.py `
   --transport tcp `
-  write 0x100308 0x89ABCDEF
+  status-read 0x00000 --select-host
 
 python .\11_app\debug_log_cli\sdram_hostif_tool.py `
   --transport tcp `
-  read 0x100308
+  write 0x00100 0x89ABCDEF --select-host
+
+python .\11_app\debug_log_cli\sdram_hostif_tool.py `
+  --transport tcp `
+  read 0x00100 --select-host
 ```
 
-The intended host-side monitoring flow is:
+`sdram_hostif_tool.py` supports status read/write, self-test restart,
+and single-word SDRAM read/write.  Burst tests are available from the
+TUI and shared protocol helpers; raw bulk file transfer remains `INOP`.
 
-1. Keep `uart_log_tool.py` running in decode mode.
-2. Use `sdram_hostif_tool.py select-host` to move `uart_log_cli` to source `0x03`.
-3. Send `write` / `read` commands.
-4. Confirm decoded events:
-   - `SDRAM_HOST_WRITE_ACK`
-   - `SDRAM_HOST_READ_RSP`
-   - `SDRAM_HOST_CMD_ERR` when applicable
+## Simulation
+
+Simulation is run from [03_sim](./03_sim).
+Use `recompile` after RTL changes.
+
+Windows ModelSim / Lattice OEM examples:
+
+```powershell
+cd .\03_sim
+python sim.py 20_uart_log_cli_smoke\testbench.sv recompile
+python sim.py 08_sdram_uart_bridge_ctrl\testbench.sv recompile
+python sim.py 10_sdram_emb_hostif_ctrl\testbench.sv recompile
+python sim.py 01_tangnano20k_top\testbench.sv recompile
+```
+
+Linux Questa example:
+
+```bash
+cd 03_sim
+python3 sim_questa_linux.py 01_tangnano20k_top/testbench.sv recompile
+```
+
+Important current tests:
+
+- `01_tangnano20k_top`: top-level HS SDRAM integration smoke
+- `08_sdram_uart_bridge_ctrl`: ASCII bridge, status, single R/W, burst
+- `10_sdram_emb_hostif_ctrl`: host interface and self-test integration
+- `20_uart_log_cli_smoke`: UART log source selection and system events
+
+Latest checked simulations:
+
+```text
+08_sdram_uart_bridge_ctrl    PASS
+10_sdram_emb_hostif_ctrl     PASS
+01_tangnano20k_top           PASS
+20_uart_log_cli_smoke        PASS
+```
 
 ## FPGA Build
 
 Gowin project:
+
 [05_impl/tangnano20k.gprj](./05_impl/tangnano20k.gprj)
 
-Example `run all` command on Windows PowerShell:
+Run all on Windows:
 
 ```powershell
-$tcl = "C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\run_all.tcl"
-Set-Content -Path $tcl -Value @(
-  "open_project C:/Electronics/GitHubProjects/tangnano20k_dev/05_impl/tangnano20k.gprj"
-  "run all"
-  "exit"
-)
-& "C:\Gowin\Gowin_V1.9.12_x64\IDE\bin\gw_sh.exe" $tcl
+& "C:\Gowin\Gowin_V1.9.12_x64\IDE\bin\gw_sh.exe" `
+  C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\run_all.tcl
+```
+
+If direct script invocation opens an interactive console, pipe commands:
+
+```powershell
+@'
+open_project C:/Electronics/GitHubProjects/tangnano20k_dev/05_impl/tangnano20k.gprj
+run all
+exit
+'@ | & "C:\Gowin\Gowin_V1.9.12_x64\IDE\bin\gw_sh.exe"
 ```
 
 Main outputs:
 
 - Bitstream:
   [05_impl/impl/pnr/tangnano20k.fs](./05_impl/impl/pnr/tangnano20k.fs)
+- PnR report:
+  [05_impl/impl/pnr/tangnano20k.rpt.txt](./05_impl/impl/pnr/tangnano20k.rpt.txt)
 - Timing report:
   [05_impl/impl/pnr/tangnano20k_tr_content.html](./05_impl/impl/pnr/tangnano20k_tr_content.html)
 
-## Timing Constraints
+Latest checked build:
 
-The SDC file is located at
-[05_impl/src/tangnano20k.sdc](./05_impl/src/tangnano20k.sdc).
+```text
+GowinSynthesis finish
+Placement and routing completed
+Bitstream generation completed
 
-Current constraints:
-
-- `create_clock` for `PIN04_IOL07A_LPLL1` at `27 MHz`
-- `create_generated_clock` for PLL output
-  `u0_gowin_pll/rpll_inst/CLKOUT` at `24 MHz`
-
-Latest PnR results:
-
-- Setup violated endpoints: `0`
-- Hold violated endpoints: `0`
-- `CLK_FPGA_24M` Actual Fmax: `50.930 MHz`
-
-## Simulation
-
-The UART log smoke test is located in
-[03_sim/01_uart_log_cli_smoke](./03_sim/01_uart_log_cli_smoke).
-
-Example run on Windows:
-
-```powershell
-cd .\03_sim
-python sim.py 01_uart_log_cli_smoke\testbench.sv
+Setup violated endpoints: 0
+Hold violated endpoints : 0
+CLK_SDRAM_48M Fmax      : 62.954 MHz
+CLK_SYS_24M Fmax        : 47.859 MHz
+LUT                     : 4315
+Register                : 2506
+BSRAM                   : 17
 ```
 
-This smoke test checks:
-
-- heartbeat frame generation
-- `src_id = 0x01`
-- `event_id = 0x11`
-- valid CRC
-- basic help / reset behavior
+The current PnR still reports warning `PR1014` for the input clock route.
+Timing nevertheless meets the 48 MHz SDRAM and 24 MHz system clocks.
 
 ## Programming
 
-Example SRAM programming command on Windows:
+SRAM programming command on Windows:
 
 ```powershell
 & "C:\Gowin\Gowin_V1.9.12_x64\Programmer\bin\programmer_cli.exe" `
@@ -188,25 +216,68 @@ Example SRAM programming command on Windows:
   --fsFile C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\impl\pnr\tangnano20k.fs
 ```
 
-## Known Notes
+Latest checked programming result:
 
-- Heartbeat reception over the TCP bridge has been verified.
-- The soft-reset byte for `Ctrl+R` (`0x12`) has not yet been fully
-  verified on the current ESP bridge path.
-  The FPGA-side reset handling is implemented, but the bridge may not
-  be forwarding this control code transparently.
-- Gowin PnR reports warning `PR1014`, but current timing still meets
-  the design requirements.
+```text
+Programming... 100%
+Status Code is: 0x00006020
+Finished.
+```
 
-## Related Files
+## Hardware Checks
 
-- FPGA top:
+Latest TCP hardware checks were run through `192.168.10.40:2323`.
+
+Status:
+
+```text
+STATUS_READ_RSP addr=0x00000 data=0x051500A8 status=0x00000000
+```
+
+This confirms status-map version `0x05` and a passing SDRAM self-test.
+
+Single-word write/read passed at:
+
+```text
+0x00000
+0x00001
+0x000FF
+0x00100
+0x1FFFFF
+```
+
+Burst test mode also passed:
+
+```text
+BWT 00000 00010 -> DONE
+BRT 00000 00010 -> 16 words, mismatch=0
+BWT 00100 00100 -> DONE
+BRT 00100 00100 -> 256 words, mismatch=0
+BRT 000F8 00010 -> ERR_ADDR_RANGE
+```
+
+## Related Documentation
+
+- HS SDRAM IP summary:
+  [docs/embedded_sdram/embedded_sdram_hs_spec_en.md](./docs/embedded_sdram/embedded_sdram_hs_spec_en.md)
+- Legacy SDRAM IP summary:
+  [docs/embedded_sdram/embedded_sdram_spec_en.md](./docs/embedded_sdram/embedded_sdram_spec_en.md)
+- SDRAM TUI pages:
+  [docs/embedded_sdram/uart_log_tui_sdram_pages_manual_en.md](./docs/embedded_sdram/uart_log_tui_sdram_pages_manual_en.md)
+- UART log tool manual:
+  [11_app/uart_log_tool/debug_log_tool/uart_log_tool_manual.md](./11_app/uart_log_tool/debug_log_tool/uart_log_tool_manual.md)
+
+## Related RTL
+
+- Top:
   [01_src/tangnano20k_top.sv](./01_src/tangnano20k_top.sv)
 - UART log core:
   [01_src/uart_log_cli/uart_log_cli.sv](./01_src/uart_log_cli/uart_log_cli.sv)
-- Test source:
-  [01_src/uart_log_cli/uart_log_testsrc1.sv](./01_src/uart_log_cli/uart_log_testsrc1.sv)
-- Host launcher:
-  [11_app/debug_log_cli/uart_log_tool.py](./11_app/debug_log_cli/uart_log_tool.py)
-- Host TUI:
-  [11_app/uart_log_tool/debug_log_tool/uart_log_tui.py](./11_app/uart_log_tool/debug_log_tool/uart_log_tui.py)
+- Event interface:
+  [01_src/uart_log_cli/uart_log_evt_if.sv](./01_src/uart_log_cli/uart_log_evt_if.sv)
+- SDRAM host/control:
+  [01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv](./01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv)
+- SDRAM UART bridge:
+  [01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv](./01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv)
+- SDRAM access engine:
+  [01_src/embedded_sdram/sdram_uart_access_engine.sv](./01_src/embedded_sdram/sdram_uart_access_engine.sv)

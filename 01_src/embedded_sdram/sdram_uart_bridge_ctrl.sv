@@ -202,25 +202,25 @@ module sdram_uart_bridge_ctrl (
   assign s_emit_status_read_rsp   = !s_emit_access_event && r_read_rsp_pending;
   assign s_ascii_decode_window    = !s_emit_access_event && !r_read_rsp_pending;
   assign s_emit_ascii_err         = s_ascii_decode_window && s_ascii_err_valid;
-  assign s_cmd_accept             = s_ascii_decode_window && s_ascii_cmd_valid &&　!r_ascii_cmd_ready;
-  assign s_cmd_blocked            = s_cmd_accept &&　(!I_ENABLE || r_cmd_busy || r_read_rsp_pending);
+  assign s_cmd_accept             = s_ascii_decode_window && s_ascii_cmd_valid && !r_ascii_cmd_ready;
+  assign s_cmd_blocked            = s_cmd_accept && (!I_ENABLE || r_cmd_busy || r_read_rsp_pending);
 
-  assign s_status_read_req        = s_cmd_accept && !s_cmd_blocked &&　s_ascii_cmd_is_status &&　(s_ascii_cmd_op == ASCII_OP_READ);
-  assign s_status_write_req       = s_cmd_accept && !s_cmd_blocked &&　s_ascii_cmd_is_status &&　(s_ascii_cmd_op == ASCII_OP_WRITE);
-  assign s_sdram_read_req         = s_cmd_accept && !s_cmd_blocked &&　!s_ascii_cmd_is_status &&　(s_ascii_cmd_op == ASCII_OP_READ);
-  assign s_sdram_write_req        = s_cmd_accept && !s_cmd_blocked &&　!s_ascii_cmd_is_status &&　(s_ascii_cmd_op == ASCII_OP_WRITE);
-  assign s_burst_test_req         = s_cmd_accept && !s_cmd_blocked &&　(s_ascii_cmd_op == ASCII_OP_BULK) &&　s_ascii_cmd_bulk_is_test;
-  assign s_raw_bulk_reserved      = s_cmd_accept && !s_cmd_blocked &&　(s_ascii_cmd_op == ASCII_OP_BULK) &&　!s_ascii_cmd_bulk_is_test;
+  assign s_status_read_req        = s_cmd_accept && !s_cmd_blocked && s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_READ);
+  assign s_status_write_req       = s_cmd_accept && !s_cmd_blocked && s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_WRITE);
+  assign s_sdram_read_req         = s_cmd_accept && !s_cmd_blocked && !s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_READ);
+  assign s_sdram_write_req        = s_cmd_accept && !s_cmd_blocked && !s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_WRITE);
+  assign s_burst_test_req         = s_cmd_accept && !s_cmd_blocked && (s_ascii_cmd_op == ASCII_OP_BULK) && s_ascii_cmd_bulk_is_test;
+  assign s_raw_bulk_reserved      = s_cmd_accept && !s_cmd_blocked && (s_ascii_cmd_op == ASCII_OP_BULK) && !s_ascii_cmd_bulk_is_test;
 
-  assign s_burst_word_count_bad   = (s_ascii_cmd_words == 21'h0) ||　(s_ascii_cmd_words > 21'h00100);
-  assign s_status_read_addr_bad   = (s_ascii_cmd_addr > STATUS_ADDR_MAX) ||　(s_ascii_cmd_addr[1:0] != 2'b00);
-  assign s_status_ctrl_write      = s_status_write_req &&　(s_ascii_cmd_addr == STATUS_CTRL_ADDR);
+  assign s_burst_word_count_bad   = (s_ascii_cmd_words == 21'h0) || (s_ascii_cmd_words > 21'h00100);
+  assign s_status_read_addr_bad   = (s_ascii_cmd_addr > STATUS_ADDR_MAX) || (s_ascii_cmd_addr[1:0] != 2'b00);
+  assign s_status_ctrl_write      = s_status_write_req && (s_ascii_cmd_addr == STATUS_CTRL_ADDR);
   assign s_access_req_blocked     = !I_HOST_ACCESS_ENABLE || !l_access_req_ready;
   assign s_status_read_start      = s_status_read_req && !s_status_read_addr_bad;
   assign s_access_read_fire       = s_sdram_read_req && !s_access_req_blocked;
   assign s_access_write_fire      = s_sdram_write_req && !s_access_req_blocked;
-  assign s_access_burst_fire      = s_burst_test_req && !s_access_req_blocked &&　!s_burst_word_count_bad;
-  assign s_selftest_restart_pulse = s_status_ctrl_write && !l_access_busy &&　s_ascii_cmd_data[0];
+  assign s_access_burst_fire      = s_burst_test_req && !s_access_req_blocked && !s_burst_word_count_bad;
+  assign s_selftest_restart_pulse = s_status_ctrl_write && !l_access_busy && s_ascii_cmd_data[0];
 
   // Event request priority matches the previous monolithic block:
   // access-engine event, pending status response, ASCII parser error, then the
