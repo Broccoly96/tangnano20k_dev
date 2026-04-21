@@ -13,41 +13,40 @@ module sdram_emb_hostif_ctrl #(
   parameter int unsigned MEMTEST_BURST_WORDS = 1,
   parameter int unsigned MEMTEST_BURST_COUNT = 8,
   parameter int unsigned MEMTEST_TEST_WORDS = MEMTEST_BURST_WORDS * MEMTEST_BURST_COUNT,
-  parameter bit          MEMTEST_USE_FIXED_WINDOW_ADDR = 1'b0,
-  parameter logic [1:0]  MEMTEST_FIXED_BANK_ADDR = 2'd2,
-  parameter logic [10:0] MEMTEST_FIXED_ROW_ADDR = 11'd2,
-  parameter logic [7:0]  MEMTEST_FIXED_COL_START = 8'd5,
   parameter int unsigned MEMTEST_POST_INIT_WAIT_CYCLES = 20_000,
-  parameter int unsigned MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES = 4,
   parameter int unsigned MEMTEST_CLEAR_WORDS = MEMTEST_TEST_WORDS,
   parameter int unsigned SDRC_RESET_HOLD_CYCLES = 4096
 ) (
-  input  logic        I_CLK,
-  input  logic        I_RST_N,
-  input  logic        I_CLI_RX_VALID,
-  input  logic [7:0]  I_CLI_RX_DATA,
-  uart_log_evt_if.producer TEST_EVT_IF,
-  uart_log_evt_if.producer HOST_EVT_IF,
-  input  logic [31:0] I_SDRC_RD_DATA,
-  input  logic        I_SDRC_CMD_ACK,
-  input  logic        I_SDRC_INIT_DONE,
-  output logic        O_INIT_DONE,
-  output logic        O_TEST_ACTIVE,
-  output logic        O_TEST_PASS,
-  output logic        O_TEST_FAIL,
-  output logic        O_HOST_BUSY,
-  output logic        O_SDRC_RST_N,
-  output logic        O_SDRC_CMD_EN,
-  output logic [2:0]  O_SDRC_CMD,
-  output logic        O_SDRC_PRECHARGE_CTRL,
-  output logic [20:0] O_SDRC_ADDR,
-  output logic [7:0]  O_SDRC_DATA_LEN,
-  output logic [3:0]  O_SDRC_DQM,
-  output logic [31:0] O_SDRC_WR_DATA,
-  output logic        O_SDRC_READ_SAMPLE_VALID
+  input  logic              I_CLK,
+  input  logic              I_RST_N,
+  input  logic              I_CLI_RX_VALID,
+  input  logic [7:0]        I_CLI_RX_DATA,
+  input  logic [31:0]       I_SDRC_RD_DATA,
+  input  logic              I_SDRC_CMD_ACK,
+  input  logic              I_SDRC_INIT_DONE,
+  output logic              O_INIT_DONE,
+  output logic              O_TEST_ACTIVE,
+  output logic              O_TEST_PASS,
+  output logic              O_TEST_FAIL,
+  output logic              O_HOST_BUSY,
+  output logic              O_SDRC_RST_N,
+  output logic              O_SDRC_CMD_EN,
+  output logic [2:0]        O_SDRC_CMD,
+  output logic              O_SDRC_PRECHARGE_CTRL,
+  output logic [20:0]       O_SDRC_ADDR,
+  output logic [7:0]        O_SDRC_DATA_LEN,
+  output logic [3:0]        O_SDRC_DQM,
+  output logic [31:0]       O_SDRC_WR_DATA,
+  output logic              O_SDRC_READ_SAMPLE_VALID,
+  uart_log_evt_if.producer  TEST_EVT_IF,
+  uart_log_evt_if.producer  HOST_EVT_IF
 );
 
   import sdram_hs_cmd_pkg::*;
+
+  localparam int unsigned REFRESH_INTERVAL_CYCLES = sdram_hs_cmd_pkg::SDRAM_HS_REFRESH_INTERVAL_CYCLES;
+  localparam int unsigned REFRESH_CNT_W           = $clog2(REFRESH_INTERVAL_CYCLES + 1);
+  localparam int unsigned SDRC_RESET_CNT_W        = (SDRC_RESET_HOLD_CYCLES <= 1) ? 1 : $clog2(SDRC_RESET_HOLD_CYCLES + 1);
 
   logic        l_test_cmd_en;
   logic [2:0]  l_test_cmd;
@@ -109,79 +108,55 @@ module sdram_emb_hostif_ctrl #(
   logic        l_host_cmd_ack;
   logic [31:0] l_refresh_status_word;
 
-  localparam int unsigned REFRESH_INTERVAL_CYCLES =
-    sdram_hs_cmd_pkg::SDRAM_HS_REFRESH_INTERVAL_CYCLES;
-  localparam int unsigned REFRESH_CNT_W = $clog2(REFRESH_INTERVAL_CYCLES + 1);
+  logic [REFRESH_CNT_W-1:0]     r_refresh_cnt;
+  logic                         r_refresh_due;
+  logic                         r_refresh_active;
+  logic                         r_refresh_cmd_sent;
+  logic [7:0]                   r_refresh_defer_count;
+  logic [SDRC_RESET_CNT_W-1:0]  r_sdrc_reset_cnt;
 
-  logic [REFRESH_CNT_W-1:0] r_refresh_cnt;
-  logic        r_refresh_due;
-  logic        r_refresh_active;
-  logic        r_refresh_cmd_sent;
-  logic [7:0]  r_refresh_defer_count;
+  assign l_sdrc_reset_active        = (r_sdrc_reset_cnt != 0);
+  assign l_sdrc_local_rst_n         = I_RST_N && !l_sdrc_reset_active;
+  assign l_sdrc_init_done_safe      = I_SDRC_INIT_DONE && l_sdrc_local_rst_n;
+  assign l_manual_selftest_running  = r_manual_selftest_pending && !l_memtest_test_pass && !l_memtest_test_fail;
+  assign l_host_access_enable       = l_sdrc_local_rst_n && l_sdrc_init_done_safe && l_memtest_test_pass && !l_memtest_test_active && !l_memtest_test_fail && !l_manual_selftest_running;
 
-  localparam int unsigned SDRC_RESET_CNT_W =
-    (SDRC_RESET_HOLD_CYCLES <= 1) ? 1 : $clog2(SDRC_RESET_HOLD_CYCLES + 1);
+  assign O_INIT_DONE                = l_sdrc_init_done_safe;
+  assign O_TEST_ACTIVE              = l_manual_selftest_running ? 1'b1 : l_memtest_test_active;
+  assign O_TEST_PASS                = l_manual_selftest_running ? 1'b0 : l_memtest_test_pass;
+  assign O_TEST_FAIL                = l_manual_selftest_running ? 1'b0 : l_memtest_test_fail;
+  assign O_SDRC_RST_N               = l_sdrc_local_rst_n;
+  assign l_any_pair_active          = l_test_pair_active || l_host_pair_active;
+  assign l_host_sdrc_selected       = (l_host_sdrc_active == 1'b1);
+  assign l_refresh_can_start        = l_sdrc_init_done_safe && r_refresh_due && !r_refresh_active && !l_any_pair_active;
+  assign l_refresh_cmd_en           = r_refresh_active && !r_refresh_cmd_sent;
+  assign l_sdrc_ready_for_client    = l_sdrc_local_rst_n && l_sdrc_init_done_safe && !r_refresh_active && (!r_refresh_due || l_any_pair_active);
+  assign l_test_cmd_ack             = (!r_refresh_active && !l_host_sdrc_selected) ? I_SDRC_CMD_ACK : 1'b0;
+  assign l_host_cmd_ack             = (!r_refresh_active && l_host_sdrc_selected) ? I_SDRC_CMD_ACK : 1'b0;
 
-  logic [SDRC_RESET_CNT_W-1:0] r_sdrc_reset_cnt;
-
-  assign l_sdrc_reset_active = (r_sdrc_reset_cnt != 0);
-  assign l_sdrc_local_rst_n  = I_RST_N && !l_sdrc_reset_active;
-  assign l_sdrc_init_done_safe = I_SDRC_INIT_DONE && l_sdrc_local_rst_n;
-  assign l_manual_selftest_running = r_manual_selftest_pending &&
-                                     !l_memtest_test_pass &&
-                                     !l_memtest_test_fail;
-  assign l_host_access_enable = l_sdrc_local_rst_n &&
-                                l_sdrc_init_done_safe &&
-                                l_memtest_test_pass &&
-                                !l_memtest_test_active &&
-                                !l_memtest_test_fail &&
-                                !l_manual_selftest_running;
-
-  assign O_INIT_DONE      = l_sdrc_init_done_safe;
-  assign O_TEST_ACTIVE    = l_manual_selftest_running ? 1'b1 : l_memtest_test_active;
-  assign O_TEST_PASS      = l_manual_selftest_running ? 1'b0 : l_memtest_test_pass;
-  assign O_TEST_FAIL      = l_manual_selftest_running ? 1'b0 : l_memtest_test_fail;
-  assign O_SDRC_RST_N     = l_sdrc_local_rst_n;
-  assign l_any_pair_active = l_test_pair_active || l_host_pair_active;
-  assign l_host_sdrc_selected = (l_host_sdrc_active == 1'b1);
-  assign l_refresh_can_start = l_sdrc_init_done_safe &&
-                               r_refresh_due &&
-                               !r_refresh_active &&
-                               !l_any_pair_active;
-  assign l_refresh_cmd_en = r_refresh_active && !r_refresh_cmd_sent;
-  assign l_sdrc_ready_for_client = l_sdrc_local_rst_n &&
-                                   l_sdrc_init_done_safe &&
-                                   !r_refresh_active &&
-                                   (!r_refresh_due || l_any_pair_active);
-  assign l_test_cmd_ack = (!r_refresh_active && !l_host_sdrc_selected) ?
-                          I_SDRC_CMD_ACK : 1'b0;
-  assign l_host_cmd_ack = (!r_refresh_active && l_host_sdrc_selected) ?
-                          I_SDRC_CMD_ACK : 1'b0;
 
   // Self-test owns SDRC until PASS. Refresh can preempt only between
   // ACTIVE/read-write command pairs. After PASS, the UART host may issue
   // linear single-word SDRAM accesses through the bridge access engine.
-  assign O_SDRC_CMD_EN = !l_sdrc_local_rst_n ? 1'b0 :
-                         (l_refresh_cmd_en ? 1'b1 :
-                          (l_host_sdrc_selected ? l_host_cmd_en : l_test_cmd_en));
-  assign O_SDRC_CMD = !l_sdrc_local_rst_n ? SDRAM_HS_CMD_NOP :
-                      (l_refresh_cmd_en ? SDRAM_HS_CMD_AUTO_REFRESH :
-                       (l_host_sdrc_selected ? l_host_cmd : l_test_cmd));
-  assign O_SDRC_PRECHARGE_CTRL = !l_sdrc_local_rst_n ? 1'b0 :
-                                 (l_refresh_cmd_en ? 1'b0 :
-                                  (l_host_sdrc_selected ? l_host_precharge_ctrl :
-                                                        l_test_precharge_ctrl));
-  assign O_SDRC_ADDR      = !l_sdrc_local_rst_n ? 21'h00000 :
-                            (l_host_sdrc_selected ? l_host_addr : l_test_addr);
-  assign O_SDRC_DATA_LEN  = !l_sdrc_local_rst_n ? 8'h00 :
-                            (l_host_sdrc_selected ? l_host_data_len : l_test_data_len);
-  assign O_SDRC_DQM       = !l_sdrc_local_rst_n ? 4'h0 :
-                            (l_host_sdrc_selected ? l_host_dqm : l_test_dqm);
-  assign O_SDRC_WR_DATA   = !l_sdrc_local_rst_n ? 32'h0000_0000 :
-                            (l_host_sdrc_selected ? l_host_wr_data : l_test_wr_data);
+  assign O_SDRC_CMD_EN            = !l_sdrc_local_rst_n ? 1'b0 :
+                                    (l_refresh_cmd_en ? 1'b1 :
+                                    (l_host_sdrc_selected ? l_host_cmd_en : l_test_cmd_en));
+  assign O_SDRC_CMD               = !l_sdrc_local_rst_n ? SDRAM_HS_CMD_NOP :
+                                    (l_refresh_cmd_en ? SDRAM_HS_CMD_AUTO_REFRESH :
+                                    (l_host_sdrc_selected ? l_host_cmd : l_test_cmd));
+  assign O_SDRC_PRECHARGE_CTRL    = !l_sdrc_local_rst_n ? 1'b0 :
+                                    (l_refresh_cmd_en ? 1'b0 :
+                                    (l_host_sdrc_selected ? l_host_precharge_ctrl : l_test_precharge_ctrl));
+  assign O_SDRC_ADDR              = !l_sdrc_local_rst_n ? 21'h00000 :
+                                    (l_host_sdrc_selected ? l_host_addr : l_test_addr);
+  assign O_SDRC_DATA_LEN          = !l_sdrc_local_rst_n ? 8'h00 :
+                                    (l_host_sdrc_selected ? l_host_data_len : l_test_data_len);
+  assign O_SDRC_DQM               = !l_sdrc_local_rst_n ? 4'h0 :
+                                    (l_host_sdrc_selected ? l_host_dqm : l_test_dqm);
+  assign O_SDRC_WR_DATA           = !l_sdrc_local_rst_n ? 32'h0000_0000 :
+                                    (l_host_sdrc_selected ? l_host_wr_data : l_test_wr_data);
   assign O_SDRC_READ_SAMPLE_VALID = !l_sdrc_local_rst_n ? 1'b0 :
-                                    (l_host_sdrc_selected ? l_host_read_sample_valid :
-                                                          l_test_read_sample_valid);
+                                    (l_host_sdrc_selected ? l_host_read_sample_valid : l_test_read_sample_valid);
   assign l_refresh_status_word = {
     8'h52,
     r_refresh_due,
@@ -216,8 +191,7 @@ module sdram_emb_hostif_ctrl #(
       r_manual_selftest_pending <= 1'b0;
     end else if (l_selftest_restart_req) begin
       r_manual_selftest_pending <= 1'b1;
-    end else if (r_manual_selftest_pending &&
-                 (l_memtest_test_pass || l_memtest_test_fail)) begin
+    end else if (r_manual_selftest_pending && (l_memtest_test_pass || l_memtest_test_fail)) begin
       r_manual_selftest_pending <= 1'b0;
     end
   end
@@ -273,16 +247,11 @@ module sdram_emb_hostif_ctrl #(
   end
 
   sdram_memtest_ctrl #(
-    .BURST_WORDS(MEMTEST_BURST_WORDS),
-    .BURST_COUNT(MEMTEST_BURST_COUNT),
-    .TEST_WORDS(MEMTEST_TEST_WORDS),
-    .USE_FIXED_WINDOW_ADDR(MEMTEST_USE_FIXED_WINDOW_ADDR),
-    .FIXED_BANK_ADDR(MEMTEST_FIXED_BANK_ADDR),
-    .FIXED_ROW_ADDR(MEMTEST_FIXED_ROW_ADDR),
-    .FIXED_COL_START(MEMTEST_FIXED_COL_START),
-    .POST_INIT_WAIT_CYCLES(MEMTEST_POST_INIT_WAIT_CYCLES),
-    .POST_WRITE_TO_READ_GAP_CYCLES(MEMTEST_POST_WRITE_TO_READ_GAP_CYCLES),
-    .CLEAR_WORDS(MEMTEST_CLEAR_WORDS)
+    .BURST_WORDS            (MEMTEST_BURST_WORDS),
+    .BURST_COUNT            (MEMTEST_BURST_COUNT),
+    .TEST_WORDS             (MEMTEST_TEST_WORDS),
+    .POST_INIT_WAIT_CYCLES  (MEMTEST_POST_INIT_WAIT_CYCLES),
+    .CLEAR_WORDS            (MEMTEST_CLEAR_WORDS)
   ) u_sdram_memtest_ctrl (
     .I_CLK                  (I_CLK),
     .I_RST_N                (l_sdrc_local_rst_n),
@@ -302,11 +271,6 @@ module sdram_emb_hostif_ctrl #(
     .O_TEST_ACTIVE          (l_memtest_test_active),
     .O_TEST_PASS            (l_memtest_test_pass),
     .O_TEST_FAIL            (l_memtest_test_fail),
-    .O_EVT_VALID            (TEST_EVT_IF.evt_valid),
-    .O_EVT_ID               (TEST_EVT_IF.evt_id),
-    .O_EVT_ARG0             (TEST_EVT_IF.arg0),
-    .O_EVT_ARG1             (TEST_EVT_IF.arg1),
-    .O_EVT_ARG2             (TEST_EVT_IF.arg2),
     .O_DBG_MEM_SUMMARY      (l_memtest_summary),
     .O_DBG_STATE            (l_memtest_state),
     .O_DBG_FAIL_REASON      (l_memtest_fail_reason),
@@ -321,7 +285,8 @@ module sdram_emb_hostif_ctrl #(
     .O_DBG_RETRY_DATA1      (l_memtest_retry_data1),
     .O_DBG_RETRY_DATA2      (l_memtest_retry_data2),
     .O_DBG_CTRL_SUMMARY     (l_memtest_ctrl_summary),
-    .O_DBG_CTRL_DETAIL      (l_memtest_ctrl_detail)
+    .O_DBG_CTRL_DETAIL      (l_memtest_ctrl_detail),
+    .TEST_EVT_IF            (TEST_EVT_IF)
   );
 
   sdram_status_reg_map u_sdram_status_reg_map (
@@ -360,39 +325,34 @@ module sdram_emb_hostif_ctrl #(
   );
 
   sdram_uart_bridge_ctrl u_sdram_uart_bridge_ctrl (
-    .I_CLK           (I_CLK),
-    .I_RST_N         (I_RST_N),
-    .I_ENABLE        (1'b1),
-    .I_HOST_ACCESS_ENABLE(l_host_access_enable),
-    .I_CLI_RX_VALID  (I_CLI_RX_VALID),
-    .I_CLI_RX_DATA   (I_CLI_RX_DATA),
-    .I_SDRC_INIT_DONE(l_sdrc_init_done_safe),
-    .I_SDRC_READY    (l_sdrc_ready_for_client),
-    .I_SDRC_CMD_ACK  (l_host_cmd_ack),
-    .I_SDRC_RD_DATA  (I_SDRC_RD_DATA),
-    .I_STATUS_RD_DATA(l_status_rd_data),
-    .O_STATUS_ADDR   (l_status_addr),
-    .O_SELFTEST_RESTART_REQ(l_selftest_restart_req),
-    .O_SDRC_CMD_EN   (l_host_cmd_en),
-    .O_SDRC_CMD      (l_host_cmd),
-    .O_SDRC_PRECHARGE_CTRL(l_host_precharge_ctrl),
-    .O_SDRC_ADDR     (l_host_addr),
-    .O_SDRC_DATA_LEN (l_host_data_len),
-    .O_SDRC_DQM      (l_host_dqm),
-    .O_SDRC_WR_DATA  (l_host_wr_data),
-    .O_SDRC_PAIR_ACTIVE(l_host_pair_active),
-    .O_READ_SAMPLE_VALID(l_host_read_sample_valid),
-    .O_SDRC_ACTIVE   (l_host_sdrc_active),
-    .O_HOST_DBG_SUMMARY(l_host_dbg_summary),
-    .O_HOST_DBG_DETAIL (l_host_dbg_detail),
-    .O_HOST_DBG_RD_BEATS(l_host_dbg_rd_beats),
-    .O_EVT_VALID     (HOST_EVT_IF.evt_valid),
-    .O_EVT_ID        (HOST_EVT_IF.evt_id),
-    .O_EVT_ARG0      (HOST_EVT_IF.arg0),
-    .O_EVT_ARG1      (HOST_EVT_IF.arg1),
-    .O_EVT_ARG2      (HOST_EVT_IF.arg2),
-    .I_EVT_READY     (HOST_EVT_IF.evt_ready),
-    .O_CMD_BUSY      (O_HOST_BUSY)
+    .I_CLK                    (I_CLK),
+    .I_RST_N                  (I_RST_N),
+    .I_ENABLE                 (1'b1),
+    .I_HOST_ACCESS_ENABLE     (l_host_access_enable),
+    .I_CLI_RX_VALID           (I_CLI_RX_VALID),
+    .I_CLI_RX_DATA            (I_CLI_RX_DATA),
+    .I_SDRC_INIT_DONE         (l_sdrc_init_done_safe),
+    .I_SDRC_READY             (l_sdrc_ready_for_client),
+    .I_SDRC_CMD_ACK           (l_host_cmd_ack),
+    .I_SDRC_RD_DATA           (I_SDRC_RD_DATA),
+    .I_STATUS_RD_DATA         (l_status_rd_data),
+    .O_STATUS_ADDR            (l_status_addr),
+    .O_SELFTEST_RESTART_REQ   (l_selftest_restart_req),
+    .O_SDRC_CMD_EN            (l_host_cmd_en),
+    .O_SDRC_CMD               (l_host_cmd),
+    .O_SDRC_PRECHARGE_CTRL    (l_host_precharge_ctrl),
+    .O_SDRC_ADDR              (l_host_addr),
+    .O_SDRC_DATA_LEN          (l_host_data_len),
+    .O_SDRC_DQM               (l_host_dqm),
+    .O_SDRC_WR_DATA           (l_host_wr_data),
+    .O_SDRC_PAIR_ACTIVE       (l_host_pair_active),
+    .O_READ_SAMPLE_VALID      (l_host_read_sample_valid),
+    .O_SDRC_ACTIVE            (l_host_sdrc_active),
+    .O_HOST_DBG_SUMMARY       (l_host_dbg_summary),
+    .O_HOST_DBG_DETAIL        (l_host_dbg_detail),
+    .O_HOST_DBG_RD_BEATS      (l_host_dbg_rd_beats),
+    .O_CMD_BUSY               (O_HOST_BUSY),
+    .HOST_EVT_IF              (HOST_EVT_IF)
   );
 
 endmodule

@@ -26,6 +26,17 @@
     expect_event(EVT_WRITE_ACK, 32'h0000_003C, 32'h0000_0001, 32'h0, "restart write ack");
     expect_restart_count_changed(restart_count_before, "restart write");
 
+    log_info("BRIDGE CTRL TB", "case: unsupported status write");
+    send_text("SW 00040 DEADBEEF\n");
+    expect_event(EVT_CMD_ERR, ERR_UNSUPPORTED, 32'h0000_0040, 32'hDEAD_BEEF, "unsupported status write");
+
+    log_info("BRIDGE CTRL TB", "case: event FIFO preserves order under backpressure");
+    send_text("SR 00000\n");
+    repeat (6) @(posedge tb_clk);
+    send_text("SR 00004\n");
+    expect_event(EVT_READ_RSP, 32'h0000_0000, 32'h0300_0008, 32'h0, "backpressure read 0");
+    expect_event(EVT_READ_RSP, 32'h0000_0004, 32'hABCD_1234, 32'h0, "backpressure read 1");
+
     log_info("BRIDGE CTRL TB", "case: linear SDRAM read");
     send_text("R 00010\n");
     expect_event(EVT_READ_RSP, 32'h0000_0010, 32'h2000_0010, 32'h0, "linear read");
@@ -57,6 +68,24 @@
       32'h0000_0000,
       "unsupported bulk"
     );
+
+    log_info("BRIDGE CTRL TB", "case: unsupported bulk write");
+    send_text("BW 00040 00001\n");
+    expect_event(
+      EVT_CMD_ERR,
+      ERR_UNSUPPORTED,
+      32'h0000_0000,
+      32'h0000_0000,
+      "unsupported bulk write"
+    );
+
+    log_info("BRIDGE CTRL TB", "case: burst zero length is rejected");
+    send_text("BRT 00100 00000\n");
+    expect_event(EVT_BULK_ERR, ERR_WORD_COUNT, 32'h0000_0100, 32'h8000_0000, "burst zero length");
+
+    log_info("BRIDGE CTRL TB", "case: burst length 257 is rejected");
+    send_text("BWT 00100 00101\n");
+    expect_event(EVT_BULK_ERR, ERR_WORD_COUNT, 32'h0000_0100, 32'h0000_0101, "burst length 257");
 
     log_info("BRIDGE CTRL TB", "case: burst write test");
     send_text("BWT 00100 00004\n");

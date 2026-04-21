@@ -18,6 +18,10 @@
    "Type" : "verilog"
   },
   {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_evt_if.sv",
+   "Type" : "verilog"
+  },
+  {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
    "Type" : "verilog"
   },
@@ -83,10 +87,6 @@
   },
   {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_tap.sv",
-   "Type" : "verilog"
-  },
-  {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_testsrc1.sv",
    "Type" : "verilog"
   }
  ],

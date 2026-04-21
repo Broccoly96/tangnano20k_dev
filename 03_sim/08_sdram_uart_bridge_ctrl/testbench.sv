@@ -43,12 +43,7 @@ module testbench;
   logic [31:0] tb_host_dbg_summary;
   logic [31:0] tb_host_dbg_detail;
   logic [31:0] tb_host_dbg_rd_beats;
-  logic        tb_evt_valid;
-  logic [7:0]  tb_evt_id;
-  logic [31:0] tb_evt_arg0;
-  logic [31:0] tb_evt_arg1;
-  logic [31:0] tb_evt_arg2;
-  logic        tb_evt_ready;
+  uart_log_evt_if tb_host_evt_if ();
   logic        tb_cmd_busy;
   integer      tb_restart_count;
 
@@ -75,7 +70,8 @@ module testbench;
     tb_sdrc_ready    = 1'b1;
     tb_sdrc_cmd_ack  = 1'b0;
     tb_sdrc_rd_data  = 32'h0;
-    tb_evt_ready     = 1'b0;
+    tb_host_evt_if.evt_ready = 1'b0;
+    tb_host_evt_if.enable = 1'b1;
     st_uif           = UIF_IDLE;
     r_uif_base_addr  = '0;
     r_uif_len        = '0;
@@ -129,12 +125,7 @@ module testbench;
     .O_HOST_DBG_SUMMARY(tb_host_dbg_summary),
     .O_HOST_DBG_DETAIL (tb_host_dbg_detail),
     .O_HOST_DBG_RD_BEATS(tb_host_dbg_rd_beats),
-    .O_EVT_VALID     (tb_evt_valid),
-    .O_EVT_ID        (tb_evt_id),
-    .O_EVT_ARG0      (tb_evt_arg0),
-    .O_EVT_ARG1      (tb_evt_arg1),
-    .O_EVT_ARG2      (tb_evt_arg2),
-    .I_EVT_READY     (tb_evt_ready),
+    .HOST_EVT_IF     (tb_host_evt_if),
     .O_CMD_BUSY      (tb_cmd_busy)
   );
 
@@ -250,7 +241,7 @@ module testbench;
     int wait_cycles;
     begin
       wait_cycles = 0;
-      while (!tb_evt_valid) begin
+      while (!tb_host_evt_if.evt_valid) begin
         @(posedge tb_clk);
         wait_cycles++;
         if (wait_cycles > 500) begin
@@ -258,29 +249,29 @@ module testbench;
         end
       end
 
-      if ((tb_evt_id !== exp_id) ||
-          (tb_evt_arg0 !== exp_arg0) ||
-          (tb_evt_arg1 !== exp_arg1) ||
-          (tb_evt_arg2 !== exp_arg2)) begin
+      if ((tb_host_evt_if.evt_id !== exp_id) ||
+          (tb_host_evt_if.arg0 !== exp_arg0) ||
+          (tb_host_evt_if.arg1 !== exp_arg1) ||
+          (tb_host_evt_if.arg2 !== exp_arg2)) begin
         log_fatal(
           1,
           "BRIDGE CTRL TB",
           $sformatf(
             "event mismatch %s id=0x%02h arg0=0x%08h arg1=0x%08h arg2=0x%08h",
             label,
-            tb_evt_id,
-            tb_evt_arg0,
-            tb_evt_arg1,
-            tb_evt_arg2
+            tb_host_evt_if.evt_id,
+            tb_host_evt_if.arg0,
+            tb_host_evt_if.arg1,
+            tb_host_evt_if.arg2
           )
         );
       end
 
       log_info("BRIDGE CTRL TB", {"event ok: ", label});
       @(posedge tb_clk);
-      tb_evt_ready <= 1'b1;
+      tb_host_evt_if.evt_ready <= 1'b1;
       @(posedge tb_clk);
-      tb_evt_ready <= 1'b0;
+      tb_host_evt_if.evt_ready <= 1'b0;
       #1;
     end
   endtask

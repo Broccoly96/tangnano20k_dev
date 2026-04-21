@@ -9,7 +9,7 @@
 //
 // FSM flow:
 //   IDLE -> POST_INIT -> WRITE_WAIT -> WRITE_ACTIVE_REQ/ACK
-//        -> WRITE_REQ/ACK -> READ_GAP -> READ_ACTIVE_REQ/ACK
+//        -> WRITE_REQ/ACK -> READ_ACTIVE_REQ/ACK
 //        -> READ_REQ -> READ_SAMPLE -> next burst or CLEAR_WAIT
 //        -> CLEAR_ACTIVE_REQ/ACK -> CLEAR_REQ/ACK -> PASS
 //        -> RETRY_* for a single failing word, or FAIL on timeout/mismatch.
@@ -19,12 +19,7 @@ module sdram_memtest_ctrl #(
   parameter int unsigned BURST_WORDS = 1,
   parameter int unsigned BURST_COUNT = 8,
   parameter int unsigned TEST_WORDS = BURST_WORDS * BURST_COUNT,
-  parameter bit          USE_FIXED_WINDOW_ADDR = 1'b0,
-  parameter logic [1:0]  FIXED_BANK_ADDR = 2'd2,
-  parameter logic [10:0] FIXED_ROW_ADDR = 11'd2,
-  parameter logic [7:0]  FIXED_COL_START = 8'd5,
   parameter int unsigned POST_INIT_WAIT_CYCLES = 20_000,
-  parameter int unsigned POST_WRITE_TO_READ_GAP_CYCLES = 4,
   parameter int unsigned CLEAR_WORDS = TEST_WORDS,
   parameter int unsigned READ_DATA_LATENCY_CYCLES =
     sdram_hs_cmd_pkg::SDRAM_HS_READ_DATA_LATENCY_CYCLES
@@ -47,11 +42,7 @@ module sdram_memtest_ctrl #(
   output logic        O_TEST_ACTIVE,
   output logic        O_TEST_PASS,
   output logic        O_TEST_FAIL,
-  output logic        O_EVT_VALID,
-  output logic [7:0]  O_EVT_ID,
-  output logic [31:0] O_EVT_ARG0,
-  output logic [31:0] O_EVT_ARG1,
-  output logic [31:0] O_EVT_ARG2,
+  uart_log_evt_if.producer TEST_EVT_IF,
   output logic [31:0] O_DBG_MEM_SUMMARY,
   output logic [7:0]  O_DBG_STATE,
   output logic [7:0]  O_DBG_FAIL_REASON,
@@ -89,8 +80,6 @@ module sdram_memtest_ctrl #(
                                        $clog2(TEST_WORDS + 1);
   localparam int unsigned CLEAR_IDX_W = (CLEAR_WORDS <= 1) ? 1 :
                                         $clog2(CLEAR_WORDS + 1);
-  localparam int unsigned GAP_CNT_W = (POST_WRITE_TO_READ_GAP_CYCLES <= 1) ?
-                                      1 : $clog2(POST_WRITE_TO_READ_GAP_CYCLES + 1);
   localparam int unsigned INIT_CNT_W = (POST_INIT_WAIT_CYCLES <= 1) ? 1 :
                                        $clog2(POST_INIT_WAIT_CYCLES + 1);
   localparam int unsigned LAT_CNT_W = (READ_DATA_LATENCY_CYCLES <= 1) ? 1 :
@@ -101,8 +90,6 @@ module sdram_memtest_ctrl #(
     (TEST_IDX_W < 21) ? TEST_IDX_W : 21;
   localparam int unsigned CLEAR_IDX_ADDR_COPY_W =
     (CLEAR_IDX_W < 21) ? CLEAR_IDX_W : 21;
-  localparam logic [GAP_CNT_W-1:0] POST_WRITE_GAP_INIT =
-    POST_WRITE_TO_READ_GAP_CYCLES;
   localparam logic [LAT_CNT_W-1:0] READ_LATENCY_COUNTER_INIT =
     (READ_DATA_LATENCY_CYCLES <= 1) ? '0 :
       (READ_DATA_LATENCY_CYCLES - 1);
@@ -126,7 +113,6 @@ module sdram_memtest_ctrl #(
     WRITE_ACTIVE_ACK,
     WRITE_REQ,
     WRITE_ACK,
-    READ_GAP,
     READ_ACTIVE_REQ,
     READ_ACTIVE_ACK,
     READ_REQ,
@@ -148,7 +134,6 @@ module sdram_memtest_ctrl #(
   st_state_e st_state;
 
   logic [INIT_CNT_W-1:0]  r_init_cnt;
-  logic [GAP_CNT_W-1:0]   r_gap_cnt;
   logic [LAT_CNT_W-1:0]   r_lat_cnt;
   logic [ACK_CNT_W-1:0]   r_ack_cnt;
   logic [TEST_IDX_W-1:0]  r_test_word_idx;
@@ -181,7 +166,6 @@ module sdram_memtest_ctrl #(
 
   logic [31:0] s_test_remaining;
   logic [31:0] s_clear_remaining;
-  logic [8:0]  s_fixed_col_addr;
   logic [20:0] s_test_word_idx_addr;
   logic [20:0] s_clear_word_idx_addr;
   logic [20:0] s_curr_addr;
@@ -234,11 +218,7 @@ module sdram_memtest_ctrl #(
   assign s_clear_last_burst =
     (s_clear_remaining <= BURST_WORDS) && (s_clear_remaining != 0);
 
-  assign s_fixed_col_addr = {1'b0, FIXED_COL_START} +
-                            {1'b0, s_test_word_idx_addr[7:0]};
-  assign s_curr_addr = USE_FIXED_WINDOW_ADDR ?
-                       {FIXED_BANK_ADDR, FIXED_ROW_ADDR, s_fixed_col_addr[7:0]} :
-                       s_test_word_idx_addr;
+  assign s_curr_addr = s_test_word_idx_addr;
   assign s_clear_addr = s_clear_word_idx_addr;
   assign s_active_addr =
     (st_state inside {RETRY_WAIT, RETRY_ACTIVE_REQ, RETRY_ACTIVE_ACK,
@@ -262,18 +242,18 @@ module sdram_memtest_ctrl #(
   assign O_SDRC_PRECHARGE_CTRL =
     (st_state inside {WRITE_REQ, READ_REQ, RETRY_READ_REQ, CLEAR_REQ});
   assign O_SDRC_PAIR_ACTIVE =
-    !(st_state inside {IDLE, POST_INIT, WRITE_WAIT, READ_GAP, RETRY_WAIT,
+    !(st_state inside {IDLE, POST_INIT, WRITE_WAIT, RETRY_WAIT,
                        CLEAR_WAIT, PASS, FAIL});
   assign O_READ_SAMPLE_VALID =
     (st_state == READ_SAMPLE) && (r_lat_cnt == 0);
   assign O_TEST_ACTIVE = !(st_state inside {IDLE, PASS, FAIL});
   assign O_TEST_PASS = (st_state == PASS);
   assign O_TEST_FAIL = (st_state == FAIL);
-  assign O_EVT_VALID = r_evt_valid;
-  assign O_EVT_ID = r_evt_id;
-  assign O_EVT_ARG0 = r_evt_arg0;
-  assign O_EVT_ARG1 = r_evt_arg1;
-  assign O_EVT_ARG2 = r_evt_arg2;
+  assign TEST_EVT_IF.evt_valid = r_evt_valid;
+  assign TEST_EVT_IF.evt_id = r_evt_id;
+  assign TEST_EVT_IF.arg0 = r_evt_arg0;
+  assign TEST_EVT_IF.arg1 = r_evt_arg1;
+  assign TEST_EVT_IF.arg2 = r_evt_arg2;
   assign O_DBG_STATE = {3'h0, st_state};
   assign O_DBG_FAIL_REASON = r_fail_reason;
   assign O_DBG_CURRENT_ADDR = s_active_addr;
@@ -397,7 +377,6 @@ module sdram_memtest_ctrl #(
     if (!I_RST_N) begin
       st_state <= IDLE;
       r_init_cnt <= '0;
-      r_gap_cnt <= '0;
       r_lat_cnt <= '0;
       r_ack_cnt <= '0;
       r_test_word_idx <= '0;
@@ -497,8 +476,7 @@ module sdram_memtest_ctrl #(
             r_write_word_idx <= r_write_word_idx + 1'b1;
           end
           if (I_SDRC_CMD_ACK) begin
-            st_state <= READ_GAP;
-            r_gap_cnt <= POST_WRITE_GAP_INIT;
+            st_state <= READ_ACTIVE_REQ;
             r_ack_cnt <= '0;
           end else if (r_ack_cnt >= ACK_TIMEOUT_CYCLES) begin
             set_fail(FAIL_REASON_TIMEOUT, {11'h000, s_active_addr}, r_write_seed, 32'h0);
@@ -506,17 +484,9 @@ module sdram_memtest_ctrl #(
           end
         end
 
-        READ_GAP: begin
+        READ_ACTIVE_REQ: begin
           r_read_word_idx <= '0;
           r_expected_word <= r_write_seed;
-          if (r_gap_cnt == 0) begin
-            st_state <= READ_ACTIVE_REQ;
-          end else begin
-            r_gap_cnt <= r_gap_cnt - 1'b1;
-          end
-        end
-
-        READ_ACTIVE_REQ: begin
           if (I_SDRC_READY) begin
             st_state <= READ_ACTIVE_ACK;
             r_ack_cnt <= 1;

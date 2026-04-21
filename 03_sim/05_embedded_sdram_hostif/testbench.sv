@@ -417,7 +417,6 @@ module testbench;
     .I_SRC_ARG2(tb_src_arg2),
     .O_SRC_EVT_READY(tb_src_evt_ready),
     .O_SRC_ENABLE(tb_src_enable),
-    .O_LOG_SRC_SEL(),
     .O_SOFT_RESET_REQ(),
     .O_STATUS_REQ_VALID(),
     .O_STATUS_REQ_KEY(),
