@@ -12,7 +12,7 @@ Target file:
 - `Single Address Read` uses printable ASCII `R <addr>`.
 - `Single Address Write` uses printable ASCII `W <addr> <data>`.
 - `SDRAM Map` uses printable ASCII `BR <addr> <words>`.
-- `SDRAM Bulk` and `SDRAM File` use `BR` / `BW`.
+- `SDRAM RW` bulk file write uses printable ASCII `BW <addr> <words>`.
 
 ## Startup behavior
 
@@ -52,14 +52,14 @@ Target file:
 
 ## SDRAM RW
 
-The `SDRAM RW` page keeps four panels:
+The `SDRAM RW` page keeps three panels:
 
 - `Single Address Read`
 - `Single Address Write`
-- `File Select Read`
-- `File Select Write`
+- `Bulk File Write`
 
-Only the single-address read/write panels are active.
+All three panels are active.  `Bulk File Write` accepts `.bin` and `.hex`
+payloads and writes them through the SDRAM bulk-write path.
 
 ## Single Address Read
 
@@ -105,21 +105,16 @@ Where:
 
 This indicates that the host write request completed successfully.
 
-## File Select Read
+## Bulk File Write
 
-- The panel remains visible.
-- The path field remains visible.
-- The button does not start SDRAM transfer in this phase.
-- Pressing the button shows:
-  `INOP: bulk path disabled`
-
-## File Select Write
-
-- The panel remains visible.
-- The base-address field and path field remain visible.
-- The button does not start SDRAM transfer in this phase.
-- Pressing the button shows:
-  `INOP: bulk path disabled`
+- The panel is part of `SDRAM RW`.
+- The base-address field uses the same 21-bit SDRAM word address format as
+  single read/write.
+- The path field accepts `.bin` and `.hex` files.
+- Pressing `Write File` sends `BW <base> <words>`.
+- Payload bytes are sent as CRC-protected raw bulk blocks.
+- Files whose byte length is not a multiple of four are padded on the wire
+  to the next whole SDRAM word.
 
 ## Source selection notes
 
@@ -148,7 +143,5 @@ This indicates that the host write request completed successfully.
 
 ## Current limitations
 
-- Bulk `BR` / `BW` is not active in the current host tools.
-- `SRAM Map` refresh is intentionally inoperative in this phase.
-- `File Select Read` is intentionally inoperative in this phase.
-- `File Select Write` is intentionally inoperative in this phase.
+- `SDRAM Bulk` and `SDRAM File` are no longer separate TUI pages.
+- SDRAM bulk file read/save is not exposed in the current TUI layout.

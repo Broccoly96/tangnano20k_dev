@@ -182,6 +182,7 @@ def format_sdram_map_text(base_addr: int, map_bytes: bytes) -> str:
 
     lines = [f"Base: 0x{base_addr:05X}  Mode: 4-byte little-endian words"]
     lines.append("   | " + "  ".join(f"{col:02X}".rjust(8) for col in range(MAP_WORDS_PER_ROW)))
+    lines.append("―" * 163)
     for row in range(MAP_ROWS):
         row_base = row * MAP_WORDS_PER_ROW
         cells = []
@@ -204,7 +205,8 @@ def format_eeprom_map_text(base_addr: int, map_bytes: bytes) -> str:
         map_bytes = bytes(padded)
 
     lines = [f"Base: 0x{base_addr:05X}  Mode: byte hex + ASCII"]
-    lines.append("Addr  | " + " ".join(f"{col:02X}" for col in range(EEPROM_MAP_BYTES_PER_ROW)) + "  | ASCII")
+    lines.append("Addr  | " + " ".join(f"{col:02X}" for col in range(EEPROM_MAP_BYTES_PER_ROW)) + " | ASCII")
+    lines.append("―" * 74)
     for row in range(EEPROM_MAP_ROWS):
         row_addr = base_addr + (row * EEPROM_MAP_BYTES_PER_ROW)
         chunk = map_bytes[
@@ -550,9 +552,10 @@ class UARTLogApp(App[None]):
     #eeprom_single_read_result { width: 22; content-align: left middle; }
     #eeprom_single_write_addr_input { width: 18; }
     #eeprom_single_write_data_input { width: 12; }
-    #file_read_path_input { width: 1fr; }
     #file_write_addr_input { width: 18; }
     #file_write_path_input { width: 1fr; }
+    #eeprom_file_write_addr_input { width: 18; }
+    #eeprom_file_write_path_input { width: 1fr; }
     #help_line { height: 2; margin: 0 1 1 1; content-align: left middle; }
     """
 
@@ -561,10 +564,8 @@ class UARTLogApp(App[None]):
         ("2", "show_map", "SDRAM Map"),
         ("3", "show_rw", "SDRAM RW"),
         ("4", "show_status", "SDRAM STS"),
-        ("5", "show_burst", "SDRAM Bulk"),
-        ("6", "show_file", "SDRAM File"),
-        ("7", "show_eeprom_map", "EEPROM Map"),
-        ("8", "show_eeprom_rw", "EEPROM RW"),
+        ("5", "show_eeprom_map", "EEPROM Map"),
+        ("6", "show_eeprom_rw", "EEPROM RW"),
         ("p", "rescan", "Rescan Ports"),
         ("c", "toggle_connect", "Connect/Disconnect"),
         ("m", "toggle_mode", "Raw/Decode"),
@@ -651,9 +652,9 @@ class UARTLogApp(App[None]):
         self._eeprom_rw_summary_text = "idle"
         self._eeprom_single_read_result = "-"
         self._eeprom_single_write_result = "-"
+        self._eeprom_file_write_result = "-"
         self._rw_file_write_result = "-"
         self._rw_file_read_result = "-"
-        self._file_summary_text = "idle"
         self._burst_summary_text = "idle"
         self._burst_result_text = "-"
         self._burst_task_active = False
@@ -694,6 +695,17 @@ class UARTLogApp(App[None]):
         self._eeprom_rw_task_inflight: tuple[str, int, int] | None = None
         self._eeprom_rw_task_retry_count = 0
         self._eeprom_rw_task_inflight_retries = 0
+        self._eeprom_bulk_write_active = False
+        self._eeprom_bulk_write_phase = ""
+        self._eeprom_bulk_write_command_sent = False
+        self._eeprom_bulk_write_base_addr = 0
+        self._eeprom_bulk_write_byte_count = 0
+        self._eeprom_bulk_write_blocks: list[bytes] = []
+        self._eeprom_bulk_write_next_block_index = 0
+        self._eeprom_bulk_write_select_deadline = 0.0
+        self._eeprom_bulk_write_rsp_deadline = 0.0
+        self._eeprom_bulk_write_retry_count = 0
+        self._eeprom_bulk_write_abort_count = 0
         if self._replay_file_path is not None:
             try:
                 self._replay_records = load_replay_records(self._replay_file_path)
@@ -731,9 +743,6 @@ class UARTLogApp(App[None]):
         self._eeprom_single_write_addr_input: Input | None = None
         self._eeprom_single_write_data_input: Input | None = None
         self._eeprom_single_write_result_widget: Static | None = None
-        self._file_summary: Static | None = None
-        self._file_read_addr_input: Input | None = None
-        self._file_read_words_input: Input | None = None
         self._burst_summary: Static | None = None
         self._burst_base_input: Input | None = None
         self._burst_words_input: Input | None = None
@@ -742,8 +751,9 @@ class UARTLogApp(App[None]):
         self._file_write_addr_input: Input | None = None
         self._file_write_path_input: Input | None = None
         self._file_write_result: Static | None = None
-        self._file_read_path_input: Input | None = None
-        self._file_read_result: Static | None = None
+        self._eeprom_file_write_addr_input: Input | None = None
+        self._eeprom_file_write_path_input: Input | None = None
+        self._eeprom_file_write_result_widget: Static | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -762,10 +772,8 @@ class UARTLogApp(App[None]):
                     yield Button("2 SDRAM Map", id="nav_map")
                     yield Button("3 SDRAM RW", id="nav_rw")
                     yield Button("4 SDRAM STS", id="nav_status")
-                    yield Button("5 SDRAM Bulk", id="nav_burst")
-                    yield Button("6 SDRAM File", id="nav_file")
-                    yield Button("7 EEPROM Map", id="nav_eeprom_map")
-                    yield Button("8 EEPROM RW", id="nav_eeprom_rw")
+                    yield Button("5 EEPROM Map", id="nav_eeprom_map")
+                    yield Button("6 EEPROM RW", id="nav_eeprom_rw")
                 with Vertical(id="screen_host"):
                     with Vertical(id="log_screen", classes="screen"):
                         with Horizontal(id="log_main_row"):
@@ -801,38 +809,13 @@ class UARTLogApp(App[None]):
                                     yield Input(value="0x00000", id="single_write_addr_input", placeholder="addr")
                                     yield Input(value="0x00000000", id="single_write_data_input", placeholder="data")
                                 yield Static("-", id="single_write_result")
-                    with Vertical(id="burst_screen", classes="screen hidden"):
-                        yield Static("", id="burst_summary", classes="panel")
-                        with Vertical(id="burst_grid"):
                             with Vertical(classes="panel rw_panel"):
-                                yield Static("Bulk Range / Burst Test")
+                                yield Static("Bulk File Write")
                                 with Horizontal(classes="toolbar"):
-                                    yield Button("Read Range", id="btn_bulk_read_range")
-                                    yield Button("Pattern Write", id="btn_bulk_pattern_write")
-                                    yield Button("Write Test", id="btn_burst_write_test")
-                                    yield Button("Read Test", id="btn_burst_read_test")
-                                with Horizontal(classes="toolbar"):
-                                    yield Input(value="0x00000", id="burst_base_input", placeholder="base addr")
-                                    yield Input(value="0x00010", id="burst_words_input", placeholder="words")
-                                    yield Input(value="0xA5A5A5A5", id="bulk_pattern_input", placeholder="pattern")
-                                yield Static("-", id="burst_result")
-                    with Vertical(id="file_screen", classes="screen hidden"):
-                        yield Static("", id="file_summary", classes="panel")
-                        with Vertical(classes="panel rw_panel"):
-                            yield Static("Bulk File Write")
-                            with Horizontal(classes="toolbar"):
-                                yield Button("Write File", id="btn_file_write")
-                                yield Input(value="0x00000", id="file_write_addr_input", placeholder="base addr")
-                                yield Input(value="", id="file_write_path_input", placeholder="input .bin/.hex path")
-                            yield Static("-", id="file_write_result")
-                        with Vertical(classes="panel rw_panel"):
-                            yield Static("Bulk File Read")
-                            with Horizontal(classes="toolbar"):
-                                yield Button("Read To File", id="btn_file_read_save")
-                                yield Input(value="0x00000", id="file_read_addr_input", placeholder="base addr")
-                                yield Input(value="0x00010", id="file_read_words_input", placeholder="words or bytes (64b)")
-                                yield Input(value="", id="file_read_path_input", placeholder="output .bin/.hex path")
-                            yield Static("-", id="file_read_result")
+                                    yield Button("Write File", id="btn_file_write")
+                                    yield Input(value="0x00000", id="file_write_addr_input", placeholder="base addr")
+                                    yield Input(value="", id="file_write_path_input", placeholder="input .bin/.hex path")
+                                yield Static("-", id="file_write_result")
                     with Vertical(id="eeprom_map_screen", classes="screen hidden"):
                         with Horizontal(classes="toolbar"):
                             yield Input(value="0x00000", id="eeprom_map_base_input", placeholder="base addr")
@@ -855,7 +838,14 @@ class UARTLogApp(App[None]):
                                     yield Input(value="0x00000", id="eeprom_single_write_addr_input", placeholder="addr")
                                     yield Input(value="0x00", id="eeprom_single_write_data_input", placeholder="data")
                                 yield Static("-", id="eeprom_single_write_result")
-            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=bulk 6=file 7=eeprom-map 8=eeprom-rw p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("Bulk File Write")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Write File", id="btn_eeprom_file_write")
+                                    yield Input(value="0x00000", id="eeprom_file_write_addr_input", placeholder="base addr")
+                                    yield Input(value="", id="eeprom_file_write_path_input", placeholder="input .bin/.hex path")
+                                yield Static("-", id="eeprom_file_write_result")
+            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=eeprom-map 6=eeprom-rw p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -890,19 +880,12 @@ class UARTLogApp(App[None]):
         self._eeprom_single_write_addr_input = self.query_one("#eeprom_single_write_addr_input", Input)
         self._eeprom_single_write_data_input = self.query_one("#eeprom_single_write_data_input", Input)
         self._eeprom_single_write_result_widget = self.query_one("#eeprom_single_write_result", Static)
-        self._file_summary = self.query_one("#file_summary", Static)
-        self._file_read_addr_input = self.query_one("#file_read_addr_input", Input)
-        self._file_read_words_input = self.query_one("#file_read_words_input", Input)
-        self._burst_summary = self.query_one("#burst_summary", Static)
-        self._burst_base_input = self.query_one("#burst_base_input", Input)
-        self._burst_words_input = self.query_one("#burst_words_input", Input)
-        self._bulk_pattern_input = self.query_one("#bulk_pattern_input", Input)
-        self._burst_result = self.query_one("#burst_result", Static)
         self._file_write_addr_input = self.query_one("#file_write_addr_input", Input)
         self._file_write_path_input = self.query_one("#file_write_path_input", Input)
         self._file_write_result = self.query_one("#file_write_result", Static)
-        self._file_read_path_input = self.query_one("#file_read_path_input", Input)
-        self._file_read_result = self.query_one("#file_read_result", Static)
+        self._eeprom_file_write_addr_input = self.query_one("#eeprom_file_write_addr_input", Input)
+        self._eeprom_file_write_path_input = self.query_one("#eeprom_file_write_path_input", Input)
+        self._eeprom_file_write_result_widget = self.query_one("#eeprom_file_write_result", Static)
         self._table.cursor_type = "row"
         self._table.add_columns("Time", "SEQ", "SRC", "EVT", "TS", "ARG0", "ARG1", "ARG2", "CRC", "Mode", "Text")
         self._reload_decoder(force=True, manual=False)
@@ -911,8 +894,6 @@ class UARTLogApp(App[None]):
         self._refresh_status_view()
         self._refresh_rw_view()
         self._refresh_eeprom_rw_view()
-        self._refresh_burst_view()
-        self._refresh_file_view()
         self._show_screen("log")
         if self._replay_file_path is not None:
             if self._port_select is not None:
@@ -950,6 +931,7 @@ class UARTLogApp(App[None]):
         self.set_interval(0.05, self._poll_status_selftest)
         self.set_interval(0.05, self._poll_rw_task)
         self.set_interval(0.05, self._poll_eeprom_rw_task)
+        self.set_interval(0.05, self._poll_eeprom_bulk_write_task)
         self.set_interval(0.05, self._poll_burst_task)
         self.set_interval(0.5, self._watch_decoder)
         self._update_stats()
@@ -978,10 +960,6 @@ class UARTLogApp(App[None]):
             self.action_show_status()
         elif button_id == "nav_rw":
             self.action_show_rw()
-        elif button_id == "nav_burst":
-            self.action_show_burst()
-        elif button_id == "nav_file":
-            self.action_show_file()
         elif button_id == "nav_eeprom_map":
             self.action_show_eeprom_map()
         elif button_id == "nav_eeprom_rw":
@@ -1004,18 +982,10 @@ class UARTLogApp(App[None]):
             self._start_eeprom_single_read()
         elif button_id == "btn_eeprom_single_write":
             self._start_eeprom_single_write()
-        elif button_id == "btn_bulk_read_range":
-            self._start_bulk_read_range()
-        elif button_id == "btn_bulk_pattern_write":
-            self._start_bulk_pattern_write()
         elif button_id == "btn_file_write":
             self._start_file_write()
-        elif button_id == "btn_file_read_save":
-            self._start_file_read_save()
-        elif button_id == "btn_burst_write_test":
-            self._start_burst_test(is_read=False)
-        elif button_id == "btn_burst_read_test":
-            self._start_burst_test(is_read=True)
+        elif button_id == "btn_eeprom_file_write":
+            self._start_eeprom_file_write()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "filter_input":
@@ -1034,12 +1004,6 @@ class UARTLogApp(App[None]):
 
     def action_show_rw(self) -> None:
         self._show_screen("rw")
-
-    def action_show_burst(self) -> None:
-        self._show_screen("burst")
-
-    def action_show_file(self) -> None:
-        self._show_screen("file")
 
     def action_show_eeprom_map(self) -> None:
         self._show_screen("eeprom_map")
@@ -1128,16 +1092,12 @@ class UARTLogApp(App[None]):
         map_screen = self.query_one("#map_screen", Vertical)
         status_screen = self.query_one("#status_screen", Vertical)
         rw_screen = self.query_one("#rw_screen", Vertical)
-        burst_screen = self.query_one("#burst_screen", Vertical)
-        file_screen = self.query_one("#file_screen", Vertical)
         eeprom_map_screen = self.query_one("#eeprom_map_screen", Vertical)
         eeprom_rw_screen = self.query_one("#eeprom_rw_screen", Vertical)
         log_screen.set_class(screen_name != "log", "hidden")
         map_screen.set_class(screen_name != "map", "hidden")
         status_screen.set_class(screen_name != "status", "hidden")
         rw_screen.set_class(screen_name != "rw", "hidden")
-        burst_screen.set_class(screen_name != "burst", "hidden")
-        file_screen.set_class(screen_name != "file", "hidden")
         eeprom_map_screen.set_class(screen_name != "eeprom_map", "hidden")
         eeprom_rw_screen.set_class(screen_name != "eeprom_rw", "hidden")
 
@@ -1337,6 +1297,7 @@ class UARTLogApp(App[None]):
             or self._rw_task_active
             or self._eeprom_rw_task_active
             or self._burst_task_active
+            or self._eeprom_bulk_write_active
         )
 
     def _refresh_status_view(self) -> None:
@@ -1439,14 +1400,18 @@ class UARTLogApp(App[None]):
             self._start_status_refresh()
 
     def _refresh_rw_view(self) -> None:
+        file_task_active = self._burst_task_active and self._burst_task_kind == "bulk_file_write"
+        state_busy = self._rw_task_active or file_task_active
+        task_text = self._burst_task_kind if file_task_active else (self._rw_task_kind or "-")
+        detail_text = self._burst_summary_text if file_task_active else self._rw_summary_text
         if self._rw_summary is not None:
             self._rw_summary.update(
                 "\n".join(
                     [
                         "[SDRAM RW]",
-                        f"state  : {'busy' if self._rw_task_active else 'idle'}",
-                        f"task   : {self._rw_task_kind or '-'}",
-                        f"detail : {self._rw_summary_text}",
+                        f"state  : {'busy' if state_busy else 'idle'}",
+                        f"task   : {task_text}",
+                        f"detail : {detail_text}",
                     ]
                 )
             )
@@ -1454,16 +1419,29 @@ class UARTLogApp(App[None]):
             self._single_read_result.update(self._rw_single_read_result)
         if self._single_write_result is not None:
             self._single_write_result.update(self._rw_single_write_result)
+        if self._file_write_result is not None:
+            self._file_write_result.update(self._rw_file_write_result)
 
     def _refresh_eeprom_rw_view(self) -> None:
+        state_busy = self._eeprom_rw_task_active or self._eeprom_bulk_write_active
+        task_text = (
+            "bulk_file_write"
+            if self._eeprom_bulk_write_active
+            else (self._eeprom_rw_task_kind or "-")
+        )
+        detail_text = (
+            self._eeprom_file_write_result
+            if self._eeprom_bulk_write_active
+            else self._eeprom_rw_summary_text
+        )
         if self._eeprom_rw_summary is not None:
             self._eeprom_rw_summary.update(
                 "\n".join(
                     [
                         "[EEPROM RW]",
-                        f"state  : {'busy' if self._eeprom_rw_task_active else 'idle'}",
-                        f"task   : {self._eeprom_rw_task_kind or '-'}",
-                        f"detail : {self._eeprom_rw_summary_text}",
+                        f"state  : {'busy' if state_busy else 'idle'}",
+                        f"task   : {task_text}",
+                        f"detail : {detail_text}",
                     ]
                 )
             )
@@ -1471,6 +1449,8 @@ class UARTLogApp(App[None]):
             self._eeprom_single_read_result_widget.update(self._eeprom_single_read_result)
         if self._eeprom_single_write_result_widget is not None:
             self._eeprom_single_write_result_widget.update(self._eeprom_single_write_result)
+        if self._eeprom_file_write_result_widget is not None:
+            self._eeprom_file_write_result_widget.update(self._eeprom_file_write_result)
 
     def _start_eeprom_rw_task(self, *, kind: str, commands: list[tuple[str, int, int]]) -> bool:
         if self._replay_file_path is not None:
@@ -1508,6 +1488,108 @@ class UARTLogApp(App[None]):
         self._refresh_eeprom_rw_view()
         self._set_status(detail)
 
+    def _start_eeprom_bulk_write_task(
+        self,
+        *,
+        base_addr: int,
+        byte_count: int,
+        write_blob: bytes,
+    ) -> bool:
+        if self._replay_file_path is not None:
+            self._set_status("replay mode: EEPROM bulk write disabled")
+            return False
+        if not self._active_connected():
+            self._set_status("not connected")
+            return False
+        if self._host_task_busy():
+            self._set_status("host task busy")
+            return False
+
+        drain_frames(self._read_bytes, self._parser, 0.1)
+        try:
+            self._selected_src_idx = eeprom_proto.select_source_index(
+                self._send_bytes,
+                self._read_bytes,
+                self._parser,
+                eeprom_proto.HOST_SRC_INDEX,
+                settle_ms=100,
+                timeout_s=1.5,
+            )
+        except TimeoutError:
+            self._set_status("failed to select EEPROM source")
+            return False
+
+        self._eeprom_bulk_write_active = True
+        self._eeprom_bulk_write_phase = "select"
+        self._eeprom_bulk_write_command_sent = False
+        self._eeprom_bulk_write_base_addr = base_addr
+        self._eeprom_bulk_write_byte_count = byte_count
+        self._eeprom_bulk_write_blocks = eeprom_proto.iter_bulk_write_blocks(write_blob)
+        self._eeprom_bulk_write_next_block_index = 0
+        self._eeprom_bulk_write_select_deadline = time.monotonic()
+        self._eeprom_bulk_write_rsp_deadline = 0.0
+        self._eeprom_bulk_write_retry_count = 0
+        self._eeprom_bulk_write_abort_count = 0
+        self._eeprom_file_write_result = "started bulk_file_write"
+        self._refresh_eeprom_rw_view()
+        self._set_status(self._eeprom_file_write_result)
+        return True
+
+    def _finish_eeprom_bulk_write_task(self, detail: str) -> None:
+        self._eeprom_bulk_write_active = False
+        self._eeprom_bulk_write_phase = ""
+        self._eeprom_bulk_write_command_sent = False
+        self._eeprom_bulk_write_rsp_deadline = 0.0
+        self._eeprom_bulk_write_blocks = []
+        self._eeprom_bulk_write_next_block_index = 0
+        self._eeprom_bulk_write_retry_count = 0
+        self._eeprom_bulk_write_abort_count = 0
+        self._eeprom_file_write_result = detail
+        self._refresh_eeprom_rw_view()
+        self._set_status(detail)
+
+    def _send_eeprom_bulk_abort(self) -> bool:
+        payload = eeprom_proto.build_bulk_abort_block(
+            self._eeprom_bulk_write_next_block_index & 0xFF
+        )
+        return self._send_bytes(payload) == len(payload)
+
+    def _begin_eeprom_bulk_abort_recovery(self, reason: str) -> bool:
+        if self._eeprom_bulk_write_abort_count >= BULK_TASK_RETRY_LIMIT:
+            return False
+        if not self._send_eeprom_bulk_abort():
+            return False
+
+        self._eeprom_bulk_write_abort_count += 1
+        self._eeprom_bulk_write_phase = "abort_wait"
+        self._eeprom_bulk_write_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+        self._eeprom_file_write_result = (
+            f"abort recovery {self._eeprom_bulk_write_abort_count}/"
+            f"{BULK_TASK_RETRY_LIMIT}: {reason}"
+        )
+        self._refresh_eeprom_rw_view()
+        self._set_status(self._eeprom_file_write_result)
+        return True
+
+    def _restart_eeprom_bulk_write_after_abort(self, reason: str) -> bool:
+        if self._eeprom_bulk_write_retry_count >= BULK_TASK_RETRY_LIMIT:
+            return False
+
+        self._eeprom_bulk_write_retry_count += 1
+        self._eeprom_bulk_write_phase = "select"
+        self._eeprom_bulk_write_command_sent = False
+        self._eeprom_bulk_write_select_deadline = time.monotonic()
+        self._eeprom_bulk_write_rsp_deadline = 0.0
+        self._eeprom_bulk_write_next_block_index = 0
+        self._eeprom_bulk_write_abort_count = 0
+        self._eeprom_file_write_result = (
+            f"retry {self._eeprom_bulk_write_retry_count}/"
+            f"{BULK_TASK_RETRY_LIMIT}: {reason}"
+        )
+        self._refresh_eeprom_rw_view()
+        self._set_status(self._eeprom_file_write_result)
+        return True
+
     def _start_eeprom_single_read(self) -> None:
         if self._eeprom_single_read_addr_input is None:
             return
@@ -1540,27 +1622,44 @@ class UARTLogApp(App[None]):
             self._eeprom_single_write_result = f"writing 0x{data:02X} -> 0x{addr:05X}"
             self._refresh_eeprom_rw_view()
 
-    def _refresh_file_view(self) -> None:
-        file_task_active = self._burst_task_active and self._burst_task_kind in {
-            "bulk_file_write",
-            "bulk_file_read",
-        }
-        detail_text = self._burst_summary_text if file_task_active else self._file_summary_text
-        if self._file_summary is not None:
-            self._file_summary.update(
-                "\n".join(
-                    [
-                        "[SDRAM File]",
-                        f"state  : {'busy' if file_task_active else 'idle'}",
-                        f"task   : {self._burst_task_kind if file_task_active else '-'}",
-                        f"detail : {detail_text}",
-                    ]
-                )
+    def _start_eeprom_file_write(self) -> None:
+        if (
+            self._eeprom_file_write_addr_input is None
+            or self._eeprom_file_write_path_input is None
+        ):
+            return
+        try:
+            base_addr = eeprom_proto.parse_addr(
+                self._eeprom_file_write_addr_input.value.strip()
             )
+            file_path = Path(self._eeprom_file_write_path_input.value.strip())
+            blob = eeprom_proto.load_bulk_file(file_path)
+            if not blob:
+                raise ValueError("input file is empty")
+            eeprom_proto.validate_bulk_range(base_addr, len(blob))
+            pad_bytes = (4 - (len(blob) % 4)) % 4
+        except Exception as exc:
+            self._eeprom_file_write_result = f"validation failed: {exc}"
+            self._refresh_eeprom_rw_view()
+            self._set_status(self._eeprom_file_write_result)
+            return
+
+        detail = (
+            f"validated {file_path.name} bytes={len(blob)} "
+            f"pad={pad_bytes}"
+        )
+        if self._start_eeprom_bulk_write_task(
+            base_addr=base_addr,
+            byte_count=len(blob),
+            write_blob=blob,
+        ):
+            self._eeprom_file_write_result = detail
+            self._refresh_eeprom_rw_view()
+
+    def _refresh_file_view(self) -> None:
         if self._file_write_result is not None:
             self._file_write_result.update(self._rw_file_write_result)
-        if self._file_read_result is not None:
-            self._file_read_result.update(self._rw_file_read_result)
+        self._refresh_rw_view()
 
     def _format_burst_words_preview(self) -> str:
         if not self._burst_received_words:
@@ -1657,6 +1756,7 @@ class UARTLogApp(App[None]):
         self._burst_result_text = result_text
         self._refresh_burst_view()
         self._refresh_file_view()
+        self._refresh_rw_view()
         self._set_status(self._burst_summary_text)
         return True
 
@@ -1745,8 +1845,7 @@ class UARTLogApp(App[None]):
             pad_bytes = words * 4 - len(blob)
         except Exception as exc:
             self._rw_file_write_result = f"validation failed: {exc}"
-            self._file_summary_text = self._rw_file_write_result
-            self._refresh_file_view()
+            self._refresh_rw_view()
             self._set_status(self._rw_file_write_result)
             return
 
@@ -1760,45 +1859,10 @@ class UARTLogApp(App[None]):
             output_len=len(blob),
         ):
             self._rw_file_write_result = detail
-            self._file_summary_text = detail
-            self._refresh_file_view()
+            self._refresh_rw_view()
 
     def _start_file_read_save(self) -> None:
-        if (
-            self._file_read_addr_input is None
-            or self._file_read_words_input is None
-            or self._file_read_path_input is None
-        ):
-            return
-        try:
-            base_addr = parse_u21(self._file_read_addr_input.value.strip())
-            words, output_len = parse_bulk_length_spec(self._file_read_words_input.value.strip())
-            validate_bulk_range(base_addr, words)
-            output_path = Path(self._file_read_path_input.value.strip())
-            if output_path.suffix.lower() not in {".bin", ".hex"}:
-                raise ValueError("output path must end with .bin or .hex")
-        except Exception as exc:
-            self._rw_file_read_result = f"validation failed: {exc}"
-            self._file_summary_text = self._rw_file_read_result
-            self._refresh_file_view()
-            self._set_status(self._rw_file_read_result)
-            return
-
-        detail = (
-            f"validated read addr=0x{base_addr:05X} bytes={output_len} "
-            f"words={words} -> {output_path.name}"
-        )
-        if self._start_bulk_task(
-            kind="bulk_file_read",
-            base_addr=base_addr,
-            words=words,
-            result_text="waiting for bulk read ack...",
-            output_path=output_path,
-            output_len=output_len,
-        ):
-            self._rw_file_read_result = detail
-            self._file_summary_text = detail
-            self._refresh_file_view()
+        self._set_status("SDRAM file read page has been removed")
 
     def _start_bulk_read_range(self) -> None:
         if self._burst_base_input is None or self._burst_words_input is None:
@@ -1900,8 +1964,6 @@ class UARTLogApp(App[None]):
         self._set_status(self._burst_summary_text)
 
     def _finish_burst_task(self, detail: str) -> None:
-        if self._burst_task_kind in {"bulk_file_write", "bulk_file_read"}:
-            self._file_summary_text = detail
         self._burst_task_active = False
         self._burst_summary_text = detail
         self._burst_task_kind = ""
@@ -1916,6 +1978,7 @@ class UARTLogApp(App[None]):
         self._burst_abort_count = 0
         self._refresh_burst_view()
         self._refresh_file_view()
+        self._refresh_rw_view()
         self._set_status(detail)
 
     def _bulk_task_is_write(self) -> bool:
@@ -2327,6 +2390,105 @@ class UARTLogApp(App[None]):
                 self._finish_eeprom_map_refresh(
                     f"EEPROM map failed evt=0x{event.event_id:02X} arg0=0x{event.arg0:08X}"
                 )
+                return
+
+        if self._eeprom_bulk_write_active and event.src_id == eeprom_proto.HOST_SRC_ID:
+            if self._eeprom_bulk_write_phase == "abort_wait":
+                if event.event_id in {
+                    eeprom_proto.HOST_EVT_BULK_ABORT,
+                    eeprom_proto.HOST_EVT_BULK_ERR,
+                    eeprom_proto.HOST_EVT_CMD_ERR,
+                }:
+                    if self._restart_eeprom_bulk_write_after_abort(
+                        "EEPROM bulk session aborted"
+                    ):
+                        return
+                    self._finish_eeprom_bulk_write_task(
+                        "EEPROM bulk session aborted"
+                    )
+                elif event.event_id == eeprom_proto.HOST_EVT_BULK_PROGRESS:
+                    self._eeprom_bulk_write_rsp_deadline = 0.0
+                    self._eeprom_file_write_result = (
+                        "EEPROM bulk progress arrived during abort recovery"
+                    )
+                    self._refresh_eeprom_rw_view()
+                elif event.event_id == eeprom_proto.HOST_EVT_BULK_DONE:
+                    if self._restart_eeprom_bulk_write_after_abort(
+                        "EEPROM bulk session completed late"
+                    ):
+                        return
+                    self._finish_eeprom_bulk_write_task(
+                        "EEPROM bulk session completed late"
+                    )
+                return
+
+            if event.event_id == eeprom_proto.HOST_EVT_BULK_OK:
+                done_base = event.arg0 & eeprom_proto.EEPROM_MAX_ADDR
+                done_bytes = event.arg1 & eeprom_proto.EEPROM_MAX_ADDR
+                if (
+                    done_base != self._eeprom_bulk_write_base_addr
+                    or done_bytes != self._eeprom_bulk_write_byte_count
+                ):
+                    self._finish_eeprom_bulk_write_task(
+                        f"EEPROM BULK_OK mismatch base=0x{done_base:05X} "
+                        f"bytes={done_bytes}"
+                    )
+                else:
+                    self._eeprom_bulk_write_phase = "send_block"
+                    self._eeprom_bulk_write_rsp_deadline = (
+                        time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                    )
+                    self._eeprom_file_write_result = (
+                        f"EEPROM bulk write accepted "
+                        f"0x{self._eeprom_bulk_write_base_addr:05X} "
+                        f"bytes={self._eeprom_bulk_write_byte_count}"
+                    )
+                    self._refresh_eeprom_rw_view()
+                return
+
+            if event.event_id == eeprom_proto.HOST_EVT_BULK_PROGRESS:
+                self._eeprom_bulk_write_phase = "send_block"
+                self._eeprom_bulk_write_rsp_deadline = (
+                    time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                )
+                self._eeprom_file_write_result = (
+                    f"EEPROM bulk write progress completed={event.arg1} "
+                    f"remaining={event.arg2}"
+                )
+                self._refresh_eeprom_rw_view()
+                return
+
+            if event.event_id == eeprom_proto.HOST_EVT_BULK_DONE:
+                done_base = event.arg0 & eeprom_proto.EEPROM_MAX_ADDR
+                done_bytes = event.arg1 & eeprom_proto.EEPROM_MAX_ADDR
+                if (
+                    done_base != self._eeprom_bulk_write_base_addr
+                    or done_bytes != self._eeprom_bulk_write_byte_count
+                ):
+                    self._finish_eeprom_bulk_write_task(
+                        f"EEPROM DONE mismatch base=0x{done_base:05X} "
+                        f"bytes={done_bytes}"
+                    )
+                else:
+                    self._finish_eeprom_bulk_write_task(
+                        f"wrote {self._eeprom_bulk_write_byte_count} bytes "
+                        f"to 0x{self._eeprom_bulk_write_base_addr:05X}"
+                    )
+                return
+
+            if event.event_id in {
+                eeprom_proto.HOST_EVT_BULK_ABORT,
+                eeprom_proto.HOST_EVT_BULK_ERR,
+                eeprom_proto.HOST_EVT_CMD_ERR,
+            }:
+                error_text = (
+                    f"EEPROM bulk failed evt=0x{event.event_id:02X} "
+                    f"arg0=0x{event.arg0:08X} arg1=0x{event.arg1:08X} "
+                    f"arg2=0x{event.arg2:08X}"
+                )
+                if self._begin_eeprom_bulk_abort_recovery(error_text):
+                    return
+                self._finish_eeprom_bulk_write_task(error_text)
                 return
 
         if self._eeprom_rw_task_active and event.src_id == eeprom_proto.HOST_SRC_ID:
@@ -3103,6 +3265,83 @@ class UARTLogApp(App[None]):
         self._eeprom_rw_task_rsp_deadline = now + EEPROM_RW_RESPONSE_TIMEOUT_S
         self._eeprom_rw_summary_text = f"{op_kind} 0x{addr:05X}"
         self._refresh_eeprom_rw_view()
+
+    def _poll_eeprom_bulk_write_task(self) -> None:
+        if not self._eeprom_bulk_write_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != eeprom_proto.HOST_SRC_INDEX:
+            if now >= self._eeprom_bulk_write_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_eeprom_bulk_write_task(
+                        "failed to select EEPROM source"
+                    )
+                    return
+                self._eeprom_file_write_result = (
+                    f"selecting EEPROM source (current={self._selected_src_idx})"
+                )
+                self._eeprom_bulk_write_select_deadline = now + 0.35
+                self._refresh_eeprom_rw_view()
+            return
+
+        if not self._eeprom_bulk_write_command_sent:
+            payload = eeprom_proto.build_bulk_write_command(
+                self._eeprom_bulk_write_base_addr,
+                self._eeprom_bulk_write_byte_count,
+            )
+            if self._send_bytes(payload) != len(payload):
+                self._finish_eeprom_bulk_write_task("EEPROM BW short write")
+                return
+            self._eeprom_bulk_write_command_sent = True
+            self._eeprom_bulk_write_phase = "wait_ok"
+            self._eeprom_bulk_write_rsp_deadline = now + BULK_RESPONSE_TIMEOUT_S
+            self._eeprom_file_write_result = (
+                f"sent BW 0x{self._eeprom_bulk_write_base_addr:05X} "
+                f"bytes={self._eeprom_bulk_write_byte_count}"
+            )
+            self._refresh_eeprom_rw_view()
+            self._set_status(self._eeprom_file_write_result)
+            return
+
+        if self._eeprom_bulk_write_phase == "abort_wait":
+            if now > self._eeprom_bulk_write_rsp_deadline:
+                if self._begin_eeprom_bulk_abort_recovery("abort ack timeout"):
+                    return
+                self._finish_eeprom_bulk_write_task(
+                    "EEPROM bulk abort recovery timeout"
+                )
+            return
+
+        if self._eeprom_bulk_write_phase == "send_block":
+            if self._eeprom_bulk_write_next_block_index >= len(
+                self._eeprom_bulk_write_blocks
+            ):
+                self._finish_eeprom_bulk_write_task(
+                    "EEPROM bulk write has no block to send"
+                )
+                return
+            block_index = self._eeprom_bulk_write_next_block_index
+            block = self._eeprom_bulk_write_blocks[block_index]
+            if self._send_bytes(block) != len(block):
+                self._finish_eeprom_bulk_write_task("EEPROM bulk block short write")
+                return
+            self._eeprom_bulk_write_next_block_index += 1
+            is_end_block = block_index == len(self._eeprom_bulk_write_blocks) - 1
+            self._eeprom_bulk_write_phase = (
+                "wait_write_done" if is_end_block else "wait_write_progress"
+            )
+            self._eeprom_bulk_write_rsp_deadline = now + BULK_RESPONSE_TIMEOUT_S
+            self._eeprom_file_write_result = (
+                f"sent {'WR_END' if is_end_block else 'WR_DATA'} block "
+                f"{block_index + 1}/{len(self._eeprom_bulk_write_blocks)}"
+            )
+            self._refresh_eeprom_rw_view()
+            return
+
+        if now > self._eeprom_bulk_write_rsp_deadline:
+            if self._begin_eeprom_bulk_abort_recovery("EEPROM bulk timeout"):
+                return
+            self._finish_eeprom_bulk_write_task("EEPROM bulk timeout")
 
     def _complete_file_read_save(self) -> None:
         if self._rw_task_output_path is None:
