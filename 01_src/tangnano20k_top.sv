@@ -289,24 +289,24 @@ module tangnano20k_top(
   );
 
   ssd1331_uart_bridge_ctrl u_ssd1331_uart_bridge_ctrl (
-    .I_CLK        (clk_24m_sys),
-    .I_RST_N      (rst_fpga_24m_n),
-    .I_ENABLE     (1'b1),
-    .I_CLI_RX_VALID(l_cli_rx_valid_24m),
-    .I_CLI_RX_DATA(l_cli_rx_data_24m),
-    .O_CMD_BUSY   (),
-    .O_DISP_CS_N  (l_display_cs_n),
-    .O_DISP_SCLK  (l_display_sclk),
-    .O_DISP_SDIN  (l_display_sdin),
-    .O_DISP_DC    (l_display_dc),
-    .O_DISP_RES_N (l_display_res_n),
-    .HOST_EVT_IF  (l_uart_src_if[3])
+    .I_CLK                (clk_24m_sys),
+    .I_RST_N              (rst_fpga_24m_n),
+    .I_ENABLE             (1'b1),
+    .I_CLI_RX_VALID       (l_cli_rx_valid_24m),
+    .I_CLI_RX_DATA        (l_cli_rx_data_24m),
+    .O_CMD_BUSY           (),
+    .O_DISP_CS_N          (l_display_cs_n),
+    .O_DISP_SCLK          (l_display_sclk),
+    .O_DISP_SDIN          (l_display_sdin),
+    .O_DISP_DC            (l_display_dc),
+    .O_DISP_RES_N         (l_display_res_n),
+    .HOST_EVT_IF          (l_uart_src_if[3])
   );
 
   sdram_emb_hostif_ctrl #(
-    .MEMTEST_BURST_WORDS (SDRAM_MEMTEST_BURST_WORDS),
-    .MEMTEST_TEST_WORDS (SDRAM_MEMTEST_TEST_WORDS),
-    .MEMTEST_CLEAR_WORDS(SDRAM_MEMTEST_CLEAR_WORDS),
+    .MEMTEST_BURST_WORDS  (SDRAM_MEMTEST_BURST_WORDS),
+    .MEMTEST_TEST_WORDS   (SDRAM_MEMTEST_TEST_WORDS),
+    .MEMTEST_CLEAR_WORDS  (SDRAM_MEMTEST_CLEAR_WORDS),
     .MEMTEST_POST_INIT_WAIT_CYCLES (2_400_000)
   ) u_sdram_emb_hostif_ctrl (
     .I_CLK                    (clk_48m_sdram),
