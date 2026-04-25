@@ -12,7 +12,8 @@
 - `Single Address Read` は ASCII `R <addr>` を使います。
 - `Single Address Write` は ASCII `W <addr> <data>` を使います。
 - `SDRAM Map` は ASCII `BR <addr> <words>` を使います。
-- `SDRAM Bulk` と `SDRAM File` は `BR` / `BW` を使います。
+- `SDRAM RW` の bulk file write は ASCII `BW <addr> <words>` を
+  使います。
 
 ## 2. 起動時動作
 
@@ -53,14 +54,14 @@
 
 ## 4. SDRAM RW 画面
 
-`SDRAM RW` 画面には以下 4 枠があります。
+`SDRAM RW` 画面には以下 3 枠があります。
 
 - `Single Address Read`
 - `Single Address Write`
-- `File Select Read`
-- `File Select Write`
+- `Bulk File Write`
 
-このうち、現在有効なのは single read/write のみです。
+3 枠すべて有効です。`Bulk File Write` は `.bin` / `.hex` を受け取り、
+SDRAM bulk-write 経路で書き込みます。
 
 ## 5. Single Address Read
 
@@ -108,32 +109,25 @@
 
 これは host write 要求が完了したことを示します。
 
-## 7. File Select Read
+## 7. Bulk File Write
 
-- 枠は残ります。
-- path 入力欄も残ります。
-- ただし現 phase では SDRAM 転送を開始しません。
-- ボタン押下時は
-  `INOP: bulk path disabled`
-  を表示します。
+- 枠は `SDRAM RW` 画面内にあります。
+- Base Address は single read/write と同じ 21-bit SDRAM word address
+  形式です。
+- path 入力欄は `.bin` / `.hex` を受け付けます。
+- `Write File` を押すと `BW <base> <words>` を送信します。
+- payload byte は CRC 付き raw bulk block として送信します。
+- ファイル長が 4 byte 境界でない場合、通信上は次の SDRAM word
+  境界まで 0 padding します。
 
-## 8. File Select Write
-
-- 枠は残ります。
-- Base Address 入力欄と path 入力欄も残ります。
-- ただし現 phase では SDRAM 転送を開始しません。
-- ボタン押下時は
-  `INOP: bulk path disabled`
-  を表示します。
-
-## 9. source 切替に関する注意
+## 8. source 切替に関する注意
 
 - SDRAM host event は `src_id = 0x03` を使います。
 - heartbeat source は元の source index に残っています。
 - single SDRAM 操作時は、host tool が一時的に SDRAM source に
   切り替えて command/response をやり取りします。
 
-## 10. event の意味
+## 9. event の意味
 
 - `SDRAM_INIT_DONE (0x20)`
   embedded SDRAM controller の初期化完了です。
@@ -152,9 +146,8 @@
 - `CMD_ERR (0x3E)`
   不正または未対応の host command を示します。
 
-## 11. 現行制約
+## 10. 現行制約
 
-- bulk `BR` / `BW` は host tool 側で無効です。
-- `SRAM Map` refresh は現在 intentionally inoperative です。
-- `File Select Read` は現在 intentionally inoperative です。
-- `File Select Write` は現在 intentionally inoperative です。
+- `SDRAM Bulk` と `SDRAM File` は独立した TUI 画面としては
+  存在しません。
+- SDRAM bulk file read/save は現行 TUI layout では公開していません。

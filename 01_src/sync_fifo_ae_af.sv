@@ -69,9 +69,9 @@ module sync_fifo_ae_af #(
       end
 
       case ({l_write_ok, l_read_ok})
-        2'b10: r_count <= r_count + 1'b1;
-        2'b01: r_count <= r_count - 1'b1;
-        default: r_count <= r_count;
+        2'b10:    r_count <= r_count + 1'b1;
+        2'b01:    r_count <= r_count - 1'b1;
+        default:  r_count <= r_count;
       endcase
     end
   end

@@ -78,7 +78,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td class="label">Created Time</td>
-<td>Sat Apr 25 10:23:59 2026
+<td>Sat Apr 25 16:47:29 2026
 </td>
 </tr>
 <tr>
@@ -451,25 +451,6 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <td>3.3</td>
 </tr>
 <tr>
-<td class="label">PIN42_IOB42B</td>
-<td>-</td>
-<td>42/4</td>
-<td>Y</td>
-<td>in</td>
-<td>IOB42[B]</td>
-<td>-</td>
-<td>LVCMOS33</td>
-<td>NA</td>
-<td>UP</td>
-<td>ON</td>
-<td>NONE</td>
-<td>NA</td>
-<td>NA</td>
-<td>NA</td>
-<td>NA</td>
-<td>3.3</td>
-</tr>
-<tr>
 <td class="label">PIN48_IOR49B</td>
 <td>-</td>
 <td>48/3</td>
@@ -793,25 +774,6 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <td>3.3</td>
 </tr>
 <tr>
-<td class="label">PIN76_IOT30B</td>
-<td>-</td>
-<td>76/1</td>
-<td>Y</td>
-<td>in</td>
-<td>IOT30[B]</td>
-<td>GCLKC_1</td>
-<td>LVCMOS33</td>
-<td>NA</td>
-<td>UP</td>
-<td>ON</td>
-<td>NONE</td>
-<td>NA</td>
-<td>NA</td>
-<td>NA</td>
-<td>NA</td>
-<td>3.3</td>
-</tr>
-<tr>
 <td class="label">PIN77_IOT30A</td>
 <td>-</td>
 <td>77/1</td>
@@ -838,25 +800,6 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <td>in</td>
 <td>IOT27[B]</td>
 <td>GCLKC_0</td>
-<td>LVCMOS33</td>
-<td>NA</td>
-<td>UP</td>
-<td>ON</td>
-<td>NONE</td>
-<td>NA</td>
-<td>NA</td>
-<td>NA</td>
-<td>NA</td>
-<td>3.3</td>
-</tr>
-<tr>
-<td class="label">PIN80_IOT27A</td>
-<td>-</td>
-<td>80/0</td>
-<td>Y</td>
-<td>in</td>
-<td>IOT27[A]</td>
-<td>GCLKT_0</td>
 <td>LVCMOS33</td>
 <td>NA</td>
 <td>UP</td>
@@ -994,7 +937,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <td>NA</td>
 <td>DOWN</td>
 <td>ON</td>
-<td>HIGH</td>
+<td>NONE</td>
 <td>NA</td>
 <td>NA</td>
 <td>OFF</td>
@@ -1112,6 +1055,25 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <td>OFF</td>
 <td>NA</td>
 <td>OFF</td>
+<td>NA</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td class="label">PIN76_IOT30B</td>
+<td>-</td>
+<td>76/1</td>
+<td>Y</td>
+<td>out</td>
+<td>IOT30[B]</td>
+<td>GCLKC_1</td>
+<td>LVCMOS33</td>
+<td>8</td>
+<td>DOWN</td>
+<td>NA</td>
+<td>NA</td>
+<td>OFF</td>
+<td>NA</td>
+<td>NA</td>
 <td>NA</td>
 <td>3.3</td>
 </tr>
@@ -1551,6 +1513,44 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <td>-</td>
 <td>-</td>
 <td>-</td>
+</tr>
+<tr>
+<td class="label">PIN42_IOB42B</td>
+<td>-</td>
+<td>42/4</td>
+<td>Y</td>
+<td>io</td>
+<td>IOB42[B]</td>
+<td>-</td>
+<td>LVCMOS33</td>
+<td>8</td>
+<td>UP</td>
+<td>NA</td>
+<td>HIGH</td>
+<td>OFF</td>
+<td>NA</td>
+<td>NA</td>
+<td>NA</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td class="label">PIN80_IOT27A</td>
+<td>-</td>
+<td>80/0</td>
+<td>Y</td>
+<td>io</td>
+<td>IOT27[A]</td>
+<td>GCLKT_0</td>
+<td>LVCMOS33</td>
+<td>8</td>
+<td>UP</td>
+<td>NA</td>
+<td>NA</td>
+<td>OFF</td>
+<td>NA</td>
+<td>NA</td>
+<td>NA</td>
+<td>3.3</td>
 </tr>
 <tr>
 <td class="label">IO_sdram_dq[0]</td>
@@ -2286,15 +2286,15 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <tr>
 <td class="label">80/0</td>
 <td>PIN80_IOT27A</td>
-<td>in</td>
+<td>out</td>
 <td>IOT27[A]</td>
 <td>GCLKT_0</td>
 <td>LVCMOS33</td>
-<td>NA</td>
+<td>8</td>
 <td>UP</td>
-<td>ON</td>
-<td>NONE</td>
 <td>NA</td>
+<td>NA</td>
+<td>OFF</td>
 <td>NA</td>
 <td>NA</td>
 <td>NA</td>
@@ -2337,15 +2337,15 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <tr>
 <td class="label">76/1</td>
 <td>PIN76_IOT30B</td>
-<td>in</td>
+<td>out</td>
 <td>IOT30[B]</td>
 <td>GCLKC_1</td>
 <td>LVCMOS33</td>
+<td>8</td>
+<td>DOWN</td>
 <td>NA</td>
-<td>UP</td>
-<td>ON</td>
-<td>NONE</td>
 <td>NA</td>
+<td>OFF</td>
 <td>NA</td>
 <td>NA</td>
 <td>NA</td>
@@ -2745,15 +2745,15 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <tr>
 <td class="label">42/4</td>
 <td>PIN42_IOB42B</td>
-<td>in</td>
+<td>io</td>
 <td>IOB42[B]</td>
 <td>-</td>
 <td>LVCMOS33</td>
-<td>NA</td>
+<td>8</td>
 <td>UP</td>
-<td>ON</td>
-<td>NONE</td>
 <td>NA</td>
+<td>HIGH</td>
+<td>OFF</td>
 <td>NA</td>
 <td>NA</td>
 <td>NA</td>
@@ -3959,7 +3959,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <td>NA</td>
 <td>DOWN</td>
 <td>ON</td>
-<td>HIGH</td>
+<td>NONE</td>
 <td>NA</td>
 <td>NA</td>
 <td>OFF</td>

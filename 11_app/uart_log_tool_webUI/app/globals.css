@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root {
+  --background: #090d13;
+  --foreground: #c8d4e8;
+  --card: #0e1521;
+  --card-foreground: #c8d4e8;
+  --popover: #131d2e;
+  --popover-foreground: #c8d4e8;
+  --primary: #38bdf8;
+  --primary-foreground: #090d13;
+  --secondary: #162035;
+  --secondary-foreground: #7a8fa8;
+  --muted: #0c1220;
+  --muted-foreground: #3d5068;
+  --accent: #38bdf8;
+  --accent-foreground: #090d13;
+  --destructive: #f87171;
+  --border: rgba(255, 255, 255, 0.07);
+  --input: #1e2d42;
+  --ring: rgba(56, 189, 248, 0.35);
+  --radius: 0.25rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 1px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.font-mono,
+pre,
+code,
+kbd,
+samp {
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--foreground);
+  background: transparent;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.28;
+  background-image:
+    linear-gradient(rgba(27, 18, 8, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 18, 8, 0.03) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.font-display {
+  font-family: Cambria, Georgia, serif;
+}

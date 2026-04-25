@@ -61,7 +61,7 @@ The binary bulk path shall:
 This specification assumes the existing top-level structure remains.
 
 - `uart_log_cli`
-- `sdram_emb_hostif`
+- `sdram_emb_hostif_ctrl`
 - `sdram_uart_bridge_ctrl`
 - host event source `src_id = 0x03`
 
@@ -421,18 +421,22 @@ Recommended error classes:
 
 ## 11. RTL Partitioning
 
-### 11.1 Recommended Modules
+### 11.1 Current Module Split
 
-The next implementation should split functionality into dedicated modules.
+The current repository keeps the implemented bulk path in active production
+modules rather than the older proposed split-out helpers.
 
 - `sdram_uart_ascii_ctrl.sv`
-  ASCII line parser and single-access command issuer
+  ASCII line parser and command classifier
 - `sdram_uart_bulk_rx.sv`
   binary bulk write block receiver
-- `sdram_uart_bulk_tx.sv`
-  binary bulk read block transmitter
-- `sdram_uart_host_mux.sv`
-  arbitration between single-access and bulk-access engines
+- `sdram_uart_bridge_ctrl.sv`
+  command admission, bulk-session control, and event response staging
+- `sdram_uart_access_engine.sv`
+  SDRAM command execution for single, burst-test, and raw bulk accesses
+
+The historical proposal modules `sdram_uart_bulk_tx.sv` and
+`sdram_uart_host_mux.sv` are not part of the current repository.
 
 ### 11.2 Reuse Policy
 

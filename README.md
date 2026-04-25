@@ -85,15 +85,12 @@ python .\11_app\debug_log_cli\uart_log_tool.py `
 The TUI includes SDRAM pages for:
 
 - `SDRAM STS`: status-map decode and raw word view
-- `SDRAM RW`: single-word read/write and map-style reads
+- `SDRAM RW`: single-word read/write and bulk file write using `.bin` or
+  `.hex` payloads
 - `SDRAM Map`: 256-word `BR` bulk read map refresh
-- `SDRAM Bulk`: `BR` / `BW` range transfers plus `BWT` / `BRT` burst test mode
-- `SDRAM File`: bulk file write/read save using `.bin` or `.hex` payloads
 
-For `SDRAM File` reads, the length field accepts words by default and also
-accepts byte counts with a `b` suffix such as `64b` or `0x21b`. The host
-still issues whole-word SDRAM reads, then trims the saved file to the
-requested byte count.
+The EEPROM pages include `EEPROM Map` and `EEPROM RW`.  `EEPROM RW` supports
+single-byte read/write and bulk file write using `.bin` or `.hex` payloads.
 
 The command-line SDRAM helper is:
 
