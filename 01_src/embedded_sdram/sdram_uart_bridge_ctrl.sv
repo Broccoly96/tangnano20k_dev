@@ -79,9 +79,8 @@ module sdram_uart_bridge_ctrl #(
   logic [31:0]  s_ascii_err_detail;
 
   logic         r_ascii_cmd_ready;
-  logic         r_cmd_busy;
   logic         r_read_rsp_pending;
-  logic [20:0]  r_read_addr;
+  logic [15:0]  r_read_addr;
   logic         r_access_req_valid;
   logic         r_access_req_is_write;
   logic         r_access_req_is_burst_test;
@@ -180,9 +179,9 @@ module sdram_uart_bridge_ctrl #(
   logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_bulk_wr_data;
   logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_bulk_rd_chunk_data;
   logic [7:0]                 r_bulk_rd_packet_id;
-  logic [7:0]                 r_bulk_rd_packet_count;
   logic [BULK_RX_TIMEOUT_W-1:0] r_bulk_rx_timeout_cnt;
   logic [8:0]                 s_bulk_issue_words;
+  logic [7:0]                 s_bulk_rd_packet_count;
   logic [8:0]                 s_bulk_send_word_idx;
   logic                       s_bulk_send_one_word;
   logic [20:0]                s_bulk_send_addr;
@@ -190,10 +189,10 @@ module sdram_uart_bridge_ctrl #(
   logic [31:0]                s_bulk_send_data1;
   logic                       s_bulk_rx_timeout;
 
-  assign O_STATUS_ADDR          = r_read_addr[15:0];
+  assign O_STATUS_ADDR          = r_read_addr;
 
   assign s_bulk_active          = (st_bulk != BULK_IDLE);
-  assign O_CMD_BUSY             = r_cmd_busy || r_read_rsp_pending || l_access_busy || s_bulk_active;
+  assign O_CMD_BUSY             = r_read_rsp_pending || l_access_busy || s_bulk_active;
   assign O_SDRC_ACTIVE          = l_access_busy;
   assign O_HOST_DBG_RD_BEATS    = l_access_dbg_rd_beats;
   assign s_access_evt_can_push  = l_access_evt_valid && !s_evt_fifo_full && !r_evt_push_valid && !r_bulk_evt_pending;
@@ -203,6 +202,7 @@ module sdram_uart_bridge_ctrl #(
   assign s_evt_push             = r_evt_push_valid && !s_evt_fifo_full;
   assign s_evt_pop              = HOST_EVT_IF.evt_valid && HOST_EVT_IF.evt_ready;
   assign s_bulk_evt_accept      = r_bulk_evt_pending && !s_evt_fifo_full;
+  assign s_bulk_rd_packet_count = r_bulk_chunk_words[8:1] + {7'h0, r_bulk_chunk_words[0]};
   assign s_bulk_send_word_idx   = {1'b0, r_bulk_rd_packet_id} << 1;
   assign s_bulk_send_one_word   = (s_bulk_send_word_idx + 9'd1) >= r_bulk_chunk_words;
   assign s_bulk_send_addr       = r_bulk_next_addr + s_bulk_send_word_idx;
@@ -320,7 +320,7 @@ module sdram_uart_bridge_ctrl #(
   assign s_ascii_decode_window    = !s_emit_access_event && !r_read_rsp_pending;
   assign s_emit_ascii_err         = s_ascii_decode_window && s_ascii_err_valid;
   assign s_cmd_accept             = s_ascii_decode_window && s_ascii_cmd_valid && !r_ascii_cmd_ready;
-  assign s_cmd_blocked            = s_cmd_accept && (!I_ENABLE || r_cmd_busy || r_read_rsp_pending || s_bulk_active);
+  assign s_cmd_blocked            = s_cmd_accept && (!I_ENABLE || r_read_rsp_pending || s_bulk_active);
 
   assign s_status_read_req        = s_cmd_accept && !s_cmd_blocked && s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_READ);
   assign s_status_write_req       = s_cmd_accept && !s_cmd_blocked && s_ascii_cmd_is_status && (s_ascii_cmd_op == ASCII_OP_WRITE);
@@ -374,7 +374,7 @@ module sdram_uart_bridge_ctrl #(
     end else if (s_emit_status_read_rsp) begin
       s_evt_push_req  = 1'b1;
       s_evt_push_id   = EVT_READ_RSP;
-      s_evt_push_arg0 = {11'h000, r_read_addr};
+      s_evt_push_arg0 = {16'h0000, r_read_addr};
       s_evt_push_arg1 = I_STATUS_RD_DATA;
       s_evt_push_arg2 = 32'h0000_0000;
 
@@ -549,20 +549,7 @@ module sdram_uart_bridge_ctrl #(
         r_read_rsp_pending <= 1'b0;
       end else if (s_status_read_start) begin
         r_read_rsp_pending <= 1'b1;
-        r_read_addr        <= s_ascii_cmd_addr;
-      end
-    end
-  end
-
-  // Command busy is only used to cover the delayed status-map read response.
-  always_ff @(posedge I_CLK or negedge I_RST_N) begin
-    if (!I_RST_N) begin
-      r_cmd_busy <= 1'b0;
-    end else begin
-      if (s_emit_status_read_rsp) begin
-        r_cmd_busy <= 1'b0;
-      end else if (s_status_read_start) begin
-        r_cmd_busy <= 1'b1;
+        r_read_addr        <= s_ascii_cmd_addr[15:0];
       end
     end
   end
@@ -661,7 +648,6 @@ module sdram_uart_bridge_ctrl #(
       r_bulk_wr_data        <= '0;
       r_bulk_rd_chunk_data  <= '0;
       r_bulk_rd_packet_id   <= '0;
-      r_bulk_rd_packet_count<= '0;
       r_bulk_rx_timeout_cnt <= '0;
     end else begin
       if (s_bulk_evt_accept) begin
@@ -698,7 +684,6 @@ module sdram_uart_bridge_ctrl #(
             r_bulk_chunk_words     <= '0;
             r_bulk_rd_chunk_data   <= '0;
             r_bulk_rd_packet_id    <= '0;
-            r_bulk_rd_packet_count <= '0;
 
             if (!r_bulk_evt_pending) begin
               r_bulk_evt_pending <= 1'b1;
@@ -809,14 +794,13 @@ module sdram_uart_bridge_ctrl #(
           end else if (l_access_raw_done) begin
             r_bulk_rd_chunk_data   <= l_access_raw_rd_data;
             r_bulk_rd_packet_id    <= '0;
-            r_bulk_rd_packet_count <= r_bulk_chunk_words[8:1] + {7'h0, r_bulk_chunk_words[0]};
             st_bulk                <= BULK_READ_SEND;
           end
         end
 
         BULK_READ_SEND: begin
           if (!r_bulk_evt_pending) begin
-            if (r_bulk_rd_packet_id < r_bulk_rd_packet_count) begin
+            if (r_bulk_rd_packet_id < s_bulk_rd_packet_count) begin
               data_evt_arg0 = {9'h000, s_bulk_send_one_word ? 2'd1 : 2'd2, s_bulk_send_addr};
               data_evt_arg1 = s_bulk_send_data0;
               data_evt_arg2 = s_bulk_send_one_word ? 32'h0000_0000 : s_bulk_send_data1;

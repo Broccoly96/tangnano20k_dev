@@ -9,6 +9,10 @@
 ..\02_tb\tb_log_pkg.sv
 ..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv
 
+..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv
+..\01_src\ssd1331_display\ssd1331_spi_master.sv
+..\01_src\ssd1331_display\ssd1331_display_ctrl.sv
+..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv
 ..\01_src\sync_fifo_ae_af.sv
 ..\01_src\uart_log_cli\uart_log_cli_pkg.sv
 ..\01_src\uart_log_cli\uart_log_evt_if.sv

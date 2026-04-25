@@ -58,18 +58,18 @@ module tangnano20k_top(
   input   wire      PIN70_IOT44B,
   input   wire      PIN71_IOT44A,
   input   wire      PIN72_IOT40B,
-  input   wire      PIN73_IOT40A,   // SSD1306_CS
-  input   wire      PIN74_IOT34B,   // SSD1306_D0
-  input   wire      PIN75_IOT34A,   // SSD1306_D1
+  output  wire      PIN73_IOT40A,   // SSD1331_CS_N
+  output  wire      PIN74_IOT34B,   // SSD1331_D0_SCLK
+  output  wire      PIN75_IOT34A,   // SSD1331_D1_SDIN
   output  wire      PIN76_IOT30B,   // EEPROM_WP
-  input   wire      PIN77_IOT30A,   // SSD1306_DC
+  output  wire      PIN77_IOT30A,   // SSD1331_DC
   input   wire      PIN79_IOT27B,
   inout   wire      PIN80_IOT27A,   // EEPROM_SCL
   input   wire      PIN81_IOT17B,
   input   wire      PIN82_IOT17A,
   input   wire      PIN83_IOT6B,
   input   wire      PIN84_IOT6A,
-  input   wire      PIN85_IOT4B,    // SSD1306_RES
+  output  wire      PIN85_IOT4B,    // SSD1331_RES_N
   input   wire      PIN86_IOT4A,
   input   wire      PIN87_IOT30B,
   input   wire      PIN88_IOT30A,
@@ -88,10 +88,10 @@ module tangnano20k_top(
 
   localparam int unsigned FPGA_INIT_WAIT            = 24000;
 
-  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 3'b111;
   localparam int unsigned UART_LOG_CLK_HZ           = 24_000_000;
   localparam int unsigned UART_LOG_BAUD             = 115_200;
-  localparam int unsigned UART_LOG_NUM_SRC          = 3;
+  localparam int unsigned UART_LOG_NUM_SRC          = 4;
+  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 4'b1111;
 
   localparam int unsigned SOFT_RESET_HOLD_CYCLES    = UART_LOG_CLK_HZ;
   localparam int unsigned EEPROM_I2C_BIT_RATE_HZ    = 1_000_000;
@@ -120,6 +120,11 @@ module tangnano20k_top(
   logic       l_eeprom_i2c_scl_drive_low;
   logic       l_eeprom_i2c_sda_in;
   logic       l_eeprom_i2c_scl_in;
+  logic       l_display_cs_n;
+  logic       l_display_sclk;
+  logic       l_display_sdin;
+  logic       l_display_dc;
+  logic       l_display_res_n;
 
   logic         l_sdram_init_done;
   logic         l_sdram_test_active;
@@ -217,6 +222,11 @@ module tangnano20k_top(
   assign PIN42_IOB42B = l_eeprom_i2c_sda_drive_low ? 1'b0 : 1'bz;
   assign PIN80_IOT27A = l_eeprom_i2c_scl_drive_low ? 1'b0 : 1'bz;
   assign PIN76_IOT30B = 1'b0;
+  assign PIN73_IOT40A = l_display_cs_n;
+  assign PIN74_IOT34B = l_display_sclk;
+  assign PIN75_IOT34A = l_display_sdin;
+  assign PIN77_IOT30A = l_display_dc;
+  assign PIN85_IOT4B  = l_display_res_n;
 
 
   //---------------------------------------------------------------------------------------------
@@ -276,6 +286,21 @@ module tangnano20k_top(
     .O_I2C_SCL_DRIVE_LOW  (l_eeprom_i2c_scl_drive_low),
     .O_CMD_BUSY           (),
     .HOST_EVT_IF          (l_eeprom_evt_if)
+  );
+
+  ssd1331_uart_bridge_ctrl u_ssd1331_uart_bridge_ctrl (
+    .I_CLK        (clk_24m_sys),
+    .I_RST_N      (rst_fpga_24m_n),
+    .I_ENABLE     (1'b1),
+    .I_CLI_RX_VALID(l_cli_rx_valid_24m),
+    .I_CLI_RX_DATA(l_cli_rx_data_24m),
+    .O_CMD_BUSY   (),
+    .O_DISP_CS_N  (l_display_cs_n),
+    .O_DISP_SCLK  (l_display_sclk),
+    .O_DISP_SDIN  (l_display_sdin),
+    .O_DISP_DC    (l_display_dc),
+    .O_DISP_RES_N (l_display_res_n),
+    .HOST_EVT_IF  (l_uart_src_if[3])
   );
 
   sdram_emb_hostif_ctrl #(

@@ -129,3 +129,13 @@ default:
   level: ERROR
   title: EEPROM_HOST_CMD_ERR
   message: "EEPROM host command error reason=0x{arg0_hex} cmd=0x{arg1_hex} detail=0x{arg2_hex}"
+
+"0x04:0x30":
+  level: INFO
+  title: SSD1331_CMD_ACK
+  message: "SSD1331 command ack op=0x{arg0_b0:02X} color=0x{arg1_u32:06X}"
+
+"0x04:0x3E":
+  level: ERROR
+  title: SSD1331_CMD_ERR
+  message: "SSD1331 command error reason=0x{arg0_hex} detail=0x{arg1_hex}"

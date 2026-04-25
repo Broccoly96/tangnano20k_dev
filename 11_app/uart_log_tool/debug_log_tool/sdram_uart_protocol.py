@@ -11,7 +11,7 @@ from uart_log_protocol import Frame, FrameParser
 
 
 HOST_SRC_INDEX = 2
-UART_LOG_NUM_SRC = 3
+UART_LOG_NUM_SRC = 4
 HOST_SRC_ID = 0x03
 SYS_SRC_ID = 0x00
 SYS_EVT_MODE_CHANGE = 0x01

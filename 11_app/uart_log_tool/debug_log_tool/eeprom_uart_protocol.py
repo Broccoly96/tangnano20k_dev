@@ -16,7 +16,7 @@ from sdram_uart_protocol import (
 
 
 HOST_SRC_INDEX = 0
-UART_LOG_NUM_SRC = 3
+UART_LOG_NUM_SRC = 4
 HOST_SRC_ID = 0x01
 
 HOST_EVT_WRITE_ACK = 0x30

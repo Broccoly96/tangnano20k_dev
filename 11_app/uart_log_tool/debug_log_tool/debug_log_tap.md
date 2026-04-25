@@ -31,7 +31,7 @@ Current top-level flow is:
 
 ```text
 Log source event
-  -> uart_log_dual_tap
+  -> source-specific buffering and selection
      -> UART selected-source path
         -> uart_log_cli
         -> UART frame stream

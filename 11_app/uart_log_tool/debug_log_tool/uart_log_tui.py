@@ -1,4 +1,4 @@
-"""Textual TUI for UART log viewing plus SDRAM and EEPROM inspection."""
+"""Textual TUI for UART log viewing plus SDRAM, EEPROM, and SSD1331 control."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 
 import eeprom_uart_protocol as eeprom_proto
+import ssd1331_uart_protocol as display_proto
 from sdram_uart_protocol import (
     HOST_EVT_BURST_DATA,
     HOST_EVT_BURST_DONE,
@@ -54,7 +55,7 @@ from uart_log_tcp import UARTTCPClient
 
 
 HOST_SRC_INDEX = 2
-UART_LOG_NUM_SRC = 3
+UART_LOG_NUM_SRC = 4
 SYS_SRC_ID = 0x00
 EV_MODE_CHANGE = 0x01
 HOST_SRC_ID = 0x03
@@ -87,6 +88,7 @@ EEPROM_MAP_RESPONSE_TIMEOUT_S = 5.0
 EEPROM_MAP_READ_RETRY_LIMIT = 3
 EEPROM_RW_RESPONSE_TIMEOUT_S = 1.0
 EEPROM_RW_TASK_RETRY_LIMIT = 3
+DISPLAY_RESPONSE_TIMEOUT_S = 3.0
 
 
 @dataclass(frozen=True)
@@ -556,6 +558,7 @@ class UARTLogApp(App[None]):
     #file_write_path_input { width: 1fr; }
     #eeprom_file_write_addr_input { width: 18; }
     #eeprom_file_write_path_input { width: 1fr; }
+    #display_color_input { width: 12; }
     #help_line { height: 2; margin: 0 1 1 1; content-align: left middle; }
     """
 
@@ -566,6 +569,7 @@ class UARTLogApp(App[None]):
         ("4", "show_status", "SDRAM STS"),
         ("5", "show_eeprom_map", "EEPROM Map"),
         ("6", "show_eeprom_rw", "EEPROM RW"),
+        ("7", "show_display", "Display"),
         ("p", "rescan", "Rescan Ports"),
         ("c", "toggle_connect", "Connect/Disconnect"),
         ("m", "toggle_mode", "Raw/Decode"),
@@ -653,6 +657,7 @@ class UARTLogApp(App[None]):
         self._eeprom_single_read_result = "-"
         self._eeprom_single_write_result = "-"
         self._eeprom_file_write_result = "-"
+        self._display_summary_text = "idle"
         self._rw_file_write_result = "-"
         self._rw_file_read_result = "-"
         self._burst_summary_text = "idle"
@@ -706,6 +711,13 @@ class UARTLogApp(App[None]):
         self._eeprom_bulk_write_rsp_deadline = 0.0
         self._eeprom_bulk_write_retry_count = 0
         self._eeprom_bulk_write_abort_count = 0
+        self._display_task_active = False
+        self._display_task_command_sent = False
+        self._display_task_select_deadline = 0.0
+        self._display_task_rsp_deadline = 0.0
+        self._display_task_payload = b""
+        self._display_task_label = ""
+        self._display_task_expected_op = display_proto.DISP_OP_INIT
         if self._replay_file_path is not None:
             try:
                 self._replay_records = load_replay_records(self._replay_file_path)
@@ -754,6 +766,8 @@ class UARTLogApp(App[None]):
         self._eeprom_file_write_addr_input: Input | None = None
         self._eeprom_file_write_path_input: Input | None = None
         self._eeprom_file_write_result_widget: Static | None = None
+        self._display_summary: Static | None = None
+        self._display_color_input: Input | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -774,6 +788,7 @@ class UARTLogApp(App[None]):
                     yield Button("4 SDRAM STS", id="nav_status")
                     yield Button("5 EEPROM Map", id="nav_eeprom_map")
                     yield Button("6 EEPROM RW", id="nav_eeprom_rw")
+                    yield Button("7 Display", id="nav_display")
                 with Vertical(id="screen_host"):
                     with Vertical(id="log_screen", classes="screen"):
                         with Horizontal(id="log_main_row"):
@@ -845,7 +860,20 @@ class UARTLogApp(App[None]):
                                     yield Input(value="0x00000", id="eeprom_file_write_addr_input", placeholder="base addr")
                                     yield Input(value="", id="eeprom_file_write_path_input", placeholder="input .bin/.hex path")
                                 yield Static("-", id="eeprom_file_write_result")
-            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=eeprom-map 6=eeprom-rw p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
+                    with Vertical(id="display_screen", classes="screen hidden"):
+                        yield Static("", id="display_summary", classes="panel")
+                        with Vertical(classes="panel rw_panel"):
+                            yield Static("SSD1331 Display Control")
+                            with Horizontal(classes="toolbar"):
+                                yield Button("Init", id="btn_display_init")
+                                yield Button("Clear", id="btn_display_clear")
+                                yield Button("Pattern", id="btn_display_pattern")
+                            with Horizontal(classes="toolbar"):
+                                yield Button("ON", id="btn_display_on")
+                                yield Button("OFF", id="btn_display_off")
+                                yield Input(value="FF0000", id="display_color_input", placeholder="RRGGBB")
+                                yield Button("Fill", id="btn_display_fill")
+            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=eeprom-map 6=eeprom-rw 7=display p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -886,6 +914,8 @@ class UARTLogApp(App[None]):
         self._eeprom_file_write_addr_input = self.query_one("#eeprom_file_write_addr_input", Input)
         self._eeprom_file_write_path_input = self.query_one("#eeprom_file_write_path_input", Input)
         self._eeprom_file_write_result_widget = self.query_one("#eeprom_file_write_result", Static)
+        self._display_summary = self.query_one("#display_summary", Static)
+        self._display_color_input = self.query_one("#display_color_input", Input)
         self._table.cursor_type = "row"
         self._table.add_columns("Time", "SEQ", "SRC", "EVT", "TS", "ARG0", "ARG1", "ARG2", "CRC", "Mode", "Text")
         self._reload_decoder(force=True, manual=False)
@@ -894,6 +924,7 @@ class UARTLogApp(App[None]):
         self._refresh_status_view()
         self._refresh_rw_view()
         self._refresh_eeprom_rw_view()
+        self._refresh_display_view()
         self._show_screen("log")
         if self._replay_file_path is not None:
             if self._port_select is not None:
@@ -933,6 +964,7 @@ class UARTLogApp(App[None]):
         self.set_interval(0.05, self._poll_eeprom_rw_task)
         self.set_interval(0.05, self._poll_eeprom_bulk_write_task)
         self.set_interval(0.05, self._poll_burst_task)
+        self.set_interval(0.05, self._poll_display_task)
         self.set_interval(0.5, self._watch_decoder)
         self._update_stats()
 
@@ -964,6 +996,8 @@ class UARTLogApp(App[None]):
             self.action_show_eeprom_map()
         elif button_id == "nav_eeprom_rw":
             self.action_show_eeprom_rw()
+        elif button_id == "nav_display":
+            self.action_show_display()
         elif button_id == "btn_map_refresh":
             self.action_refresh_map()
         elif button_id == "btn_eeprom_map_refresh":
@@ -986,6 +1020,18 @@ class UARTLogApp(App[None]):
             self._start_file_write()
         elif button_id == "btn_eeprom_file_write":
             self._start_eeprom_file_write()
+        elif button_id == "btn_display_init":
+            self._start_display_init()
+        elif button_id == "btn_display_clear":
+            self._start_display_clear()
+        elif button_id == "btn_display_pattern":
+            self._start_display_pattern()
+        elif button_id == "btn_display_on":
+            self._start_display_on()
+        elif button_id == "btn_display_off":
+            self._start_display_off()
+        elif button_id == "btn_display_fill":
+            self._start_display_fill()
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "filter_input":
@@ -1010,6 +1056,9 @@ class UARTLogApp(App[None]):
 
     def action_show_eeprom_rw(self) -> None:
         self._show_screen("eeprom_rw")
+
+    def action_show_display(self) -> None:
+        self._show_screen("display")
 
     def action_focus_filter(self) -> None:
         if self._filter_input is not None:
@@ -1094,12 +1143,14 @@ class UARTLogApp(App[None]):
         rw_screen = self.query_one("#rw_screen", Vertical)
         eeprom_map_screen = self.query_one("#eeprom_map_screen", Vertical)
         eeprom_rw_screen = self.query_one("#eeprom_rw_screen", Vertical)
+        display_screen = self.query_one("#display_screen", Vertical)
         log_screen.set_class(screen_name != "log", "hidden")
         map_screen.set_class(screen_name != "map", "hidden")
         status_screen.set_class(screen_name != "status", "hidden")
         rw_screen.set_class(screen_name != "rw", "hidden")
         eeprom_map_screen.set_class(screen_name != "eeprom_map", "hidden")
         eeprom_rw_screen.set_class(screen_name != "eeprom_rw", "hidden")
+        display_screen.set_class(screen_name != "display", "hidden")
 
     def _watch_decoder(self) -> None:
         self._reload_decoder(force=False, manual=False)
@@ -1298,7 +1349,143 @@ class UARTLogApp(App[None]):
             or self._eeprom_rw_task_active
             or self._burst_task_active
             or self._eeprom_bulk_write_active
+            or self._display_task_active
         )
+
+    def _refresh_display_view(self) -> None:
+        if self._display_summary is not None:
+            self._display_summary.update(
+                "\n".join(
+                    [
+                        "[SSD1331 Display]",
+                        f"source     : idx={display_proto.HOST_SRC_INDEX} id=0x{display_proto.HOST_SRC_ID:02X}",
+                        f"state      : {'running' if self._display_task_active else 'idle'}",
+                        f"detail     : {self._display_summary_text}",
+                    ]
+                )
+            )
+
+    def _start_display_task(self, payload: bytes, label: str, expected_op: int) -> None:
+        if self._replay_file_path is not None:
+            self._display_summary_text = "replay mode: display control disabled"
+            self._refresh_display_view()
+            self._set_status(self._display_summary_text)
+            return
+        if not self._active_connected():
+            self._display_summary_text = "not connected"
+            self._refresh_display_view()
+            self._set_status(self._display_summary_text)
+            return
+        if self._host_task_busy():
+            self._display_summary_text = "host task busy"
+            self._refresh_display_view()
+            self._set_status(self._display_summary_text)
+            return
+
+        self._display_task_active = True
+        self._display_task_command_sent = False
+        self._display_task_select_deadline = 0.0
+        self._display_task_rsp_deadline = 0.0
+        self._display_task_payload = payload
+        self._display_task_label = label
+        self._display_task_expected_op = expected_op
+        self._display_summary_text = f"queued {label}"
+        self._refresh_display_view()
+        self._set_status(self._display_summary_text)
+
+    def _start_display_init(self) -> None:
+        self._start_display_task(
+            display_proto.build_init_command(),
+            "display init",
+            display_proto.DISP_OP_INIT,
+        )
+
+    def _start_display_clear(self) -> None:
+        self._start_display_task(
+            display_proto.build_clear_command(),
+            "display clear",
+            display_proto.DISP_OP_CLEAR,
+        )
+
+    def _start_display_pattern(self) -> None:
+        self._start_display_task(
+            display_proto.build_pattern_command(),
+            "display pattern",
+            display_proto.DISP_OP_PATTERN,
+        )
+
+    def _start_display_on(self) -> None:
+        self._start_display_task(
+            display_proto.build_on_command(),
+            "display on",
+            display_proto.DISP_OP_ON,
+        )
+
+    def _start_display_off(self) -> None:
+        self._start_display_task(
+            display_proto.build_off_command(),
+            "display off",
+            display_proto.DISP_OP_OFF,
+        )
+
+    def _start_display_fill(self) -> None:
+        if self._display_color_input is None:
+            return
+        try:
+            color = display_proto.parse_rgb888(self._display_color_input.value)
+        except Exception as exc:
+            self._display_summary_text = f"invalid fill color: {exc}"
+            self._refresh_display_view()
+            self._set_status(self._display_summary_text)
+            return
+
+        self._start_display_task(
+            display_proto.build_fill_command(color),
+            f"display fill 0x{color:06X}",
+            display_proto.DISP_OP_FILL,
+        )
+
+    def _finish_display_task(self, message: str) -> None:
+        self._display_task_active = False
+        self._display_task_command_sent = False
+        self._display_task_select_deadline = 0.0
+        self._display_task_rsp_deadline = 0.0
+        self._display_task_payload = b""
+        self._display_task_label = ""
+        self._display_summary_text = message
+        self._refresh_display_view()
+        self._set_status(message)
+
+    def _poll_display_task(self) -> None:
+        if not self._display_task_active:
+            return
+
+        now = time.monotonic()
+        if self._selected_src_idx != display_proto.HOST_SRC_INDEX:
+            if now >= self._display_task_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_display_task("failed to select display source")
+                    return
+                self._display_summary_text = (
+                    f"selecting display source (current={self._selected_src_idx})"
+                )
+                self._display_task_select_deadline = now + 0.35
+                self._refresh_display_view()
+            return
+
+        if not self._display_task_command_sent:
+            if self._send_bytes(self._display_task_payload) != len(self._display_task_payload):
+                self._finish_display_task(f"short write for {self._display_task_label}")
+                return
+            self._display_task_command_sent = True
+            self._display_task_rsp_deadline = now + DISPLAY_RESPONSE_TIMEOUT_S
+            self._display_summary_text = f"sent {self._display_task_label}"
+            self._refresh_display_view()
+            self._set_status(self._display_summary_text)
+            return
+
+        if now > self._display_task_rsp_deadline:
+            self._finish_display_task(f"timeout waiting for {self._display_task_label}")
 
     def _refresh_status_view(self) -> None:
         mode_label = "Decode" if self._status_mode == "decode" else "Raw"
@@ -2325,6 +2512,25 @@ class UARTLogApp(App[None]):
     def _handle_special_event(self, event: Event) -> None:
         if event.src_id == SYS_SRC_ID and event.event_id == EV_MODE_CHANGE:
             self._selected_src_idx = event.arg1 & 0xFF
+        if self._display_task_active and event.src_id == display_proto.HOST_SRC_ID:
+            if event.event_id == display_proto.EVT_CMD_ACK:
+                ack_op = event.arg0 & 0xFF
+                if ack_op != self._display_task_expected_op:
+                    self._finish_display_task(
+                        f"display ack mismatch op=0x{ack_op:02X} expected=0x{self._display_task_expected_op:02X}"
+                    )
+                elif ack_op == display_proto.DISP_OP_FILL:
+                    self._finish_display_task(
+                        f"{self._display_task_label} ok color=0x{event.arg1 & 0xFFFFFF:06X}"
+                    )
+                else:
+                    self._finish_display_task(f"{self._display_task_label} ok")
+                return
+            if event.event_id == display_proto.EVT_CMD_ERR:
+                self._finish_display_task(
+                    f"{self._display_task_label} err reason=0x{event.arg0:08X} detail=0x{event.arg1:08X}"
+                )
+                return
         if self._eeprom_map_refresh_active and event.src_id == eeprom_proto.HOST_SRC_ID:
             if event.event_id == eeprom_proto.HOST_EVT_BULK_OK:
                 done_base = event.arg0 & eeprom_proto.EEPROM_MAX_ADDR
