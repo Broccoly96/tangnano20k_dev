@@ -39,7 +39,7 @@ module tangnano20k_top(
   input   wire      PIN39_IOB40A,
   input   wire      PIN40_IOB40B,
   input   wire      PIN41_IOB43A,
-  input   wire      PIN42_IOB42B,
+  input   wire      PIN42_IOB42B,   // EEPROM_SDA
   input   wire      PIN48_IOR49B,
   input   wire      PIN49_IOR49A,
   input   wire      PIN51_IOR45A,
@@ -58,21 +58,21 @@ module tangnano20k_top(
   input   wire      PIN70_IOT44B,
   input   wire      PIN71_IOT44A,
   input   wire      PIN72_IOT40B,
-  input   wire      PIN73_IOT40A,
-  input   wire      PIN74_IOT34B,
-  input   wire      PIN75_IOT34A,
+  input   wire      PIN73_IOT40A,   // SSD1306_CS
+  input   wire      PIN74_IOT34B,   // SSD1306_D0
+  input   wire      PIN75_IOT34A,   // SSD1306_D1
   input   wire      PIN76_IOT30B,
   input   wire      PIN77_IOT30A,
   input   wire      PIN79_IOT27B,
-  input   wire      PIN80_IOT27A,
+  input   wire      PIN80_IOT27A,   // EEPROM_SCL
   input   wire      PIN81_IOT17B,
   input   wire      PIN82_IOT17A,
-  input   wire      PIN83_IOT16B,
-  input   wire      PIN84_IOT16A,
-  input   wire      PIN85_IOT14B,
-  input   wire      PIN86_IOT14A,
-  input   wire      PIN87_IOT30B,
-  input   wire      PIN88_IOT30A,
+  input   wire      PIN83_IOT6B,
+  input   wire      PIN84_IOT6A,
+  input   wire      PIN85_IOT4B,    // SSD1306_RES
+  input   wire      PIN86_IOT4A,
+  input   wire      PIN87_IOT30B,   // EEPROM_WP
+  input   wire      PIN88_IOT30A,   // SSD1306_DC
   // Embedded SDRAM ports
   output            O_sdram_clk,
   output            O_sdram_cke,

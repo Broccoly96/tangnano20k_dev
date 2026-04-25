@@ -104,7 +104,7 @@
     "InstLine" : 246,
     "InstName" : "u_cli_rx_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv",
-    "ModuleLine" : 10,
+    "ModuleLine" : 12,
     "ModuleName" : "uart_log_cli_byte_async_bridge"
    },
    {
@@ -141,7 +141,7 @@
       "SubInsts" : [
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 146,
+        "InstLine" : 237,
         "InstName" : "u_sdram_uart_ascii_ctrl",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv",
         "ModuleLine" : 16,
@@ -149,11 +149,19 @@
        },
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 166,
+        "InstLine" : 257,
         "InstName" : "u_sdram_uart_access_engine",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
         "ModuleLine" : 12,
         "ModuleName" : "sdram_uart_access_engine"
+       },
+       {
+        "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
+        "InstLine" : 298,
+        "InstName" : "u_sdram_uart_bulk_rx",
+        "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bulk_rx.sv",
+        "ModuleLine" : 7,
+        "ModuleName" : "sdram_uart_bulk_rx"
        }
       ]
      }

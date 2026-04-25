@@ -21,9 +21,11 @@ module sdram_uart_access_engine #(
   output logic        O_REQ_READY,
   input  logic        I_REQ_IS_WRITE,
   input  logic        I_REQ_IS_BURST_TEST,
+  input  logic        I_REQ_IS_RAW_BULK,
   input  logic [20:0] I_REQ_ADDR,
   input  logic [31:0] I_REQ_DATA,
   input  logic [8:0]  I_REQ_WORDS,
+  input  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] I_REQ_RAW_WR_DATA,
   input  logic        I_SDRC_INIT_DONE,
   input  logic        I_SDRC_READY,
   input  logic        I_SDRC_CMD_ACK,
@@ -43,6 +45,10 @@ module sdram_uart_access_engine #(
   output logic [31:0] O_EVT_ARG0,
   output logic [31:0] O_EVT_ARG1,
   output logic [31:0] O_EVT_ARG2,
+  output logic        O_RAW_DONE,
+  output logic        O_RAW_ERR_VALID,
+  output logic [31:0] O_RAW_ERR_CODE,
+  output logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] O_RAW_RD_DATA,
   output logic        O_BUSY,
   output logic [31:0] O_DBG_HOST_SUMMARY,
   output logic [31:0] O_DBG_HOST_DETAIL,
@@ -96,6 +102,8 @@ module sdram_uart_access_engine #(
   logic [8:0]  r_req_words;
   logic        r_req_is_write;
   logic        r_req_is_burst_test;
+  logic        r_req_is_raw_bulk;
+  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_req_raw_wr_data;
   logic [8:0]  r_write_word_idx;
   logic [8:0]  r_read_word_idx;
   logic [7:0]  r_send_packet_id;
@@ -107,6 +115,10 @@ module sdram_uart_access_engine #(
   logic [31:0] r_evt_arg0;
   logic [31:0] r_evt_arg1;
   logic [31:0] r_evt_arg2;
+  logic        r_raw_done;
+  logic        r_raw_err_valid;
+  logic [31:0] r_raw_err_code;
+  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_raw_rd_data;
   logic [31:0] r_dbg_host_summary;
   logic [31:0] r_dbg_host_detail;
   logic [31:0] r_read_capture_lo [0:127];
@@ -122,7 +134,7 @@ module sdram_uart_access_engine #(
   logic [8:0] s_send_word_idx;
   logic       s_send_one_word;
 
-  assign s_in_words      = I_REQ_IS_BURST_TEST ? I_REQ_WORDS : 9'd1;
+  assign s_in_words      = (I_REQ_IS_BURST_TEST || I_REQ_IS_RAW_BULK) ? I_REQ_WORDS : 9'd1;
   assign s_in_words_m1   = s_in_words - 9'd1;
   assign s_in_data_len   = s_in_words_m1[7:0];
   assign s_in_page_cross = sdram_hs_burst_crosses_page(I_REQ_ADDR, s_in_data_len);
@@ -130,7 +142,7 @@ module sdram_uart_access_engine #(
   assign s_send_word_idx = {1'b0, r_send_packet_id} << 1;
   assign s_send_one_word = (s_send_word_idx + 9'd1) >= r_req_words;
 
-  assign O_REQ_READY = (st_state == IDLE) && !r_evt_valid;
+  assign O_REQ_READY = (st_state == IDLE) && !r_evt_valid && !r_raw_done && !r_raw_err_valid;
   assign O_SDRC_ADDR = r_req_addr;
   assign O_SDRC_DATA_LEN = s_req_words_m1[7:0];
   assign O_SDRC_DQM = 4'h0;
@@ -143,13 +155,19 @@ module sdram_uart_access_engine #(
   assign O_EVT_ARG0 = r_evt_arg0;
   assign O_EVT_ARG1 = r_evt_arg1;
   assign O_EVT_ARG2 = r_evt_arg2;
-  assign O_BUSY = (st_state != IDLE) || r_evt_valid;
+  assign O_RAW_DONE = r_raw_done;
+  assign O_RAW_ERR_VALID = r_raw_err_valid;
+  assign O_RAW_ERR_CODE = r_raw_err_code;
+  assign O_RAW_RD_DATA = r_raw_rd_data;
+  assign O_BUSY = (st_state != IDLE) || r_evt_valid || r_raw_done || r_raw_err_valid;
   assign O_DBG_HOST_SUMMARY = r_dbg_host_summary;
   assign O_DBG_HOST_DETAIL = r_dbg_host_detail;
 
   always_comb begin
     O_SDRC_WR_DATA = r_req_data;
-    if (r_req_is_burst_test && r_req_is_write) begin
+    if (r_req_is_raw_bulk && r_req_is_write) begin
+      O_SDRC_WR_DATA = r_req_raw_wr_data[r_write_word_idx*32 +: 32];
+    end else if (r_req_is_burst_test && r_req_is_write) begin
       O_SDRC_WR_DATA = {23'h0, r_write_word_idx};
     end
   end
@@ -249,6 +267,16 @@ module sdram_uart_access_engine #(
     end
   endtask
 
+  task automatic set_raw_error(
+    input logic [31:0] reason
+  );
+    begin
+      r_raw_err_valid <= 1'b1;
+      r_raw_err_code  <= reason;
+      set_debug(EVT_BULK_ERR, reason);
+    end
+  endtask
+
   // Runs one native HS transaction and serializes completion events.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
@@ -258,6 +286,8 @@ module sdram_uart_access_engine #(
       r_req_words <= 9'd1;
       r_req_is_write <= 1'b0;
       r_req_is_burst_test <= 1'b0;
+      r_req_is_raw_bulk <= 1'b0;
+      r_req_raw_wr_data <= '0;
       r_write_word_idx <= '0;
       r_read_word_idx <= '0;
       r_send_packet_id <= '0;
@@ -269,11 +299,18 @@ module sdram_uart_access_engine #(
       r_evt_arg0 <= 32'h0;
       r_evt_arg1 <= 32'h0;
       r_evt_arg2 <= 32'h0;
+      r_raw_done <= 1'b0;
+      r_raw_err_valid <= 1'b0;
+      r_raw_err_code <= 32'h0;
+      r_raw_rd_data <= '0;
       r_dbg_host_summary <= '0;
       r_dbg_host_detail <= '0;
       r_send_data0 <= 32'h0;
       r_send_data1 <= 32'h0;
     end else begin
+      r_raw_done <= 1'b0;
+      r_raw_err_valid <= 1'b0;
+
       if (r_evt_valid && I_EVT_READY) begin
         r_evt_valid <= 1'b0;
       end
@@ -296,11 +333,16 @@ module sdram_uart_access_engine #(
             r_req_words <= s_in_words;
             r_req_is_write <= I_REQ_IS_WRITE;
             r_req_is_burst_test <= I_REQ_IS_BURST_TEST;
+            r_req_is_raw_bulk <= I_REQ_IS_RAW_BULK;
+            r_req_raw_wr_data <= I_REQ_RAW_WR_DATA;
             r_write_word_idx <= '0;
             r_read_word_idx <= '0;
             r_packet_count <= '0;
+            r_raw_rd_data <= '0;
             if (!I_SDRC_INIT_DONE) begin
-              if (I_REQ_IS_BURST_TEST) begin
+              if (I_REQ_IS_RAW_BULK) begin
+                set_raw_error(I_REQ_IS_WRITE ? ERR_SDRAM_WR_TO : ERR_SDRAM_RD_TO);
+              end else if (I_REQ_IS_BURST_TEST) begin
                 set_event(
                   EVT_BULK_ERR,
                   I_REQ_IS_WRITE ? ERR_SDRAM_WR_TO : ERR_SDRAM_RD_TO,
@@ -318,6 +360,10 @@ module sdram_uart_access_engine #(
                 set_debug(I_REQ_IS_WRITE ? EVT_WRITE_ACK : EVT_READ_RSP, {11'h000, I_REQ_ADDR});
               end
               st_state <= RESPOND;
+            end else if (I_REQ_IS_RAW_BULK && ((I_REQ_WORDS == 9'd0) ||
+                         (I_REQ_WORDS > MAX_BULK_PAYLOAD_WORDS))) begin
+              set_raw_error(ERR_WORD_COUNT);
+              st_state <= RESPOND;
             end else if (I_REQ_IS_BURST_TEST && ((I_REQ_WORDS == 9'd0) ||
                          (I_REQ_WORDS > 9'd256))) begin
               set_event(
@@ -329,7 +375,9 @@ module sdram_uart_access_engine #(
               set_debug(EVT_BULK_ERR, ERR_WORD_COUNT);
               st_state <= RESPOND;
             end else if (s_in_page_cross) begin
-              if (I_REQ_IS_BURST_TEST) begin
+              if (I_REQ_IS_RAW_BULK) begin
+                set_raw_error(ERR_ADDR_RANGE);
+              end else if (I_REQ_IS_BURST_TEST) begin
                 set_event(
                   EVT_BULK_ERR,
                   ERR_ADDR_RANGE,
@@ -365,7 +413,9 @@ module sdram_uart_access_engine #(
             st_state <= r_req_is_write ? WRITE_REQ : READ_REQ;
             r_timeout_cnt <= '0;
           end else if (r_timeout_cnt >= RESP_TIMEOUT_CYCLES - 1) begin
-            if (r_req_is_burst_test) begin
+            if (r_req_is_raw_bulk) begin
+              set_raw_error(r_req_is_write ? ERR_SDRAM_WR_TO : ERR_SDRAM_RD_TO);
+            end else if (r_req_is_burst_test) begin
               set_burst_error(r_req_is_write ? ERR_SDRAM_WR_TO : ERR_SDRAM_RD_TO);
             end else begin
               set_single_event(r_req_data, r_req_is_write ? ERR_SDRAM_WR_TO : ERR_SDRAM_RD_TO);
@@ -385,7 +435,10 @@ module sdram_uart_access_engine #(
             r_write_word_idx <= r_write_word_idx + 1'b1;
           end
           if (I_SDRC_CMD_ACK) begin
-            if (r_req_is_burst_test) begin
+            if (r_req_is_raw_bulk) begin
+              r_raw_done <= 1'b1;
+              set_debug(EVT_BULK_PROG, {11'h000, r_req_addr});
+            end else if (r_req_is_burst_test) begin
               set_event(
                 EVT_BURST_DONE,
                 {11'h000, r_req_addr},
@@ -398,7 +451,9 @@ module sdram_uart_access_engine #(
             end
             st_state <= RESPOND;
           end else if (r_timeout_cnt >= RESP_TIMEOUT_CYCLES - 1) begin
-            if (r_req_is_burst_test) begin
+            if (r_req_is_raw_bulk) begin
+              set_raw_error(ERR_SDRAM_WR_TO);
+            end else if (r_req_is_burst_test) begin
               set_burst_error(ERR_SDRAM_WR_TO);
             end else begin
               set_single_event(r_req_data, ERR_SDRAM_WR_TO);
@@ -418,13 +473,20 @@ module sdram_uart_access_engine #(
           if (r_lat_cnt != 0) begin
             r_lat_cnt <= r_lat_cnt - 1'b1;
           end else begin
+            if (r_read_word_idx < MAX_BULK_PAYLOAD_WORDS) begin
+              r_raw_rd_data[r_read_word_idx*32 +: 32] <= I_SDRC_RD_DATA;
+            end
             if (r_read_word_idx[0]) begin
               r_read_capture_hi[r_read_word_idx[8:1]] <= I_SDRC_RD_DATA;
             end else begin
               r_read_capture_lo[r_read_word_idx[8:1]] <= I_SDRC_RD_DATA;
             end
             if (r_read_word_idx >= s_req_words_m1) begin
-              if (r_req_is_burst_test) begin
+              if (r_req_is_raw_bulk) begin
+                r_raw_done <= 1'b1;
+                set_debug(EVT_BULK_DONE, {11'h000, r_req_addr});
+                st_state <= RESPOND;
+              end else if (r_req_is_burst_test) begin
                 r_packet_count <= r_req_words[8:1] + {7'h0, r_req_words[0]};
                 r_send_packet_id <= '0;
                 st_state <= PREP_BURST_DATA;

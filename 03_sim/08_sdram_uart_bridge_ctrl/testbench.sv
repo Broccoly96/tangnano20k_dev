@@ -98,7 +98,9 @@ module testbench;
     log_fatal(1, "BRIDGE CTRL TB", "simulation timeout");
   end
 
-  sdram_uart_bridge_ctrl u_dut (
+  sdram_uart_bridge_ctrl #(
+    .BULK_RX_TIMEOUT_CYCLES(64)
+  ) u_dut (
     .I_CLK           (tb_clk),
     .I_RST_N         (tb_rst_n),
     .I_ENABLE        (tb_enable),
@@ -228,6 +230,60 @@ module testbench;
       for (idx = 0; idx < text_value.len(); idx++) begin
         send_byte(text_value[idx]);
       end
+    end
+  endtask
+
+  task automatic send_bulk_block(
+    input logic [7:0] block_type,
+    input logic [7:0] seq,
+    input logic [15:0] payload_len,
+    input logic [MAX_BULK_PAYLOAD_BYTES*8-1:0] payload_bits,
+    input logic        corrupt_crc
+  );
+    logic [15:0] crc_value;
+    begin
+      crc_value = calc_bulk_crc16(block_type, seq, payload_len, payload_bits);
+      if (corrupt_crc) begin
+        crc_value = crc_value ^ 16'h0001;
+      end
+
+      send_byte(BULK_SOF0);
+      send_byte(BULK_SOF1);
+      send_byte(block_type);
+      send_byte(seq);
+      send_byte(payload_len[7:0]);
+      send_byte(payload_len[15:8]);
+      for (int byte_idx = 0; byte_idx < payload_len; byte_idx++) begin
+        send_byte(payload_bits[byte_idx*8 +: 8]);
+      end
+      send_byte(crc_value[7:0]);
+      send_byte(crc_value[15:8]);
+    end
+  endtask
+
+  task automatic send_bulk_data_words(
+    input logic [7:0] seq,
+    input logic [MAX_BULK_PAYLOAD_BYTES*8-1:0] payload_bits,
+    input int unsigned word_count
+  );
+    begin
+      send_bulk_block(BULK_WR_DATA, seq, word_count * 4, payload_bits, 1'b0);
+    end
+  endtask
+
+  task automatic send_bulk_end(input logic [7:0] seq);
+    begin
+      send_bulk_block(BULK_WR_END, seq, 16'h0000, '0, 1'b0);
+    end
+  endtask
+
+  task automatic send_bulk_bad_crc(
+    input logic [7:0] seq,
+    input logic [MAX_BULK_PAYLOAD_BYTES*8-1:0] payload_bits,
+    input int unsigned word_count
+  );
+    begin
+      send_bulk_block(BULK_WR_DATA, seq, word_count * 4, payload_bits, 1'b1);
     end
   endtask
 

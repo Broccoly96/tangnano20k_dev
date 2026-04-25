@@ -44,7 +44,8 @@ The active SDRAM implementation uses the Gowin embedded SDRAM HS IP:
 - SDRAM status-map version: `0x05`
 - Startup self-test: 256 words, single-word access pattern
 - Refresh scheduling: native HS `AUTO_REFRESH` command from user RTL
-- Raw `BR` / `BW` bulk transport: reserved and intentionally unsupported
+- `BR` / `BW` bulk sessions: supported over the host event stream on `src_id=0x03`
+- Dedicated DUT-originated raw `BULK_RD_DATA` framing is not used in the production `uart_log_cli` path
 - Burst test commands: `BWT` and `BRT`, with RTL-generated data pattern
 
 The HS native command interface is driven directly by user RTL.
@@ -85,8 +86,14 @@ The TUI includes SDRAM pages for:
 
 - `SDRAM STS`: status-map decode and raw word view
 - `SDRAM RW`: single-word read/write and map-style reads
-- `SDRAM Map`: repeated single-word map read
-- `SDRAM Burst`: `BWT` / `BRT` burst test mode
+- `SDRAM Map`: 256-word `BR` bulk read map refresh
+- `SDRAM Bulk`: `BR` / `BW` range transfers plus `BWT` / `BRT` burst test mode
+- `SDRAM File`: bulk file write/read save using `.bin` or `.hex` payloads
+
+For `SDRAM File` reads, the length field accepts words by default and also
+accepts byte counts with a `b` suffix such as `64b` or `0x21b`. The host
+still issues whole-word SDRAM reads, then trims the saved file to the
+requested byte count.
 
 The command-line SDRAM helper is:
 
@@ -113,8 +120,23 @@ python .\11_app\debug_log_cli\sdram_hostif_tool.py `
 ```
 
 `sdram_hostif_tool.py` supports status read/write, self-test restart,
-and single-word SDRAM read/write.  Burst tests are available from the
-TUI and shared protocol helpers; raw bulk file transfer remains `INOP`.
+single-word SDRAM read/write, and bulk file read/write via `BR` / `BW`.
+Burst tests remain available from the TUI and shared protocol helpers.
+
+For retry-aware hardware stress, use:
+
+```powershell
+python .\11_app\debug_log_cli\sdram_hostif_stress.py `
+  --transport tcp `
+  --tcp-host 192.168.10.40 `
+  --tcp-port 2323 `
+  --iterations 32 `
+  --retry-count 3
+```
+
+The stress runner exercises status reads, single write/readback pairs, and
+bulk write/readback pairs with control-byte-heavy payloads, then writes a CSV
+summary to `tmp/sdram_hostif_stress.csv` by default.
 
 ## Simulation
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 import time
 from typing import Callable
 
@@ -27,7 +28,12 @@ HOST_EVT_BURST_DONE = HOST_EVT_BULK_DONE
 HOST_EVT_BULK_ABORT = 0x36
 HOST_EVT_CMD_ERR = 0x3E
 
+CMD_PREV_SRC = 0x04
 CMD_NEXT_SRC = 0x06
+CMD_LITERAL_NEXT = 0x10
+CMD_SOFT_RESET = 0x12
+CMD_STATUS_REQ = 0x14
+CMD_HELP = 0x3F
 CMD_READ = "R"
 CMD_STATUS_READ = "SR"
 CMD_WRITE = "W"
@@ -45,6 +51,23 @@ BULK_RD_DATA = 0x81
 BULK_RD_END = 0x82
 BULK_ABORT = 0xE0
 MAX_BULK_PAYLOAD_BYTES = 104
+MAX_BULK_WRITE_CHUNK_BYTES = 64
+SDRAM_MAX_WORD_ADDR = 0x1F_FFFF
+MAX_BULK_WORD_COUNT = 0x0F_FFFF
+
+CLI_LITERAL_BYTES = frozenset(
+    {
+        CMD_PREV_SRC,
+        CMD_NEXT_SRC,
+        CMD_LITERAL_NEXT,
+        CMD_SOFT_RESET,
+        CMD_STATUS_REQ,
+        CMD_HELP,
+    }
+)
+
+
+_PARSER_PENDING_FRAMES: dict[int, list[Frame]] = {}
 
 
 @dataclass(frozen=True)
@@ -52,6 +75,13 @@ class BurstDataPacket:
     packet_id: int
     packet_count: int
     first_word_index: int
+    valid_word_count: int
+    words: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class BulkReadProgress:
+    base_addr: int
     valid_word_count: int
     words: tuple[int, ...]
 
@@ -68,6 +98,26 @@ def parse_u32(text: str) -> int:
     if value < 0 or value > 0xFFFF_FFFF:
         raise ValueError(f"out of range u32: {text}")
     return value
+
+
+def validate_bulk_range(addr: int, words: int) -> None:
+    if addr < 0 or addr > SDRAM_MAX_WORD_ADDR:
+        raise ValueError(f"bulk addr out of range: 0x{addr:X}")
+    if words < 1 or words > MAX_BULK_WORD_COUNT:
+        raise ValueError(f"bulk words out of range 1..{MAX_BULK_WORD_COUNT}: {words}")
+    if addr + words - 1 > SDRAM_MAX_WORD_ADDR:
+        raise ValueError("bulk range exceeds SDRAM address space")
+
+
+def padded_word_count(byte_len: int) -> int:
+    if byte_len < 0:
+        raise ValueError(f"negative byte length: {byte_len}")
+    return (byte_len + 3) // 4
+
+
+def build_pattern_blob(pattern: int, words: int) -> bytes:
+    validate_bulk_range(0, words)
+    return (pattern & 0xFFFF_FFFF).to_bytes(4, "little") * words
 
 
 def next_src_steps(current_idx: int, target_idx: int, num_src: int = UART_LOG_NUM_SRC) -> int:
@@ -122,6 +172,10 @@ def build_bulk_write_command(addr: int, words: int) -> bytes:
     return build_ascii_command(CMD_BULK_WRITE, addr, words)
 
 
+def build_bulk_abort_block(seq: int) -> bytes:
+    return stuff_cli_literal_bytes(build_bulk_block(BULK_ABORT, seq, b""))
+
+
 def build_burst_test_read_command(addr: int, words: int) -> bytes:
     return build_ascii_command(CMD_BURST_TEST_READ, addr, words)
 
@@ -147,6 +201,21 @@ def decode_burst_data_packet(arg0: int, arg1: int, arg2: int) -> BurstDataPacket
         first_word_index=first_word_index,
         valid_word_count=valid_word_count,
         words=payload_words,
+    )
+
+
+def decode_bulk_read_progress(arg0: int, arg1: int, arg2: int) -> BulkReadProgress:
+    valid_word_count = (arg0 >> 21) & 0x3
+    base_addr = arg0 & SDRAM_MAX_WORD_ADDR
+    if valid_word_count not in (1, 2):
+        raise ValueError(f"invalid bulk read word count in arg0: 0x{arg0:08X}")
+    words = [arg1 & 0xFFFF_FFFF]
+    if valid_word_count == 2:
+        words.append(arg2 & 0xFFFF_FFFF)
+    return BulkReadProgress(
+        base_addr=base_addr,
+        valid_word_count=valid_word_count,
+        words=tuple(words),
     )
 
 
@@ -180,17 +249,65 @@ def build_bulk_block(block_type: int, seq: int, payload: bytes = b"") -> bytes:
     return header + payload + bytes([crc & 0xFF, (crc >> 8) & 0xFF])
 
 
+def stuff_cli_literal_bytes(data: bytes) -> bytes:
+    stuffed = bytearray()
+    for byte_value in data:
+        if byte_value in CLI_LITERAL_BYTES:
+            stuffed.append(CMD_LITERAL_NEXT)
+        stuffed.append(byte_value)
+    return bytes(stuffed)
+
+
 def iter_bulk_write_blocks(blob: bytes) -> list[bytes]:
     blocks: list[bytes] = []
     seq = 0
-    for offset in range(0, len(blob), MAX_BULK_PAYLOAD_BYTES):
-        payload = blob[offset : offset + MAX_BULK_PAYLOAD_BYTES]
+    # Keep host BW chunks below the protocol maximum so DLE stuffing for
+    # reserved CLI bytes does not create overly long on-wire bursts that have
+    # shown CRC failures through the TCP/UART bridge on hardware.
+    for offset in range(0, len(blob), MAX_BULK_WRITE_CHUNK_BYTES):
+        payload = blob[offset : offset + MAX_BULK_WRITE_CHUNK_BYTES]
         if len(payload) % 4 != 0:
             payload = payload + bytes(4 - (len(payload) % 4))
-        blocks.append(build_bulk_block(BULK_WR_DATA, seq, payload))
+        blocks.append(stuff_cli_literal_bytes(build_bulk_block(BULK_WR_DATA, seq, payload)))
         seq = (seq + 1) & 0xFF
-    blocks.append(build_bulk_block(BULK_WR_END, seq, b""))
+    blocks.append(stuff_cli_literal_bytes(build_bulk_block(BULK_WR_END, seq, b"")))
     return blocks
+
+
+def load_bulk_file(path: str | Path) -> bytes:
+    file_path = Path(path)
+    suffix = file_path.suffix.lower()
+    if suffix not in {".bin", ".hex"}:
+        raise ValueError(f"unsupported file format: {file_path.suffix}")
+    if suffix == ".bin":
+        return file_path.read_bytes()
+
+    raw_text = file_path.read_text(encoding="ascii")
+    hex_digits = []
+    for char in raw_text:
+        if char.isspace():
+            continue
+        if char not in "0123456789abcdefABCDEF":
+            raise ValueError(f"invalid hex character: {char!r}")
+        hex_digits.append(char)
+    if len(hex_digits) % 2 != 0:
+        raise ValueError("hex file contains an odd number of digits")
+    return bytes.fromhex("".join(hex_digits))
+
+
+def save_bulk_file(path: str | Path, blob: bytes) -> None:
+    file_path = Path(path)
+    suffix = file_path.suffix.lower()
+    if suffix not in {".bin", ".hex"}:
+        raise ValueError(f"unsupported file format: {file_path.suffix}")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    if suffix == ".bin":
+        file_path.write_bytes(blob)
+        return
+
+    line_width = 32
+    hex_lines = [blob[idx : idx + line_width].hex().upper() for idx in range(0, len(blob), line_width)]
+    file_path.write_text("\n".join(hex_lines) + ("\n" if hex_lines else ""), encoding="ascii")
 
 
 @dataclass(frozen=True)
@@ -262,6 +379,31 @@ def write_exact(write_fn: Callable[[bytes], int], payload: bytes) -> None:
         offset += written
 
 
+def _get_pending_frames(parser: FrameParser) -> list[Frame]:
+    return _PARSER_PENDING_FRAMES.setdefault(id(parser), [])
+
+
+def _queue_pending_frames(parser: FrameParser, frames: list[Frame]) -> None:
+    if not frames:
+        return
+    _get_pending_frames(parser).extend(frames)
+
+
+def _take_pending_frames(parser: FrameParser) -> list[Frame]:
+    pending = _get_pending_frames(parser)
+    frames = list(pending)
+    pending.clear()
+    return frames
+
+
+def _take_matching_frame(parser: FrameParser, match_fn: Callable[[Frame], bool]) -> Frame | None:
+    pending = _get_pending_frames(parser)
+    for idx, frame in enumerate(pending):
+        if match_fn(frame):
+            return pending.pop(idx)
+    return None
+
+
 def select_host_source(write_fn: Callable[[bytes], int], settle_ms: int = 100) -> None:
     for _ in range(HOST_SRC_INDEX):
         write_exact(write_fn, bytes([CMD_NEXT_SRC]))
@@ -276,7 +418,7 @@ def drain_frames(
     """Collect any currently buffered frames for a short drain interval."""
 
     deadline = time.monotonic() + drain_s
-    frames: list[Frame] = []
+    frames: list[Frame] = _take_pending_frames(parser)
     while time.monotonic() < deadline:
         data = read_fn()
         if data:
@@ -343,11 +485,16 @@ def wait_for_frame(
 ) -> Frame:
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
+        pending_match = _take_matching_frame(parser, match_fn)
+        if pending_match is not None:
+            return pending_match
         data = read_fn()
         if data:
-            for frame in parser.feed(data):
-                if match_fn(frame):
-                    return frame
+            frames = parser.feed(data)
+            _queue_pending_frames(parser, frames)
+            pending_match = _take_matching_frame(parser, match_fn)
+            if pending_match is not None:
+                return pending_match
         time.sleep(0.01)
     raise TimeoutError("timed out waiting for frame")
 
@@ -375,3 +522,73 @@ def recv_bulk_read_blob(
                     raise RuntimeError(f"unexpected bulk block type: 0x{block.block_type:02X}")
         time.sleep(0.01)
     raise TimeoutError("timed out waiting for bulk data")
+
+
+def recv_bulk_read_words(
+    read_fn: Callable[[], bytes],
+    parser: FrameParser,
+    timeout_s: float,
+    *,
+    addr: int,
+    words: int,
+) -> bytes:
+    validate_bulk_range(addr, words)
+    deadline = time.monotonic() + timeout_s
+    received_words: dict[int, int] = {}
+
+    while time.monotonic() < deadline:
+        pending_frames = _take_pending_frames(parser)
+        if pending_frames:
+            frame_batch = pending_frames
+        else:
+            frame_batch = []
+        data = read_fn()
+        if data:
+            frame_batch.extend(parser.feed(data))
+        if frame_batch:
+            for frame in frame_batch:
+                if frame.event.src_id != HOST_SRC_ID:
+                    continue
+                if frame.event.event_id == HOST_EVT_BULK_PROGRESS:
+                    progress = decode_bulk_read_progress(
+                        frame.event.arg0,
+                        frame.event.arg1,
+                        frame.event.arg2,
+                    )
+                    for word_offset, value in enumerate(progress.words):
+                        word_addr = progress.base_addr + word_offset
+                        if word_addr < addr or word_addr >= addr + words:
+                            raise RuntimeError(
+                                f"bulk read returned out-of-range word addr=0x{word_addr:05X}"
+                            )
+                        received_words[word_addr] = value
+                elif frame.event.event_id == HOST_EVT_BULK_DONE:
+                    done_addr = frame.event.arg0 & SDRAM_MAX_WORD_ADDR
+                    done_words = frame.event.arg1 & SDRAM_MAX_WORD_ADDR
+                    if done_addr != addr or done_words != words:
+                        raise RuntimeError(
+                            f"bulk read done mismatch addr=0x{done_addr:05X} words={done_words}"
+                        )
+                    blob = bytearray()
+                    for word_addr in range(addr, addr + words):
+                        if word_addr not in received_words:
+                            raise RuntimeError(
+                                f"bulk read incomplete at addr=0x{word_addr:05X}"
+                            )
+                        blob.extend(received_words[word_addr].to_bytes(4, "little"))
+                    return bytes(blob)
+                elif frame.event.event_id == HOST_EVT_BULK_ABORT:
+                    raise RuntimeError(
+                        f"bulk read aborted reason=0x{frame.event.arg0:08X} detail=0x{frame.event.arg1:08X}"
+                    )
+                elif frame.event.event_id == HOST_EVT_BULK_ERR:
+                    raise RuntimeError(
+                        f"bulk read error reason=0x{frame.event.arg0:08X} detail=0x{frame.event.arg1:08X}"
+                    )
+                elif frame.event.event_id == HOST_EVT_CMD_ERR:
+                    raise RuntimeError(
+                        f"bulk read cmd_err reason=0x{frame.event.arg0:08X} detail=0x{frame.event.arg1:08X}"
+                    )
+        time.sleep(0.01)
+
+    raise TimeoutError("timed out waiting for bulk read completion")

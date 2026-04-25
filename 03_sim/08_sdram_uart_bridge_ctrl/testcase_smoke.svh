@@ -1,5 +1,6 @@
   initial begin : tc_smoke
     int restart_count_before;
+    logic [MAX_BULK_PAYLOAD_BYTES*8-1:0] bulk_payload;
 
     @(posedge tb_rst_n);
     repeat (4) @(posedge tb_clk);
@@ -59,25 +60,46 @@
     send_text("X\n");
     expect_event(EVT_CMD_ERR, ERR_BAD_ASCII_CMD, 32'h0000_0058, 32'h0, "bad command");
 
-    log_info("BRIDGE CTRL TB", "case: unsupported bulk");
-    send_text("BR 00040 00001\n");
-    expect_event(
-      EVT_CMD_ERR,
-      ERR_UNSUPPORTED,
-      32'h0000_0000,
-      32'h0000_0000,
-      "unsupported bulk"
-    );
+    log_info("BRIDGE CTRL TB", "case: bulk write chunk with control-like payload bytes");
+    bulk_payload = '0;
+    bulk_payload[0 +: 32] = 32'h3F14_1006;
+    bulk_payload[32 +: 32] = 32'h0012_0410;
+    bulk_payload[64 +: 32] = 32'hA5A5_0604;
+    bulk_payload[96 +: 32] = 32'h55AA_123F;
+    send_text("BW 00100 00004\n");
+    expect_event(EVT_BULK_OK, 32'h0000_0100, 32'h0000_0004, 32'h0000_0000, "bulk write ok");
+    send_bulk_data_words(8'h00, bulk_payload, 4);
+    expect_event(EVT_BULK_PROG, 32'h0000_0100, 32'h0000_0004, 32'h0000_0000, "bulk write progress");
+    send_bulk_end(8'h01);
+    expect_event(EVT_BULK_DONE, 32'h0000_0100, 32'h0000_0004, 32'h0000_0004, "bulk write done");
 
-    log_info("BRIDGE CTRL TB", "case: unsupported bulk write");
-    send_text("BW 00040 00001\n");
-    expect_event(
-      EVT_CMD_ERR,
-      ERR_UNSUPPORTED,
-      32'h0000_0000,
-      32'h0000_0000,
-      "unsupported bulk write"
-    );
+    log_info("BRIDGE CTRL TB", "case: bulk read returns written words");
+    send_text("BR 00100 00004\n");
+    expect_event(EVT_BULK_OK, 32'h0000_0100, 32'h0000_0004, 32'h0000_0001, "bulk read ok");
+    expect_event(EVT_BULK_PROG, 32'h0040_0100, 32'h3F14_1006, 32'h0012_0410, "bulk read data 0");
+    expect_event(EVT_BULK_PROG, 32'h0040_0102, 32'hA5A5_0604, 32'h55AA_123F, "bulk read data 1");
+    expect_event(EVT_BULK_DONE, 32'h0000_0100, 32'h0000_0004, 32'h0000_0004, "bulk read done");
+
+    log_info("BRIDGE CTRL TB", "case: bulk session returns to ASCII idle");
+    send_text("R 00100\n");
+    expect_event(EVT_READ_RSP, 32'h0000_0100, 32'h3F14_1006, 32'h0, "ascii read after bulk");
+
+    log_info("BRIDGE CTRL TB", "case: bulk write CRC failure aborts session");
+    bulk_payload = '0;
+    bulk_payload[0 +: 32] = 32'h1234_5678;
+    bulk_payload[32 +: 32] = 32'h9ABC_DEF0;
+    send_text("BW 00140 00002\n");
+    expect_event(EVT_BULK_OK, 32'h0000_0140, 32'h0000_0002, 32'h0000_0000, "bulk crc ok");
+    send_bulk_bad_crc(8'h00, bulk_payload, 2);
+    expect_event(EVT_BULK_ABORT, ERR_BULK_CRC, 32'h0000_0140, 32'h0000_0000, "bulk crc abort");
+
+    log_info("BRIDGE CTRL TB", "case: idle bulk write timeout returns to ASCII");
+    send_text("BW 00180 00002\n");
+    expect_event(EVT_BULK_OK, 32'h0000_0180, 32'h0000_0002, 32'h0000_0000, "bulk timeout ok");
+    repeat (80) @(posedge tb_clk);
+    expect_event(EVT_BULK_ABORT, ERR_BULK_TIMEOUT, 32'h0000_0180, 32'h0000_0000, "bulk receive timeout");
+    send_text("R 00100\n");
+    expect_event(EVT_READ_RSP, 32'h0000_0100, 32'h3F14_1006, 32'h0, "ascii read after bulk timeout");
 
     log_info("BRIDGE CTRL TB", "case: burst zero length is rejected");
     send_text("BRT 00100 00000\n");

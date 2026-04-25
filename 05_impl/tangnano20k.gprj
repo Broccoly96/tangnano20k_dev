@@ -12,6 +12,7 @@
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_evt_if.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_memtest_ctrl.sv" type="file.verilog" enable="1"/>
+        <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bulk_rx.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv" type="file.verilog" enable="1"/>
         <File path="C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv" type="file.verilog" enable="1"/>

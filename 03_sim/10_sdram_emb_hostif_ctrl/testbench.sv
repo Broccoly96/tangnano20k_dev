@@ -40,9 +40,12 @@ module testbench;
   logic        tb_sdrc_read_sample_valid;
 
   logic [31:0] mem_words [0:MEM_WORDS-1];
+  uif_state_e  st_uif;
   logic [20:0] r_active_addr;
   logic [20:0] r_read_addr;
   logic        r_active_open;
+  logic [8:0]  r_burst_len;
+  logic [8:0]  r_burst_count;
 
   initial begin
     configure_logging(LOG_DEBUG);
@@ -61,9 +64,12 @@ module testbench;
     tb_sdrc_rd_data  = 32'h0;
     tb_sdrc_cmd_ack  = 1'b0;
     tb_sdrc_init_done= 1'b0;
+    st_uif           = UIF_IDLE;
     r_active_addr    = '0;
     r_read_addr      = '0;
     r_active_open    = 1'b0;
+    r_burst_len      = '0;
+    r_burst_count    = '0;
     for (int idx = 0; idx < MEM_WORDS; idx++) begin
       mem_words[idx] = 32'h3000_0000 + idx;
     end
@@ -113,61 +119,104 @@ module testbench;
     if (!tb_rst_n) begin
       tb_sdrc_cmd_ack <= 1'b0;
       tb_sdrc_init_done <= 1'b0;
+      st_uif <= UIF_IDLE;
       r_active_addr <= '0;
       r_read_addr <= '0;
       r_active_open <= 1'b0;
+      r_burst_len <= '0;
+      r_burst_count <= '0;
     end else begin
-      tb_sdrc_cmd_ack <= tb_sdrc_cmd_en;
+      tb_sdrc_cmd_ack <= 1'b0;
 
       if (tb_sdrc_rst_n) begin
         tb_sdrc_init_done <= 1'b1;
       end else begin
         tb_sdrc_init_done <= 1'b0;
         r_active_open <= 1'b0;
+        st_uif <= UIF_IDLE;
       end
 
-      if (tb_sdrc_cmd_en) begin
-        case (tb_sdrc_cmd)
-          SDRAM_HS_CMD_ACTIVE: begin
-            if (r_active_open) begin
-              log_fatal(1, "HOSTIF CTRL TB", "ACTIVE while row is already open");
-            end
-            r_active_addr <= tb_sdrc_addr;
-            r_active_open <= 1'b1;
-          end
+      case (st_uif)
+        UIF_IDLE: begin
+          r_burst_count <= '0;
+          if (tb_sdrc_cmd_en) begin
+            case (tb_sdrc_cmd)
+              SDRAM_HS_CMD_ACTIVE: begin
+                if (r_active_open) begin
+                  log_fatal(1, "HOSTIF CTRL TB", "ACTIVE while row is already open");
+                end
+                tb_sdrc_cmd_ack <= 1'b1;
+                r_active_addr <= tb_sdrc_addr;
+                r_active_open <= 1'b1;
+              end
 
-          SDRAM_HS_CMD_WRITE: begin
-            if (!r_active_open) begin
-              log_fatal(1, "HOSTIF CTRL TB", "WRITE without preceding ACTIVE");
-            end
-            mem_words[tb_sdrc_addr % MEM_WORDS] <= tb_sdrc_wr_data;
-            r_active_open <= 1'b0;
-          end
+              SDRAM_HS_CMD_WRITE: begin
+                if (!r_active_open) begin
+                  log_fatal(1, "HOSTIF CTRL TB", "WRITE without preceding ACTIVE");
+                end
+                mem_words[tb_sdrc_addr % MEM_WORDS] <= tb_sdrc_wr_data;
+                r_read_addr <= tb_sdrc_addr;
+                r_burst_len <= {1'b0, tb_sdrc_data_len} + 9'd1;
+                r_burst_count <= 9'd1;
+                r_active_open <= 1'b0;
+                st_uif <= UIF_WRITE_BUSY;
+              end
 
-          SDRAM_HS_CMD_READ: begin
-            if (!r_active_open) begin
-              log_fatal(1, "HOSTIF CTRL TB", "READ without preceding ACTIVE");
-            end
-            r_read_addr <= tb_sdrc_addr;
-            r_active_open <= 1'b0;
-          end
+              SDRAM_HS_CMD_READ: begin
+                if (!r_active_open) begin
+                  log_fatal(1, "HOSTIF CTRL TB", "READ without preceding ACTIVE");
+                end
+                r_read_addr <= tb_sdrc_addr;
+                r_burst_len <= {1'b0, tb_sdrc_data_len} + 9'd1;
+                r_burst_count <= '0;
+                r_active_open <= 1'b0;
+                st_uif <= UIF_READ_BUSY;
+              end
 
-          SDRAM_HS_CMD_AUTO_REFRESH: begin
-            if (r_active_open) begin
-              log_fatal(1, "HOSTIF CTRL TB", "refresh inserted inside ACTIVE pair");
-            end
-          end
+              SDRAM_HS_CMD_AUTO_REFRESH: begin
+                if (r_active_open) begin
+                  log_fatal(1, "HOSTIF CTRL TB", "refresh inserted inside ACTIVE pair");
+                end
+                tb_sdrc_cmd_ack <= 1'b1;
+              end
 
-          default: begin
+              default: begin
+              end
+            endcase
           end
-        endcase
-      end
+        end
+
+        UIF_WRITE_BUSY: begin
+          if (r_burst_count < r_burst_len) begin
+            mem_words[(r_read_addr + r_burst_count) % MEM_WORDS] <= tb_sdrc_wr_data;
+            r_burst_count <= r_burst_count + 1'b1;
+          end
+          if (((r_burst_count + 1'b1) >= r_burst_len) || (r_burst_len == 9'd1)) begin
+            tb_sdrc_cmd_ack <= 1'b1;
+            st_uif <= UIF_IDLE;
+          end
+        end
+
+        UIF_READ_BUSY: begin
+          if (tb_sdrc_read_sample_valid) begin
+            if ((r_burst_count + 1'b1) >= r_burst_len) begin
+              tb_sdrc_cmd_ack <= 1'b1;
+              st_uif <= UIF_IDLE;
+            end
+            r_burst_count <= r_burst_count + 1'b1;
+          end
+        end
+
+        default: begin
+          st_uif <= UIF_IDLE;
+        end
+      endcase
     end
   end
 
   always_comb begin
     if (tb_sdrc_read_sample_valid) begin
-      tb_sdrc_rd_data = mem_words[r_read_addr % MEM_WORDS];
+      tb_sdrc_rd_data = mem_words[(r_read_addr + r_burst_count) % MEM_WORDS];
     end else begin
       tb_sdrc_rd_data = 32'h0000_0000;
     end
@@ -205,6 +254,50 @@ module testbench;
       for (idx = 0; idx < text_value.len(); idx++) begin
         send_byte(text_value[idx]);
       end
+    end
+  endtask
+
+  task automatic send_bulk_block(
+    input logic [7:0] block_type,
+    input logic [7:0] seq,
+    input logic [15:0] payload_len,
+    input logic [MAX_BULK_PAYLOAD_BYTES*8-1:0] payload_bits,
+    input logic        corrupt_crc
+  );
+    logic [15:0] crc_value;
+    begin
+      crc_value = calc_bulk_crc16(block_type, seq, payload_len, payload_bits);
+      if (corrupt_crc) begin
+        crc_value = crc_value ^ 16'h0001;
+      end
+
+      send_byte(BULK_SOF0);
+      send_byte(BULK_SOF1);
+      send_byte(block_type);
+      send_byte(seq);
+      send_byte(payload_len[7:0]);
+      send_byte(payload_len[15:8]);
+      for (int byte_idx = 0; byte_idx < payload_len; byte_idx++) begin
+        send_byte(payload_bits[byte_idx*8 +: 8]);
+      end
+      send_byte(crc_value[7:0]);
+      send_byte(crc_value[15:8]);
+    end
+  endtask
+
+  task automatic send_bulk_data_words(
+    input logic [7:0] seq,
+    input logic [MAX_BULK_PAYLOAD_BYTES*8-1:0] payload_bits,
+    input int unsigned word_count
+  );
+    begin
+      send_bulk_block(BULK_WR_DATA, seq, word_count * 4, payload_bits, 1'b0);
+    end
+  endtask
+
+  task automatic send_bulk_end(input logic [7:0] seq);
+    begin
+      send_bulk_block(BULK_WR_END, seq, 16'h0000, '0, 1'b0);
     end
   endtask
 
@@ -249,6 +342,7 @@ module testbench;
       tb_host_evt_if.evt_ready <= 1'b1;
       @(posedge tb_clk);
       tb_host_evt_if.evt_ready <= 1'b0;
+      @(posedge tb_clk);
     end
   endtask
 

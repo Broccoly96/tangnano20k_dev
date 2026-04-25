@@ -18,21 +18,32 @@ from sdram_uart_protocol import (
     HOST_EVT_BURST_DONE,
     HOST_EVT_BURST_ERR,
     HOST_EVT_BULK_DONE,
+    HOST_EVT_BULK_ERR,
     HOST_EVT_BULK_OK,
+    HOST_EVT_BULK_PROGRESS,
+    HOST_EVT_BULK_ABORT,
     HOST_EVT_READ_RSP,
     HOST_EVT_WRITE_ACK,
+    build_pattern_blob,
     build_burst_test_read_command,
     build_burst_test_write_command,
+    build_bulk_abort_block,
     build_bulk_read_command,
     build_bulk_write_command,
     build_read_command,
     build_status_read_command,
     build_status_write_command,
     build_write_command,
+    decode_bulk_read_progress,
     decode_burst_data_packet,
+    drain_frames,
     iter_bulk_write_blocks,
-    recv_bulk_read_blob,
-    wait_for_frame,
+    load_bulk_file,
+    padded_word_count,
+    save_bulk_file,
+    select_source_index,
+    validate_bulk_range,
+    write_exact,
 )
 from uart_log_decoder import UARTLogDecoder
 from uart_log_protocol import Event, Frame, FrameParser
@@ -50,8 +61,10 @@ HOST_EVT_WRITE_ACK = 0x30
 HOST_EVT_READ_RSP = 0x31
 HOST_EVT_CMD_ERR = 0x3E
 CMD_NEXT_SRC = 0x06
-MAP_BYTE_COUNT = 256
-MAP_WORD_COUNT = MAP_BYTE_COUNT // 4
+MAP_ROWS = 16
+MAP_WORDS_PER_ROW = 16
+MAP_WORD_COUNT = MAP_ROWS * MAP_WORDS_PER_ROW
+MAP_BYTE_COUNT = MAP_WORD_COUNT * 4
 SDRAM_MAX_WORD_ADDR = 0x1F_FFFF
 MAP_RESPONSE_TIMEOUT_S = 1.0
 MAP_READ_RETRY_LIMIT = 3
@@ -63,6 +76,9 @@ STATUS_SELFTEST_ADDR = 0x0003C
 STATUS_SELFTEST_DATA = 0x0000_0001
 BURST_RESPONSE_TIMEOUT_S = 3.0
 BURST_MAX_WORDS = 256
+BULK_RESPONSE_TIMEOUT_S = 5.0
+RW_TASK_RETRY_LIMIT = 3
+BULK_TASK_RETRY_LIMIT = 3
 
 
 @dataclass(frozen=True)
@@ -94,6 +110,32 @@ def parse_u21(text: str) -> int:
     if value < 0 or value > 0x1F_FFFF:
         raise ValueError(f"out of range u21 addr: {text}")
     return value
+
+
+def parse_bulk_length_spec(text: str) -> tuple[int, int]:
+    spec = text.strip().lower()
+    if not spec:
+        raise ValueError("length is required")
+
+    unit = "w"
+    if spec[-1] in {"b", "w"}:
+        unit = spec[-1]
+        spec = spec[:-1].strip()
+    if not spec:
+        raise ValueError("length value is required")
+
+    value = int(spec, 0)
+    if value < 1:
+        raise ValueError("length must be >= 1")
+
+    if unit == "b":
+        byte_len = value
+        words = padded_word_count(byte_len)
+    else:
+        words = value
+        byte_len = words * 4
+
+    return words, byte_len
 
 
 def make_read_packet(addr: int) -> bytes:
@@ -131,15 +173,19 @@ def format_sdram_map_text(base_addr: int, map_bytes: bytes) -> str:
         map_bytes = bytes(padded)
 
     lines = [f"Base: 0x{base_addr:05X}  Mode: 4-byte little-endian words"]
-    lines.append("      00        04        08        0C")
-    for row in range(16):
-        row_base = row * 16
+    lines.append("   | " + "  ".join(f"{col:02X}".rjust(8) for col in range(MAP_WORDS_PER_ROW)))
+    for row in range(MAP_ROWS):
+        row_base = row * MAP_WORDS_PER_ROW
         cells = []
-        for col in range(0, 16, 4):
-            idx = row_base + col
-            word = int.from_bytes(map_bytes[idx : idx + 4], "little", signed=False)
+        for col in range(MAP_WORDS_PER_ROW):
+            idx = (row_base + col) * 4
+            word = int.from_bytes(
+                map_bytes[idx : idx + 4],
+                "little",
+                signed=False,
+            )
             cells.append(f"{word:08X}")
-        lines.append(f"{row:01X}0 | " + "  ".join(cells))
+        lines.append(f"{row_base:02X} | " + "  ".join(cells))
     return "\n".join(lines)
 
 
@@ -452,7 +498,7 @@ class UARTLogApp(App[None]):
     #log_table { width: 1fr; height: 1fr; }
     #stats_panel { width: 38; padding: 0 1; border: round; }
     #map_summary { height: 5; border: round; padding: 0 1; margin-bottom: 1; }
-    #map_view { height: 1fr; border: round; padding: 0 1; overflow: auto; }
+    #map_view { height: 1fr; border: round; padding: 0 1; overflow: auto; text-wrap: nowrap; }
     .panel { border: round; padding: 0 1; margin-bottom: 1; }
     .rw_panel { height: auto; }
     #rw_grid { width: 1fr; height: 1fr; }
@@ -480,7 +526,8 @@ class UARTLogApp(App[None]):
         ("2", "show_map", "SDRAM Map"),
         ("3", "show_rw", "SDRAM RW"),
         ("4", "show_status", "SDRAM STS"),
-        ("5", "show_burst", "SDRAM Burst"),
+        ("5", "show_burst", "SDRAM Bulk"),
+        ("6", "show_file", "SDRAM File"),
         ("p", "rescan", "Rescan Ports"),
         ("c", "toggle_connect", "Connect/Disconnect"),
         ("m", "toggle_mode", "Raw/Decode"),
@@ -532,6 +579,7 @@ class UARTLogApp(App[None]):
         self._map_restore_src_idx: int | None = None
         self._map_select_deadline = 0.0
         self._map_rsp_deadline = 0.0
+        self._map_command_sent = False
         self._map_pending_queue: list[int] = []
         self._map_inflight_addr: int | None = None
         self._map_inflight_retries = 0
@@ -555,10 +603,12 @@ class UARTLogApp(App[None]):
         self._rw_single_write_result = "-"
         self._rw_file_write_result = "-"
         self._rw_file_read_result = "-"
+        self._file_summary_text = "idle"
         self._burst_summary_text = "idle"
         self._burst_result_text = "-"
         self._burst_task_active = False
         self._burst_task_kind = ""
+        self._burst_phase = ""
         self._burst_command_sent = False
         self._burst_base_addr = 0
         self._burst_words = 0
@@ -567,6 +617,12 @@ class UARTLogApp(App[None]):
         self._burst_rsp_deadline = 0.0
         self._burst_received_packets: dict[int, int] = {}
         self._burst_received_words: dict[int, int] = {}
+        self._burst_write_blocks: list[bytes] = []
+        self._burst_next_block_index = 0
+        self._burst_output_path: Path | None = None
+        self._burst_output_len = 0
+        self._burst_retry_count = 0
+        self._burst_abort_count = 0
         self._rw_task_active = False
         self._rw_task_kind = ""
         self._rw_task_restore_src_idx: int | None = None
@@ -578,6 +634,8 @@ class UARTLogApp(App[None]):
         self._rw_task_read_results: dict[int, int] = {}
         self._rw_task_output_path: Path | None = None
         self._rw_task_output_len = 0
+        self._rw_task_retry_count = 0
+        self._rw_task_inflight_retries = 0
         if self._replay_file_path is not None:
             try:
                 self._replay_records = load_replay_records(self._replay_file_path)
@@ -606,9 +664,13 @@ class UARTLogApp(App[None]):
         self._single_write_addr_input: Input | None = None
         self._single_write_data_input: Input | None = None
         self._single_write_result: Static | None = None
+        self._file_summary: Static | None = None
+        self._file_read_addr_input: Input | None = None
+        self._file_read_words_input: Input | None = None
         self._burst_summary: Static | None = None
         self._burst_base_input: Input | None = None
         self._burst_words_input: Input | None = None
+        self._bulk_pattern_input: Input | None = None
         self._burst_result: Static | None = None
         self._file_write_addr_input: Input | None = None
         self._file_write_path_input: Input | None = None
@@ -633,7 +695,8 @@ class UARTLogApp(App[None]):
                     yield Button("2 SDRAM Map", id="nav_map")
                     yield Button("3 SDRAM RW", id="nav_rw")
                     yield Button("4 SDRAM STS", id="nav_status")
-                    yield Button("5 SDRAM Burst", id="nav_burst")
+                    yield Button("5 SDRAM Bulk", id="nav_burst")
+                    yield Button("6 SDRAM File", id="nav_file")
                 with Vertical(id="screen_host"):
                     with Vertical(id="log_screen", classes="screen"):
                         with Horizontal(id="log_main_row"):
@@ -669,31 +732,39 @@ class UARTLogApp(App[None]):
                                     yield Input(value="0x00000", id="single_write_addr_input", placeholder="addr")
                                     yield Input(value="0x00000000", id="single_write_data_input", placeholder="data")
                                 yield Static("-", id="single_write_result")
-                            with Vertical(classes="panel rw_panel"):
-                                yield Static("File Select Read")
-                                with Horizontal(classes="toolbar"):
-                                    yield Button("Read", id="btn_file_read_save")
-                                    yield Input(value="", id="file_read_path_input", placeholder="output path")
-                                yield Static("-", id="file_read_result")
-                            with Vertical(classes="panel rw_panel"):
-                                yield Static("File Select Write")
-                                with Horizontal(classes="toolbar"):
-                                    yield Button("Write", id="btn_file_write")
-                                    yield Input(value="0x00000", id="file_write_addr_input", placeholder="base addr")
-                                    yield Input(value="", id="file_write_path_input", placeholder="file path")
-                                yield Static("-", id="file_write_result")
                     with Vertical(id="burst_screen", classes="screen hidden"):
                         yield Static("", id="burst_summary", classes="panel")
                         with Vertical(id="burst_grid"):
                             with Vertical(classes="panel rw_panel"):
-                                yield Static("Burst Test")
+                                yield Static("Bulk Range / Burst Test")
                                 with Horizontal(classes="toolbar"):
+                                    yield Button("Read Range", id="btn_bulk_read_range")
+                                    yield Button("Pattern Write", id="btn_bulk_pattern_write")
                                     yield Button("Write Test", id="btn_burst_write_test")
                                     yield Button("Read Test", id="btn_burst_read_test")
+                                with Horizontal(classes="toolbar"):
                                     yield Input(value="0x00000", id="burst_base_input", placeholder="base addr")
                                     yield Input(value="0x00010", id="burst_words_input", placeholder="words")
+                                    yield Input(value="0xA5A5A5A5", id="bulk_pattern_input", placeholder="pattern")
                                 yield Static("-", id="burst_result")
-            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=burst p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
+                    with Vertical(id="file_screen", classes="screen hidden"):
+                        yield Static("", id="file_summary", classes="panel")
+                        with Vertical(classes="panel rw_panel"):
+                            yield Static("Bulk File Write")
+                            with Horizontal(classes="toolbar"):
+                                yield Button("Write File", id="btn_file_write")
+                                yield Input(value="0x00000", id="file_write_addr_input", placeholder="base addr")
+                                yield Input(value="", id="file_write_path_input", placeholder="input .bin/.hex path")
+                            yield Static("-", id="file_write_result")
+                        with Vertical(classes="panel rw_panel"):
+                            yield Static("Bulk File Read")
+                            with Horizontal(classes="toolbar"):
+                                yield Button("Read To File", id="btn_file_read_save")
+                                yield Input(value="0x00000", id="file_read_addr_input", placeholder="base addr")
+                                yield Input(value="0x00010", id="file_read_words_input", placeholder="words or bytes (64b)")
+                                yield Input(value="", id="file_read_path_input", placeholder="output .bin/.hex path")
+                            yield Static("-", id="file_read_result")
+            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=bulk 6=file p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -719,9 +790,13 @@ class UARTLogApp(App[None]):
         self._single_write_addr_input = self.query_one("#single_write_addr_input", Input)
         self._single_write_data_input = self.query_one("#single_write_data_input", Input)
         self._single_write_result = self.query_one("#single_write_result", Static)
+        self._file_summary = self.query_one("#file_summary", Static)
+        self._file_read_addr_input = self.query_one("#file_read_addr_input", Input)
+        self._file_read_words_input = self.query_one("#file_read_words_input", Input)
         self._burst_summary = self.query_one("#burst_summary", Static)
         self._burst_base_input = self.query_one("#burst_base_input", Input)
         self._burst_words_input = self.query_one("#burst_words_input", Input)
+        self._bulk_pattern_input = self.query_one("#bulk_pattern_input", Input)
         self._burst_result = self.query_one("#burst_result", Static)
         self._file_write_addr_input = self.query_one("#file_write_addr_input", Input)
         self._file_write_path_input = self.query_one("#file_write_path_input", Input)
@@ -735,6 +810,7 @@ class UARTLogApp(App[None]):
         self._refresh_status_view()
         self._refresh_rw_view()
         self._refresh_burst_view()
+        self._refresh_file_view()
         self._show_screen("log")
         if self._replay_file_path is not None:
             if self._port_select is not None:
@@ -800,6 +876,8 @@ class UARTLogApp(App[None]):
             self.action_show_rw()
         elif button_id == "nav_burst":
             self.action_show_burst()
+        elif button_id == "nav_file":
+            self.action_show_file()
         elif button_id == "btn_map_refresh":
             self.action_refresh_map()
         elif button_id == "btn_status_refresh":
@@ -812,6 +890,10 @@ class UARTLogApp(App[None]):
             self._start_single_read()
         elif button_id == "btn_single_write":
             self._start_single_write()
+        elif button_id == "btn_bulk_read_range":
+            self._start_bulk_read_range()
+        elif button_id == "btn_bulk_pattern_write":
+            self._start_bulk_pattern_write()
         elif button_id == "btn_file_write":
             self._start_file_write()
         elif button_id == "btn_file_read_save":
@@ -841,6 +923,9 @@ class UARTLogApp(App[None]):
 
     def action_show_burst(self) -> None:
         self._show_screen("burst")
+
+    def action_show_file(self) -> None:
+        self._show_screen("file")
 
     def action_focus_filter(self) -> None:
         if self._filter_input is not None:
@@ -921,11 +1006,13 @@ class UARTLogApp(App[None]):
         status_screen = self.query_one("#status_screen", Vertical)
         rw_screen = self.query_one("#rw_screen", Vertical)
         burst_screen = self.query_one("#burst_screen", Vertical)
+        file_screen = self.query_one("#file_screen", Vertical)
         log_screen.set_class(screen_name != "log", "hidden")
         map_screen.set_class(screen_name != "map", "hidden")
         status_screen.set_class(screen_name != "status", "hidden")
         rw_screen.set_class(screen_name != "rw", "hidden")
         burst_screen.set_class(screen_name != "burst", "hidden")
+        file_screen.set_class(screen_name != "file", "hidden")
 
     def _watch_decoder(self) -> None:
         self._reload_decoder(force=False, manual=False)
@@ -1079,9 +1166,19 @@ class UARTLogApp(App[None]):
     def _send_bytes(self, payload: bytes) -> int:
         if self._replay_file_path is not None:
             return 0
-        if self._transport == "tcp":
-            return 0 if not self._tcp.is_connected else self._tcp.write_bytes(payload)
-        return 0 if not self._serial.is_connected else self._serial.write_bytes(payload)
+        try:
+            if self._transport == "tcp":
+                if not self._tcp.is_connected:
+                    return 0
+                write_exact(self._tcp.write_bytes, payload)
+                return len(payload)
+
+            if not self._serial.is_connected:
+                return 0
+            write_exact(self._serial.write_bytes, payload)
+            return len(payload)
+        except RuntimeError:
+            return 0
 
     def _read_bytes(self) -> bytes:
         if self._replay_file_path is not None:
@@ -1228,6 +1325,24 @@ class UARTLogApp(App[None]):
             self._single_read_result.update(self._rw_single_read_result)
         if self._single_write_result is not None:
             self._single_write_result.update(self._rw_single_write_result)
+
+    def _refresh_file_view(self) -> None:
+        file_task_active = self._burst_task_active and self._burst_task_kind in {
+            "bulk_file_write",
+            "bulk_file_read",
+        }
+        detail_text = self._burst_summary_text if file_task_active else self._file_summary_text
+        if self._file_summary is not None:
+            self._file_summary.update(
+                "\n".join(
+                    [
+                        "[SDRAM File]",
+                        f"state  : {'busy' if file_task_active else 'idle'}",
+                        f"task   : {self._burst_task_kind if file_task_active else '-'}",
+                        f"detail : {detail_text}",
+                    ]
+                )
+            )
         if self._file_write_result is not None:
             self._file_write_result.update(self._rw_file_write_result)
         if self._file_read_result is not None:
@@ -1253,7 +1368,7 @@ class UARTLogApp(App[None]):
             self._burst_summary.update(
                 "\n".join(
                     [
-                        "[SDRAM Burst]",
+                        "[SDRAM Bulk]",
                         f"state   : {'busy' if self._burst_task_active else 'idle'}",
                         f"task    : {self._burst_task_kind or '-'}",
                         f"base    : 0x{self._burst_base_addr:05X}",
@@ -1267,6 +1382,69 @@ class UARTLogApp(App[None]):
             self._burst_result.update(
                 "\n".join(["[Result]", self._burst_result_text, "", self._format_burst_words_preview()])
             )
+
+    def _start_bulk_task(
+        self,
+        *,
+        kind: str,
+        base_addr: int,
+        words: int,
+        result_text: str,
+        write_blob: bytes | None = None,
+        output_path: Path | None = None,
+        output_len: int = 0,
+    ) -> bool:
+        if self._replay_file_path is not None:
+            self._set_status("replay mode: SDRAM bulk disabled")
+            return False
+        if not self._active_connected():
+            self._set_status("not connected")
+            return False
+        if self._host_task_busy():
+            self._set_status("host task busy")
+            return False
+
+        # Drop stale host-response frames from a prior task before arming a new
+        # bulk transaction. Otherwise an old BULK_OK/DONE can be mistaken for
+        # the new session and leave the task waiting on a response that belongs
+        # to a different command.
+        drain_frames(self._read_bytes, self._parser, 0.1)
+        try:
+            self._selected_src_idx = select_source_index(
+                self._send_bytes,
+                self._read_bytes,
+                self._parser,
+                HOST_SRC_INDEX,
+                settle_ms=100,
+                timeout_s=1.5,
+            )
+        except TimeoutError:
+            self._set_status("failed to select host source")
+            return False
+
+        self._burst_task_active = True
+        self._burst_task_kind = kind
+        self._burst_phase = "select"
+        self._burst_command_sent = False
+        self._burst_base_addr = base_addr
+        self._burst_words = words
+        self._burst_packet_count = (words + 1) // 2 if "read" in kind else 0
+        self._burst_select_deadline = time.monotonic()
+        self._burst_rsp_deadline = 0.0
+        self._burst_received_packets = {}
+        self._burst_received_words = {}
+        self._burst_write_blocks = iter_bulk_write_blocks(write_blob) if write_blob is not None else []
+        self._burst_next_block_index = 0
+        self._burst_output_path = output_path
+        self._burst_output_len = output_len
+        self._burst_retry_count = 0
+        self._burst_abort_count = 0
+        self._burst_summary_text = f"started {kind}"
+        self._burst_result_text = result_text
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(self._burst_summary_text)
+        return True
 
     def _start_rw_task(self, *, kind: str, commands: list[tuple[str, int, int]], expected_reads: int = 0, output_path: Path | None = None, output_len: int = 0) -> bool:
         if self._replay_file_path is not None:
@@ -1289,6 +1467,8 @@ class UARTLogApp(App[None]):
         self._rw_task_restore_src_idx = None
         self._rw_task_select_deadline = time.monotonic()
         self._rw_task_rsp_deadline = 0.0
+        self._rw_task_retry_count = 0
+        self._rw_task_inflight_retries = 0
         self._rw_summary_text = f"started {kind}"
         self._refresh_rw_view()
         self._set_status(self._rw_summary_text)
@@ -1303,6 +1483,8 @@ class UARTLogApp(App[None]):
         self._rw_task_inflight = None
         self._rw_task_expected_reads = 0
         self._rw_task_rsp_deadline = 0.0
+        self._rw_task_retry_count = 0
+        self._rw_task_inflight_retries = 0
         self._refresh_rw_view()
         self._set_status(detail)
 
@@ -1336,14 +1518,123 @@ class UARTLogApp(App[None]):
             self._refresh_rw_view()
 
     def _start_file_write(self) -> None:
-        self._rw_file_write_result = "INOP: bulk path disabled"
-        self._refresh_rw_view()
-        self._set_status(self._rw_file_write_result)
+        if self._file_write_addr_input is None or self._file_write_path_input is None:
+            return
+        try:
+            base_addr = parse_u21(self._file_write_addr_input.value.strip())
+            file_path = Path(self._file_write_path_input.value.strip())
+            blob = load_bulk_file(file_path)
+            if not blob:
+                raise ValueError("input file is empty")
+            words = padded_word_count(len(blob))
+            validate_bulk_range(base_addr, words)
+            pad_bytes = words * 4 - len(blob)
+        except Exception as exc:
+            self._rw_file_write_result = f"validation failed: {exc}"
+            self._file_summary_text = self._rw_file_write_result
+            self._refresh_file_view()
+            self._set_status(self._rw_file_write_result)
+            return
+
+        detail = f"validated {file_path.name} bytes={len(blob)} words={words} pad={pad_bytes}"
+        if self._start_bulk_task(
+            kind="bulk_file_write",
+            base_addr=base_addr,
+            words=words,
+            result_text="waiting for bulk write ack...",
+            write_blob=blob,
+            output_len=len(blob),
+        ):
+            self._rw_file_write_result = detail
+            self._file_summary_text = detail
+            self._refresh_file_view()
 
     def _start_file_read_save(self) -> None:
-        self._rw_file_read_result = "INOP: bulk path disabled"
-        self._refresh_rw_view()
-        self._set_status(self._rw_file_read_result)
+        if (
+            self._file_read_addr_input is None
+            or self._file_read_words_input is None
+            or self._file_read_path_input is None
+        ):
+            return
+        try:
+            base_addr = parse_u21(self._file_read_addr_input.value.strip())
+            words, output_len = parse_bulk_length_spec(self._file_read_words_input.value.strip())
+            validate_bulk_range(base_addr, words)
+            output_path = Path(self._file_read_path_input.value.strip())
+            if output_path.suffix.lower() not in {".bin", ".hex"}:
+                raise ValueError("output path must end with .bin or .hex")
+        except Exception as exc:
+            self._rw_file_read_result = f"validation failed: {exc}"
+            self._file_summary_text = self._rw_file_read_result
+            self._refresh_file_view()
+            self._set_status(self._rw_file_read_result)
+            return
+
+        detail = (
+            f"validated read addr=0x{base_addr:05X} bytes={output_len} "
+            f"words={words} -> {output_path.name}"
+        )
+        if self._start_bulk_task(
+            kind="bulk_file_read",
+            base_addr=base_addr,
+            words=words,
+            result_text="waiting for bulk read ack...",
+            output_path=output_path,
+            output_len=output_len,
+        ):
+            self._rw_file_read_result = detail
+            self._file_summary_text = detail
+            self._refresh_file_view()
+
+    def _start_bulk_read_range(self) -> None:
+        if self._burst_base_input is None or self._burst_words_input is None:
+            return
+        try:
+            base_addr = parse_u21(self._burst_base_input.value.strip())
+            words = int(self._burst_words_input.value.strip(), 0)
+            validate_bulk_range(base_addr, words)
+        except Exception as exc:
+            self._burst_summary_text = f"invalid bulk input: {exc}"
+            self._burst_result_text = self._burst_summary_text
+            self._refresh_burst_view()
+            self._set_status(self._burst_summary_text)
+            return
+
+        self._start_bulk_task(
+            kind="bulk_range_read",
+            base_addr=base_addr,
+            words=words,
+            result_text="waiting for bulk read data...",
+        )
+
+    def _start_bulk_pattern_write(self) -> None:
+        if (
+            self._burst_base_input is None
+            or self._burst_words_input is None
+            or self._bulk_pattern_input is None
+        ):
+            return
+        try:
+            base_addr = parse_u21(self._burst_base_input.value.strip())
+            words = int(self._burst_words_input.value.strip(), 0)
+            pattern = int(self._bulk_pattern_input.value.strip(), 0) & 0xFFFF_FFFF
+            validate_bulk_range(base_addr, words)
+            blob = build_pattern_blob(pattern, words)
+        except Exception as exc:
+            self._burst_summary_text = f"invalid bulk input: {exc}"
+            self._burst_result_text = self._burst_summary_text
+            self._refresh_burst_view()
+            self._set_status(self._burst_summary_text)
+            return
+
+        self._start_bulk_task(
+            kind="bulk_pattern_write",
+            base_addr=base_addr,
+            words=words,
+            result_text=f"pattern=0x{pattern:08X}",
+            write_blob=blob,
+            output_len=len(blob),
+        )
 
     def _start_burst_test(self, *, is_read: bool) -> None:
         if self._burst_base_input is None or self._burst_words_input is None:
@@ -1375,6 +1666,7 @@ class UARTLogApp(App[None]):
 
         self._burst_task_active = True
         self._burst_task_kind = "burst_read_test" if is_read else "burst_write_test"
+        self._burst_phase = ""
         self._burst_command_sent = False
         self._burst_base_addr = base_addr
         self._burst_words = words
@@ -1383,19 +1675,158 @@ class UARTLogApp(App[None]):
         self._burst_rsp_deadline = 0.0
         self._burst_received_packets = {}
         self._burst_received_words = {}
+        self._burst_write_blocks = []
+        self._burst_next_block_index = 0
+        self._burst_output_path = None
+        self._burst_output_len = 0
+        self._burst_abort_count = 0
         self._burst_summary_text = f"started {self._burst_task_kind}"
         self._burst_result_text = "waiting for result..."
         self._refresh_burst_view()
         self._set_status(self._burst_summary_text)
 
     def _finish_burst_task(self, detail: str) -> None:
+        if self._burst_task_kind in {"bulk_file_write", "bulk_file_read"}:
+            self._file_summary_text = detail
         self._burst_task_active = False
         self._burst_summary_text = detail
         self._burst_task_kind = ""
+        self._burst_phase = ""
         self._burst_command_sent = False
         self._burst_rsp_deadline = 0.0
+        self._burst_write_blocks = []
+        self._burst_next_block_index = 0
+        self._burst_output_path = None
+        self._burst_output_len = 0
+        self._burst_retry_count = 0
+        self._burst_abort_count = 0
         self._refresh_burst_view()
+        self._refresh_file_view()
         self._set_status(detail)
+
+    def _bulk_task_is_write(self) -> bool:
+        return self._burst_task_kind in {"bulk_file_write", "bulk_pattern_write"}
+
+    def _send_bulk_abort(self) -> bool:
+        payload = build_bulk_abort_block(self._burst_next_block_index & 0xFF)
+        return self._send_bytes(payload) == len(payload)
+
+    def _begin_bulk_abort_recovery(self, reason: str) -> bool:
+        if not self._bulk_task_is_write():
+            return False
+        if self._burst_abort_count >= BULK_TASK_RETRY_LIMIT:
+            return False
+        if not self._send_bulk_abort():
+            return False
+
+        self._burst_abort_count += 1
+        self._burst_phase = "abort_wait"
+        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+        self._burst_summary_text = (
+            f"abort recovery {self._burst_abort_count}/{BULK_TASK_RETRY_LIMIT}: "
+            f"{reason}"
+        )
+        self._burst_result_text = self._burst_summary_text
+        if self._burst_task_kind == "bulk_file_write":
+            self._rw_file_write_result = self._burst_summary_text
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(self._burst_summary_text)
+        return True
+
+    def _restart_bulk_after_abort(self, reason: str) -> bool:
+        if self._burst_retry_count >= BULK_TASK_RETRY_LIMIT:
+            return False
+
+        self._burst_retry_count += 1
+        self._burst_phase = "select"
+        self._burst_command_sent = False
+        self._burst_select_deadline = time.monotonic()
+        self._burst_rsp_deadline = 0.0
+        self._burst_received_packets = {}
+        self._burst_received_words = {}
+        self._burst_next_block_index = 0
+        self._burst_abort_count = 0
+        self._burst_summary_text = (
+            f"retry {self._burst_retry_count}/{BULK_TASK_RETRY_LIMIT}: {reason}"
+        )
+        self._burst_result_text = self._burst_summary_text
+        if self._burst_task_kind == "bulk_file_write":
+            self._rw_file_write_result = self._burst_summary_text
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(self._burst_summary_text)
+        return True
+
+    def _retry_bulk_task(self, reason: str) -> bool:
+        if self._burst_retry_count >= BULK_TASK_RETRY_LIMIT:
+            return False
+
+        drain_frames(self._read_bytes, self._parser, 0.1)
+        try:
+            self._selected_src_idx = select_source_index(
+                self._send_bytes,
+                self._read_bytes,
+                self._parser,
+                HOST_SRC_INDEX,
+                settle_ms=100,
+                timeout_s=1.5,
+            )
+        except TimeoutError:
+            return False
+
+        self._burst_retry_count += 1
+        self._burst_phase = "select"
+        self._burst_command_sent = False
+        self._burst_select_deadline = time.monotonic()
+        self._burst_rsp_deadline = 0.0
+        self._burst_received_packets = {}
+        self._burst_received_words = {}
+        self._burst_next_block_index = 0
+        self._burst_abort_count = 0
+        self._burst_summary_text = (
+            f"retry {self._burst_retry_count}/{BULK_TASK_RETRY_LIMIT}: {reason}"
+        )
+        self._burst_result_text = self._burst_summary_text
+        if self._burst_task_kind == "bulk_file_write":
+            self._rw_file_write_result = self._burst_summary_text
+        elif self._burst_task_kind == "bulk_file_read":
+            self._rw_file_read_result = self._burst_summary_text
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(self._burst_summary_text)
+        return True
+
+    def _retry_rw_inflight(self) -> bool:
+        if self._rw_task_inflight is None or self._rw_task_inflight_retries >= RW_TASK_RETRY_LIMIT:
+            return False
+
+        op_kind, addr, data = self._rw_task_inflight
+        payload = make_read_packet(addr) if op_kind == "read" else make_write_packet(addr, data)
+        if self._send_bytes(payload) != len(payload):
+            return False
+
+        self._rw_task_inflight_retries += 1
+        self._rw_task_retry_count += 1
+        self._rw_task_rsp_deadline = time.monotonic() + MAP_RESPONSE_TIMEOUT_S
+        retry_text = f"retry {self._rw_task_inflight_retries}/{RW_TASK_RETRY_LIMIT} at 0x{addr:05X}"
+        self._rw_summary_text = f"{op_kind} {retry_text}"
+        if self._rw_task_kind == "single_read":
+            self._rw_single_read_result = retry_text
+        elif self._rw_task_kind == "single_write":
+            self._rw_single_write_result = retry_text
+        self._refresh_rw_view()
+        self._set_status(self._rw_summary_text)
+        return True
+
+    def _build_bulk_blob_from_words(self) -> bytes:
+        missing = [idx for idx in range(self._burst_words) if idx not in self._burst_received_words]
+        if missing:
+            raise ValueError(f"missing bulk words: first={missing[0]} count={len(missing)}")
+        blob = bytearray()
+        for idx in range(self._burst_words):
+            blob.extend(self._burst_received_words[idx].to_bytes(4, "little"))
+        return bytes(blob)
 
     def _complete_burst_read(self) -> None:
         missing = [idx for idx in range(self._burst_words) if idx not in self._burst_received_words]
@@ -1423,6 +1854,7 @@ class UARTLogApp(App[None]):
         if not self._burst_task_active:
             return
         now = time.monotonic()
+        is_bulk_task = self._burst_task_kind.startswith("bulk_")
         if self._selected_src_idx != HOST_SRC_INDEX:
             if now >= self._burst_select_deadline:
                 if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
@@ -1431,24 +1863,74 @@ class UARTLogApp(App[None]):
                 self._burst_summary_text = f"selecting host source (current={self._selected_src_idx})"
                 self._burst_select_deadline = now + 0.35
                 self._refresh_burst_view()
+                self._refresh_file_view()
             return
         if not self._burst_command_sent:
-            is_read = self._burst_task_kind == "burst_read_test"
-            payload = (
-                make_burst_test_read_packet(self._burst_base_addr, self._burst_words)
-                if is_read
-                else make_burst_test_write_packet(self._burst_base_addr, self._burst_words)
-            )
+            if is_bulk_task:
+                is_read = self._burst_task_kind in {"bulk_range_read", "bulk_file_read"}
+                payload = (
+                    build_bulk_read_command(self._burst_base_addr, self._burst_words)
+                    if is_read
+                    else build_bulk_write_command(self._burst_base_addr, self._burst_words)
+                )
+            else:
+                is_read = self._burst_task_kind == "burst_read_test"
+                payload = (
+                    make_burst_test_read_packet(self._burst_base_addr, self._burst_words)
+                    if is_read
+                    else make_burst_test_write_packet(self._burst_base_addr, self._burst_words)
+                )
             if self._send_bytes(payload) != len(payload):
                 self._finish_burst_task("burst command short write")
                 return
             self._burst_command_sent = True
-            self._burst_rsp_deadline = now + BURST_RESPONSE_TIMEOUT_S
-            self._burst_summary_text = (
-                f"sent {'BRT' if is_read else 'BWT'} "
-                f"0x{self._burst_base_addr:05X} words={self._burst_words}"
-            )
+            self._burst_rsp_deadline = now + (BULK_RESPONSE_TIMEOUT_S if is_bulk_task else BURST_RESPONSE_TIMEOUT_S)
+            if is_bulk_task:
+                self._burst_phase = "wait_ok"
+                self._burst_summary_text = (
+                    f"sent {'BR' if is_read else 'BW'} 0x{self._burst_base_addr:05X} words={self._burst_words}"
+                )
+            else:
+                self._burst_summary_text = (
+                    f"sent {'BRT' if is_read else 'BWT'} "
+                    f"0x{self._burst_base_addr:05X} words={self._burst_words}"
+                )
             self._refresh_burst_view()
+            self._refresh_file_view()
+            return
+        if is_bulk_task:
+            if self._burst_phase == "abort_wait":
+                if now > self._burst_rsp_deadline:
+                    if self._begin_bulk_abort_recovery("abort ack timeout"):
+                        return
+                    self._finish_burst_task("bulk abort recovery timeout")
+                return
+            if self._burst_phase == "send_block":
+                if self._burst_next_block_index >= len(self._burst_write_blocks):
+                    self._finish_burst_task("bulk write has no block to send")
+                    return
+                block_index = self._burst_next_block_index
+                block = self._burst_write_blocks[block_index]
+                if self._send_bytes(block) != len(block):
+                    self._finish_burst_task("bulk block short write")
+                    return
+                self._burst_next_block_index += 1
+                is_end_block = block_index == len(self._burst_write_blocks) - 1
+                self._burst_phase = "wait_write_done" if is_end_block else "wait_write_progress"
+                self._burst_rsp_deadline = now + BULK_RESPONSE_TIMEOUT_S
+                self._burst_summary_text = (
+                    f"sent {'WR_END' if is_end_block else 'WR_DATA'} block {block_index + 1}/{len(self._burst_write_blocks)}"
+                )
+                self._refresh_burst_view()
+                self._refresh_file_view()
+                return
+            if now > self._burst_rsp_deadline:
+                if self._bulk_task_is_write() and self._begin_bulk_abort_recovery("bulk timeout"):
+                    return
+                if self._retry_bulk_task("bulk timeout"):
+                    return
+                self._burst_result_text = "timeout"
+                self._finish_burst_task("bulk timeout")
             return
         if now > self._burst_rsp_deadline:
             self._burst_result_text = "timeout"
@@ -1535,30 +2017,71 @@ class UARTLogApp(App[None]):
         if not self._map_refresh_active or event.src_id != HOST_SRC_ID:
             pass
         else:
-            if event.event_id == HOST_EVT_READ_RSP and self._map_inflight_addr is not None and event.arg0 == self._map_inflight_addr:
-                self._map_received_words[event.arg0] = event.arg1
-                word_index = event.arg0 - self._map_base_addr
-                if 0 <= word_index < MAP_WORD_COUNT:
-                    offset = word_index * 4
-                    self._map_bytes[offset : offset + 4] = event.arg1.to_bytes(4, "little")
-                self._map_inflight_addr = None
-                self._map_inflight_retries = 0
-                self._map_rsp_deadline = 0.0
-                self._refresh_map_view()
-                if not self._map_pending_queue:
-                    if self._map_retry_count == 0:
-                        self._finish_map_refresh("refresh complete")
-                    else:
-                        self._finish_map_refresh(
-                            f"refresh complete (retries={self._map_retry_count})"
+            if event.event_id == HOST_EVT_BULK_OK:
+                done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
+                done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                if done_base != self._map_base_addr or done_words != MAP_WORD_COUNT:
+                    self._finish_map_refresh(
+                        f"BULK_OK mismatch base=0x{done_base:05X} words={done_words}"
+                    )
+                else:
+                    self._map_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                    self._map_summary_text = (
+                        f"bulk read accepted 0x{self._map_base_addr:05X} "
+                        f"words={MAP_WORD_COUNT}"
+                    )
+                    self._refresh_map_view()
+                    self._set_status(self._map_summary_text)
+            elif event.event_id == HOST_EVT_BULK_PROGRESS:
+                try:
+                    progress = decode_bulk_read_progress(event.arg0, event.arg1, event.arg2)
+                except ValueError as exc:
+                    self._finish_map_refresh(f"bulk progress decode failed: {exc}")
+                    return
+
+                for word_offset, value in enumerate(progress.words):
+                    word_index = (progress.base_addr - self._map_base_addr) + word_offset
+                    if 0 <= word_index < MAP_WORD_COUNT:
+                        offset = word_index * 4
+                        addr = self._map_base_addr + word_index
+                        self._map_received_words[addr] = value
+                        self._map_bytes[offset : offset + 4] = value.to_bytes(
+                            4,
+                            "little",
                         )
-            elif event.event_id == HOST_EVT_CMD_ERR and self._map_inflight_addr is not None:
-                self._map_refresh_active = False
-                self._map_summary_text = f"refresh failed at 0x{self._map_inflight_addr:05X}: cmd_err"
-                self._map_inflight_addr = None
-                self._map_inflight_retries = 0
+                self._map_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                self._map_summary_text = (
+                    f"bulk read words {len(self._map_received_words)}/{MAP_WORD_COUNT}"
+                )
                 self._refresh_map_view()
                 self._set_status(self._map_summary_text)
+            elif event.event_id == HOST_EVT_BULK_DONE:
+                done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
+                done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                missing = [
+                    idx
+                    for idx in range(MAP_WORD_COUNT)
+                    if (self._map_base_addr + idx) not in self._map_received_words
+                ]
+                if done_base != self._map_base_addr or done_words != MAP_WORD_COUNT:
+                    self._finish_map_refresh(
+                        f"DONE mismatch base=0x{done_base:05X} words={done_words}"
+                    )
+                elif missing:
+                    self._finish_map_refresh(
+                        f"bulk read incomplete missing={len(missing)} first={missing[0]:02X}"
+                    )
+                elif self._map_retry_count == 0:
+                    self._finish_map_refresh("refresh complete")
+                else:
+                    self._finish_map_refresh(
+                        f"refresh complete (retries={self._map_retry_count})"
+                    )
+            elif event.event_id in {HOST_EVT_BULK_ABORT, HOST_EVT_BURST_ERR, HOST_EVT_CMD_ERR}:
+                self._finish_map_refresh(
+                    f"refresh failed evt=0x{event.event_id:02X} "
+                    f"arg0=0x{event.arg0:08X}"
+                )
 
         if not self._status_refresh_active or event.src_id != HOST_SRC_ID:
             pass
@@ -1595,6 +2118,150 @@ class UARTLogApp(App[None]):
                 )
 
         if self._burst_task_active and event.src_id == HOST_SRC_ID:
+            if self._burst_task_kind.startswith("bulk_"):
+                if self._burst_phase == "abort_wait":
+                    if event.event_id in {HOST_EVT_BULK_ABORT, HOST_EVT_BULK_ERR, HOST_EVT_CMD_ERR}:
+                        if self._restart_bulk_after_abort("bulk session aborted"):
+                            return
+                        self._finish_burst_task("bulk session aborted")
+                    elif event.event_id == HOST_EVT_BULK_PROGRESS:
+                        self._burst_rsp_deadline = 0.0
+                        self._burst_summary_text = (
+                            "bulk progress arrived during abort recovery"
+                        )
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    elif event.event_id == HOST_EVT_BULK_DONE:
+                        if self._restart_bulk_after_abort("bulk session completed late"):
+                            return
+                        self._finish_burst_task("bulk session completed late")
+                    return
+                if event.event_id == HOST_EVT_BULK_OK:
+                    done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
+                    done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                    if done_base != self._burst_base_addr or done_words != self._burst_words:
+                        mismatch_text = f"BULK_OK mismatch base=0x{done_base:05X} words={done_words}"
+                        if self._retry_bulk_task(mismatch_text):
+                            return
+                        self._burst_result_text = mismatch_text
+                        self._finish_burst_task("bulk ack mismatch")
+                    elif self._burst_task_kind in {"bulk_range_read", "bulk_file_read"}:
+                        self._burst_phase = "wait_read_done"
+                        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                        self._burst_summary_text = (
+                            f"bulk read accepted 0x{self._burst_base_addr:05X} words={self._burst_words}"
+                        )
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    else:
+                        self._burst_phase = "send_block"
+                        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                        self._burst_summary_text = (
+                            f"bulk write accepted 0x{self._burst_base_addr:05X} words={self._burst_words}"
+                        )
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    return
+                if event.event_id == HOST_EVT_BULK_PROGRESS:
+                    if self._burst_task_kind in {"bulk_range_read", "bulk_file_read"}:
+                        progress = decode_bulk_read_progress(event.arg0, event.arg1, event.arg2)
+                        packet_index = max(0, (progress.base_addr - self._burst_base_addr) // 2)
+                        self._burst_received_packets[packet_index] = progress.valid_word_count
+                        for word_offset, value in enumerate(progress.words):
+                            word_index = (progress.base_addr - self._burst_base_addr) + word_offset
+                            if 0 <= word_index < self._burst_words:
+                                self._burst_received_words[word_index] = value
+                        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                        self._burst_summary_text = (
+                            f"bulk read words {len(self._burst_received_words)}/{self._burst_words}"
+                        )
+                        if self._burst_task_kind == "bulk_range_read":
+                            self._burst_result_text = (
+                                f"received {len(self._burst_received_words)}/{self._burst_words} words"
+                            )
+                        else:
+                            self._rw_file_read_result = (
+                                f"received {len(self._burst_received_words)}/{self._burst_words} words"
+                            )
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    else:
+                        self._burst_phase = "send_block"
+                        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                        self._burst_summary_text = (
+                            f"bulk write progress completed={event.arg1} remaining={event.arg2}"
+                        )
+                        if self._burst_task_kind == "bulk_pattern_write":
+                            self._burst_result_text = self._burst_summary_text
+                        else:
+                            self._rw_file_write_result = self._burst_summary_text
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    return
+                if event.event_id == HOST_EVT_BULK_DONE:
+                    done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
+                    done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                    if done_base != self._burst_base_addr or done_words != self._burst_words:
+                        mismatch_text = f"DONE mismatch base=0x{done_base:05X} words={done_words}"
+                        if self._retry_bulk_task(mismatch_text):
+                            return
+                        self._burst_result_text = mismatch_text
+                        self._finish_burst_task("bulk done mismatch")
+                    elif self._burst_task_kind in {"bulk_range_read", "bulk_file_read"}:
+                        try:
+                            blob = self._build_bulk_blob_from_words()
+                        except Exception as exc:
+                            if self._burst_task_kind == "bulk_file_read":
+                                self._rw_file_read_result = f"bulk read incomplete: {exc}"
+                            else:
+                                self._burst_result_text = f"bulk read incomplete: {exc}"
+                            self._finish_burst_task("bulk read incomplete")
+                            return
+
+                        if self._burst_task_kind == "bulk_file_read":
+                            try:
+                                if self._burst_output_path is None:
+                                    raise ValueError("missing output path")
+                                save_bulk_file(self._burst_output_path, blob[: self._burst_output_len])
+                                self._rw_file_read_result = (
+                                    f"saved {self._burst_output_len} bytes to {self._burst_output_path}"
+                                )
+                                self._finish_burst_task("bulk file read complete")
+                            except Exception as exc:
+                                self._rw_file_read_result = f"save failed: {exc}"
+                                self._finish_burst_task("bulk file read save failed")
+                        else:
+                            self._burst_result_text = (
+                                f"read words={self._burst_words} bytes={len(blob)}"
+                            )
+                            self._finish_burst_task("bulk range read complete")
+                    else:
+                        if self._burst_task_kind == "bulk_file_write":
+                            self._rw_file_write_result = (
+                                f"wrote {self._burst_output_len} bytes to 0x{self._burst_base_addr:05X}"
+                            )
+                            self._finish_burst_task("bulk file write complete")
+                        else:
+                            self._burst_result_text = (
+                                f"pattern write words={self._burst_words} complete"
+                            )
+                            self._finish_burst_task("bulk pattern write complete")
+                    return
+                if event.event_id in {HOST_EVT_BULK_ABORT, HOST_EVT_BURST_ERR, HOST_EVT_CMD_ERR}:
+                    error_text = (
+                        f"evt=0x{event.event_id:02X} arg0=0x{event.arg0:08X} "
+                        f"arg1=0x{event.arg1:08X} arg2=0x{event.arg2:08X}"
+                    )
+                    if self._retry_bulk_task(error_text):
+                        return
+                    if self._burst_task_kind == "bulk_file_write":
+                        self._rw_file_write_result = error_text
+                    elif self._burst_task_kind == "bulk_file_read":
+                        self._rw_file_read_result = error_text
+                    else:
+                        self._burst_result_text = error_text
+                    self._finish_burst_task("bulk transfer failed")
+                    return
             if event.event_id == HOST_EVT_BURST_DATA and self._burst_task_kind == "burst_read_test":
                 packet = decode_burst_data_packet(event.arg0, event.arg1, event.arg2)
                 self._burst_packet_count = packet.packet_count
@@ -1637,18 +2304,21 @@ class UARTLogApp(App[None]):
         if event.event_id == HOST_EVT_READ_RSP and op_kind == "read" and event.arg0 == inflight_addr:
             self._rw_task_read_results[inflight_addr] = event.arg1
             self._rw_task_inflight = None
+            self._rw_task_inflight_retries = 0
             self._rw_task_rsp_deadline = 0.0
             if self._rw_task_kind == "single_read":
                 self._rw_single_read_result = f"0x{inflight_addr:05X} -> 0x{event.arg1:08X}"
             self._refresh_rw_view()
         elif event.event_id == HOST_EVT_WRITE_ACK and op_kind == "write" and event.arg0 == inflight_addr:
             self._rw_task_inflight = None
+            self._rw_task_inflight_retries = 0
             self._rw_task_rsp_deadline = 0.0
             if self._rw_task_kind == "single_write":
                 self._rw_single_write_result = f"0x{inflight_data:08X} -> 0x{inflight_addr:05X} OK"
             self._refresh_rw_view()
         elif event.event_id == HOST_EVT_CMD_ERR:
             self._rw_task_inflight = None
+            self._rw_task_inflight_retries = 0
             self._rw_task_rsp_deadline = 0.0
             if self._rw_task_kind == "single_read":
                 self._rw_single_read_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
@@ -1726,13 +2396,14 @@ class UARTLogApp(App[None]):
         self._map_restore_src_idx = None
         self._map_select_deadline = 0.0
         self._map_rsp_deadline = 0.0
+        self._map_command_sent = False
         self._map_inflight_addr = None
         self._map_inflight_retries = 0
         self._map_retry_count = 0
         self._map_received_words = {}
         self._map_bytes = bytearray(MAP_BYTE_COUNT)
-        self._map_pending_queue = [self._map_base_addr + idx for idx in range(MAP_WORD_COUNT)]
-        self._map_summary_text = f"queued {MAP_WORD_COUNT} SDRAM reads"
+        self._map_pending_queue = []
+        self._map_summary_text = f"queued bulk read {MAP_WORD_COUNT} SDRAM words"
         self._refresh_map_view()
         self._set_status(self._map_summary_text)
 
@@ -1752,50 +2423,42 @@ class UARTLogApp(App[None]):
                 self._map_select_deadline = now + 0.35
                 self._refresh_map_view()
             return
-        if self._map_inflight_addr is not None and now > self._map_rsp_deadline:
-            failed_addr = self._map_inflight_addr
+        if not self._map_command_sent:
+            payload = build_bulk_read_command(self._map_base_addr, MAP_WORD_COUNT)
+            if self._send_bytes(payload) != len(payload):
+                self._map_refresh_active = False
+                self._map_summary_text = (
+                    f"short bulk read write for 0x{self._map_base_addr:05X}"
+                )
+                self._refresh_map_view()
+                self._set_status(self._map_summary_text)
+                return
+            self._map_command_sent = True
+            self._map_rsp_deadline = now + BULK_RESPONSE_TIMEOUT_S
+            self._map_summary_text = (
+                f"sent BR 0x{self._map_base_addr:05X} words={MAP_WORD_COUNT}"
+            )
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+        if now > self._map_rsp_deadline:
             if self._map_inflight_retries < MAP_READ_RETRY_LIMIT:
-                payload = make_read_packet(failed_addr)
-                if self._send_bytes(payload) != len(payload):
-                    self._map_refresh_active = False
-                    self._map_summary_text = f"short retry write for 0x{failed_addr:05X}"
-                    self._map_inflight_addr = None
-                    self._map_inflight_retries = 0
-                    self._refresh_map_view()
-                    self._set_status(self._map_summary_text)
-                    return
                 self._map_inflight_retries += 1
                 self._map_retry_count += 1
-                self._map_rsp_deadline = now + MAP_RESPONSE_TIMEOUT_S
+                self._map_command_sent = False
+                self._map_rsp_deadline = 0.0
+                self._map_received_words = {}
+                self._map_bytes = bytearray(MAP_BYTE_COUNT)
                 self._map_summary_text = (
                     f"retry {self._map_inflight_retries}/{MAP_READ_RETRY_LIMIT} "
-                    f"for 0x{failed_addr:05X}"
+                    f"for BR 0x{self._map_base_addr:05X}"
                 )
                 self._refresh_map_view()
                 self._set_status(self._map_summary_text)
             else:
-                self._map_refresh_active = False
-                self._map_summary_text = f"timeout waiting for 0x{failed_addr:05X}"
-                self._map_inflight_addr = None
-                self._map_inflight_retries = 0
-                self._refresh_map_view()
-                self._set_status(self._map_summary_text)
-            return
-        if self._map_inflight_addr is not None or now < self._map_select_deadline or not self._map_pending_queue:
-            return
-        next_addr = self._map_pending_queue.pop(0)
-        payload = make_read_packet(next_addr)
-        if self._send_bytes(payload) != len(payload):
-            self._map_refresh_active = False
-            self._map_summary_text = f"short write for 0x{next_addr:05X}"
-            self._refresh_map_view()
-            self._set_status(self._map_summary_text)
-            return
-        self._map_inflight_addr = next_addr
-        self._map_inflight_retries = 0
-        self._map_rsp_deadline = now + MAP_RESPONSE_TIMEOUT_S
-        self._map_summary_text = f"reading 0x{next_addr:05X} ({len(self._map_received_words)+1}/{MAP_WORD_COUNT})"
-        self._refresh_map_view()
+                self._finish_map_refresh(
+                    f"timeout waiting for BR 0x{self._map_base_addr:05X}"
+                )
 
     def _poll_status_refresh(self) -> None:
         if not self._status_refresh_active:
@@ -1876,6 +2539,8 @@ class UARTLogApp(App[None]):
             return
         if self._rw_task_inflight is not None and now > self._rw_task_rsp_deadline:
             op_kind, inflight_addr, _ = self._rw_task_inflight
+            if self._retry_rw_inflight():
+                return
             if self._rw_task_kind == "single_read":
                 self._rw_single_read_result = f"timeout at 0x{inflight_addr:05X}"
             elif self._rw_task_kind == "single_write":
@@ -1905,6 +2570,7 @@ class UARTLogApp(App[None]):
             self._finish_rw_task(f"{op_kind} short write at 0x{addr:05X}")
             return
         self._rw_task_inflight = (op_kind, addr, data)
+        self._rw_task_inflight_retries = 0
         self._rw_task_rsp_deadline = now + MAP_RESPONSE_TIMEOUT_S
         self._rw_summary_text = f"{op_kind} 0x{addr:05X}"
         self._refresh_rw_view()
@@ -1930,6 +2596,9 @@ class UARTLogApp(App[None]):
         self._map_refresh_active = False
         self._map_summary_text = detail
         self._map_restore_src_idx = None
+        self._map_command_sent = False
+        self._map_rsp_deadline = 0.0
+        self._map_inflight_addr = None
         self._map_inflight_retries = 0
         self._refresh_map_view()
         self._set_status(detail)

@@ -23,9 +23,11 @@ module testbench;
   logic        tb_req_ready;
   logic        tb_req_is_write;
   logic        tb_req_is_burst_test;
+  logic        tb_req_is_raw_bulk;
   logic [20:0] tb_req_addr;
   logic [31:0] tb_req_data;
   logic [8:0]  tb_req_words;
+  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] tb_req_raw_wr_data;
   logic        tb_sdrc_init_done;
   logic        tb_sdrc_ready;
   logic        tb_sdrc_cmd_ack;
@@ -45,6 +47,10 @@ module testbench;
   logic [31:0] tb_evt_arg0;
   logic [31:0] tb_evt_arg1;
   logic [31:0] tb_evt_arg2;
+  logic        tb_raw_done;
+  logic        tb_raw_err_valid;
+  logic [31:0] tb_raw_err_code;
+  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] tb_raw_rd_data;
   logic        tb_busy;
   logic [31:0] tb_dbg_host_summary;
   logic [31:0] tb_dbg_host_detail;
@@ -69,9 +75,11 @@ module testbench;
     tb_req_valid          = 1'b0;
     tb_req_is_write       = 1'b0;
     tb_req_is_burst_test  = 1'b0;
+    tb_req_is_raw_bulk    = 1'b0;
     tb_req_addr           = '0;
     tb_req_data           = '0;
     tb_req_words          = 9'd1;
+    tb_req_raw_wr_data    = '0;
     tb_sdrc_init_done     = 1'b0;
     tb_sdrc_ready         = 1'b1;
     tb_sdrc_cmd_ack       = 1'b0;
@@ -106,9 +114,11 @@ module testbench;
     .O_REQ_READY        (tb_req_ready),
     .I_REQ_IS_WRITE     (tb_req_is_write),
     .I_REQ_IS_BURST_TEST(tb_req_is_burst_test),
+    .I_REQ_IS_RAW_BULK  (tb_req_is_raw_bulk),
     .I_REQ_ADDR         (tb_req_addr),
     .I_REQ_DATA         (tb_req_data),
     .I_REQ_WORDS        (tb_req_words),
+    .I_REQ_RAW_WR_DATA  (tb_req_raw_wr_data),
     .I_SDRC_INIT_DONE   (tb_sdrc_init_done),
     .I_SDRC_READY       (tb_sdrc_ready),
     .I_SDRC_CMD_ACK     (tb_sdrc_cmd_ack),
@@ -128,6 +138,10 @@ module testbench;
     .O_EVT_ARG0         (tb_evt_arg0),
     .O_EVT_ARG1         (tb_evt_arg1),
     .O_EVT_ARG2         (tb_evt_arg2),
+    .O_RAW_DONE         (tb_raw_done),
+    .O_RAW_ERR_VALID    (tb_raw_err_valid),
+    .O_RAW_ERR_CODE     (tb_raw_err_code),
+    .O_RAW_RD_DATA      (tb_raw_rd_data),
     .O_BUSY             (tb_busy),
     .O_DBG_HOST_SUMMARY (tb_dbg_host_summary),
     .O_DBG_HOST_DETAIL  (tb_dbg_host_detail),
@@ -236,9 +250,39 @@ module testbench;
       tb_req_valid         <= 1'b0;
       tb_req_is_write      <= 1'b0;
       tb_req_is_burst_test <= 1'b0;
+      tb_req_is_raw_bulk   <= 1'b0;
       tb_req_addr          <= '0;
       tb_req_data          <= '0;
       tb_req_words         <= 9'd1;
+      tb_req_raw_wr_data   <= '0;
+    end
+  endtask
+
+  task automatic issue_raw_request(
+    input logic        is_write,
+    input logic [20:0] addr,
+    input logic [8:0]  words,
+    input logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] raw_data
+  );
+    begin
+      while (!tb_req_ready) @(posedge tb_clk);
+      @(posedge tb_clk);
+      tb_req_valid         <= 1'b1;
+      tb_req_is_write      <= is_write;
+      tb_req_is_burst_test <= 1'b0;
+      tb_req_is_raw_bulk   <= 1'b1;
+      tb_req_addr          <= addr;
+      tb_req_data          <= 32'h0;
+      tb_req_words         <= words;
+      tb_req_raw_wr_data   <= raw_data;
+      @(posedge tb_clk);
+      tb_req_valid         <= 1'b0;
+      tb_req_is_write      <= 1'b0;
+      tb_req_is_burst_test <= 1'b0;
+      tb_req_is_raw_bulk   <= 1'b0;
+      tb_req_addr          <= '0;
+      tb_req_words         <= 9'd1;
+      tb_req_raw_wr_data   <= '0;
     end
   endtask
 
@@ -313,6 +357,49 @@ module testbench;
           )
         );
       end
+    end
+  endtask
+
+  task automatic expect_raw_done(input string label);
+    int wait_cycles;
+    begin
+      wait_cycles = 0;
+      while (!tb_raw_done) begin
+        @(posedge tb_clk);
+        wait_cycles++;
+        if (wait_cycles > 800) begin
+          log_fatal(1, "ACCESS ENG TB", {"timeout waiting raw done: ", label});
+        end
+      end
+      if (tb_evt_valid) begin
+        log_fatal(1, "ACCESS ENG TB", {"raw mode unexpectedly emitted event: ", label});
+      end
+      log_info("ACCESS ENG TB", {"raw done ok: ", label});
+    end
+  endtask
+
+  task automatic expect_raw_error(
+    input logic [31:0] exp_code,
+    input string       label
+  );
+    int wait_cycles;
+    begin
+      wait_cycles = 0;
+      while (!tb_raw_err_valid) begin
+        @(posedge tb_clk);
+        wait_cycles++;
+        if (wait_cycles > 800) begin
+          log_fatal(1, "ACCESS ENG TB", {"timeout waiting raw error: ", label});
+        end
+      end
+      if (tb_raw_err_code !== exp_code) begin
+        log_fatal(
+          1,
+          "ACCESS ENG TB",
+          $sformatf("raw err mismatch %s code=0x%08h", label, tb_raw_err_code)
+        );
+      end
+      log_info("ACCESS ENG TB", {"raw err ok: ", label});
     end
   endtask
 

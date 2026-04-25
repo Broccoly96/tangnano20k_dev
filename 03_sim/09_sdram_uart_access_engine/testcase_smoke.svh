@@ -1,5 +1,6 @@
   initial begin : tc_smoke
     int cmd_idx;
+    logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] raw_words;
 
     @(posedge tb_rst_n);
     repeat (4) @(posedge tb_clk);
@@ -82,6 +83,55 @@
     expect_event(EVT_BULK_ERR, ERR_WORD_COUNT, 32'h0000_0100, 32'h8000_0000, "burst zero length");
     issue_request(1'b0, 1'b1, 21'h00100, 32'h0, 9'd257);
     expect_event(EVT_BULK_ERR, ERR_WORD_COUNT, 32'h0000_0100, 32'h8000_0101, "burst too long");
+
+    log_info("ACCESS ENG TB", "case: raw bulk write chunk");
+    raw_words = '0;
+    raw_words[0 +: 32] = 32'h3F14_1006;
+    raw_words[32 +: 32] = 32'h0012_0410;
+    raw_words[64 +: 32] = 32'hA5A5_0604;
+    raw_words[96 +: 32] = 32'h55AA_123F;
+    cmd_idx = cmd_history_count;
+    issue_raw_request(1'b1, 21'h00120, 9'd4, raw_words);
+    expect_raw_done("raw bulk write");
+    expect_command_pair(cmd_idx, SDRAM_HS_CMD_WRITE, "raw bulk write");
+    for (int beat = 0; beat < 4; beat++) begin
+      if (mem_words[21'h00120 + beat] !== raw_words[beat*32 +: 32]) begin
+        log_fatal(
+          1,
+          "ACCESS ENG TB",
+          $sformatf(
+            "raw write mismatch beat=%0d exp=0x%08h got=0x%08h",
+            beat,
+            raw_words[beat*32 +: 32],
+            mem_words[21'h00120 + beat]
+          )
+        );
+      end
+    end
+
+    log_info("ACCESS ENG TB", "case: raw bulk read chunk");
+    cmd_idx = cmd_history_count;
+    issue_raw_request(1'b0, 21'h00120, 9'd4, '0);
+    expect_raw_done("raw bulk read");
+    expect_command_pair(cmd_idx, SDRAM_HS_CMD_READ, "raw bulk read");
+    for (int beat = 0; beat < 4; beat++) begin
+      if (tb_raw_rd_data[beat*32 +: 32] !== mem_words[21'h00120 + beat]) begin
+        log_fatal(
+          1,
+          "ACCESS ENG TB",
+          $sformatf(
+            "raw read mismatch beat=%0d exp=0x%08h got=0x%08h",
+            beat,
+            mem_words[21'h00120 + beat],
+            tb_raw_rd_data[beat*32 +: 32]
+          )
+        );
+      end
+    end
+
+    log_info("ACCESS ENG TB", "case: raw bulk length 27 rejected");
+    issue_raw_request(1'b0, 21'h00120, 9'd27, '0);
+    expect_raw_error(ERR_WORD_COUNT, "raw bulk too long");
 
     log_info("ACCESS ENG TB", "case: write timeout");
     inject_next_wr_timeout = 1'b1;

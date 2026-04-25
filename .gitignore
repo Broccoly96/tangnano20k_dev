@@ -28,3 +28,6 @@ logs
 impl/gwsynthesis
 impl/temp
 run_all*
+
+# Prompts
+*.prompt*

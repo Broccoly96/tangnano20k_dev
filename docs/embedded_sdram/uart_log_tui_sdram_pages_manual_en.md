@@ -8,14 +8,11 @@ Target file:
 
 ## Current host protocol status
 
-- Single access is supported.
+- Single access and bulk access are supported.
 - `Single Address Read` uses printable ASCII `R <addr>`.
 - `Single Address Write` uses printable ASCII `W <addr> <data>`.
-- Bulk transfer is currently disabled in the host tools.
-- The `SRAM Map`, `File Select Read`, and `File Select Write` widgets
-  remain visible, but they do not start SDRAM transfer.
-- When those disabled functions are requested, the TUI shows
-  `INOP: bulk path disabled`.
+- `SDRAM Map` uses printable ASCII `BR <addr> <words>`.
+- `SDRAM Bulk` and `SDRAM File` use `BR` / `BW`.
 
 ## Startup behavior
 
@@ -34,21 +31,24 @@ Target file:
 
 - Base address input
 - `Refresh` button
-- 64-word display area
+- 256-word display area
 
 ### Address window
 
-- One page corresponds to `64 words = 256 bytes`.
+- One page corresponds to `256 words = 1024 bytes`.
 - The display uses 32-bit word addresses.
-- Four words are shown per row.
+- The horizontal axis is word-address offset `00` through `0F`.
+- The vertical axis is word-address offset `00` through `F0`.
+- Sixteen words are shown per row.
 
 ### Current behavior
 
-- The page layout remains available for operator convenience.
-- `Refresh` does not issue SDRAM read traffic in the current phase.
-- Pressing `Refresh` shows `INOP: bulk path disabled`.
-- The displayed map content is therefore not refreshed from hardware in
-  the current single-access-only release.
+- Pressing `Refresh` sends one `BR <base> 00100` command.
+- Each `BULK_PROGRESS` event updates the corresponding word in the
+  display buffer.
+- `BULK_DONE` reports `refresh complete` after all 256 words have been
+  received.
+- Timeout or bulk error conditions are retried up to three times.
 
 ## SDRAM RW
 

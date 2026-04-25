@@ -27,15 +27,15 @@
     expect_cmd(ASCII_OP_WRITE, 1'b1, 1'b0, 1'b0, 21'h00003C,
                32'h0000_0001, 21'h0, "status write");
 
-    log_info("ASCII CTRL TB", "case: reserved bulk read");
+    log_info("ASCII CTRL TB", "case: bulk read");
     send_text("BR 00100 00040\n");
-    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 1'b0, 21'h000000,
-               32'h0000_0000, 21'h00000, "bulk read reserved");
+    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 1'b0, 21'h000100,
+           32'h0000_0000, 21'h00040, "bulk read");
 
-    log_info("ASCII CTRL TB", "case: reserved bulk write");
+    log_info("ASCII CTRL TB", "case: bulk write");
     send_text("BW 00100 00040\n");
-    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 1'b0, 21'h000000,
-               32'h0000_0000, 21'h00000, "bulk write reserved");
+    expect_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 1'b0, 21'h000100,
+           32'h0000_0000, 21'h00040, "bulk write");
 
     log_info("ASCII CTRL TB", "case: burst read test");
     send_text("BRT 00100 00040\n");

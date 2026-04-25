@@ -1,5 +1,6 @@
   initial begin : tc_smoke
     logic [31:0] summary_word;
+    logic [MAX_BULK_PAYLOAD_BYTES*8-1:0] bulk_payload;
 
     @(posedge tb_rst_n);
     log_info("HOSTIF CTRL TB", "case: summary read is available before init");
@@ -64,15 +65,21 @@
     send_text("SR 0002C\n");
     expect_host_event(EVT_READ_RSP, 32'h0000_002C, 32'h0000_0000, 32'h0, "retry data2");
 
-    log_info("HOSTIF CTRL TB", "case: unsupported bulk");
-    send_text("BR 00040 00001\n");
-    expect_host_event(
-      EVT_CMD_ERR,
-      ERR_UNSUPPORTED,
-      32'h0000_0000,
-      32'h0000_0000,
-      "unsupported bulk"
-    );
+    log_info("HOSTIF CTRL TB", "case: bulk write/read round-trip after PASS");
+    bulk_payload = '0;
+    bulk_payload[0 +: 32] = 32'h1234_5678;
+    bulk_payload[32 +: 32] = 32'h3F14_1006;
+    send_text("BW 00040 00002\n");
+    expect_host_event(EVT_BULK_OK, 32'h0000_0040, 32'h0000_0002, 32'h0000_0000, "bulk write ok");
+    send_bulk_data_words(8'h00, bulk_payload, 2);
+    expect_host_event(EVT_BULK_PROG, 32'h0000_0040, 32'h0000_0002, 32'h0000_0000, "bulk write progress");
+    send_bulk_end(8'h01);
+    expect_host_event(EVT_BULK_DONE, 32'h0000_0040, 32'h0000_0002, 32'h0000_0002, "bulk write done");
+
+    send_text("BR 00040 00002\n");
+    expect_host_event(EVT_BULK_OK, 32'h0000_0040, 32'h0000_0002, 32'h0000_0001, "bulk read ok");
+    expect_host_event(EVT_BULK_PROG, 32'h0040_0040, 32'h1234_5678, 32'h3F14_1006, "bulk read data");
+    expect_host_event(EVT_BULK_DONE, 32'h0000_0040, 32'h0000_0002, 32'h0000_0002, "bulk read done");
 
     log_info("HOSTIF CTRL TB", "sdram_emb_hostif_ctrl smoke test passed");
     $finish;

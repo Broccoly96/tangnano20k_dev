@@ -53,6 +53,7 @@ package sdram_uart_proto_pkg;
   localparam logic [31:0] ERR_BULK_LEN        = 32'h0000_000B;
   localparam logic [31:0] ERR_BULK_ABORT_REQ  = 32'h0000_000C;
   localparam logic [31:0] ERR_UNSUPPORTED     = 32'h0000_000D;
+  localparam logic [31:0] ERR_BULK_TIMEOUT    = 32'h0000_000E;
 
   typedef enum logic [1:0] {
     ASCII_OP_NONE = 2'd0,

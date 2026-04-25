@@ -8,15 +8,11 @@
 
 ## 1. 現行 host protocol の状態
 
-- 現在正式に有効なのは single access のみです。
+- single access と bulk access が有効です。
 - `Single Address Read` は ASCII `R <addr>` を使います。
 - `Single Address Write` は ASCII `W <addr> <data>` を使います。
-- bulk transfer は host tool 側で無効化されています。
-- `SRAM Map`、`File Select Read`、`File Select Write` の枠は
-  画面上に残ります。
-- ただし、これらのボタンを押しても SDRAM 転送は始まらず、
-  `INOP: bulk path disabled`
-  を表示します。
+- `SDRAM Map` は ASCII `BR <addr> <words>` を使います。
+- `SDRAM Bulk` と `SDRAM File` は `BR` / `BW` を使います。
 
 ## 2. 起動時動作
 
@@ -36,23 +32,24 @@
 
 - Base Address 入力欄
 - `Refresh` ボタン
-- 64-word 表示エリア
+- 256-word 表示エリア
 
 ### 3.2 表示窓
 
-- 1 画面は `64 word = 256 byte` 固定です。
+- 1 画面は `256 word = 1024 byte` 固定です。
 - アドレス単位は 32-bit word address です。
-- 1 行に 4 word を表示します。
+- 横軸は word address の下位 offset `00` から `0F` です。
+- 縦軸は word address offset `00` から `F0` です。
+- 1 行に 16 word を表示します。
 
 ### 3.3 現行動作
 
-- 画面レイアウト自体は維持されています。
-- ただし現在の phase では map refresh は無効です。
-- `Refresh` を押すと
-  `INOP: bulk path disabled`
-  を表示します。
-- したがって、現在の `SDRAM Map` は
-  画面枠を残した暫定 UI です。
+- `Refresh` を押すと `BR <base> 00100` を 1 回送信します。
+- `BULK_PROGRESS` イベントを受けるたび、対応する word を
+  表示バッファへ反映します。
+- `BULK_DONE` で 256 word すべてを受信済みなら
+  `refresh complete` を表示します。
+- timeout または bulk error の場合は最大 3 回 retry します。
 
 ## 4. SDRAM RW 画面
 

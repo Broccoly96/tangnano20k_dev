@@ -44,6 +44,7 @@ module sdram_uart_ascii_ctrl #(
   localparam int unsigned LEN_WRITE6     = 17;
   localparam int unsigned LEN_STATUS_RD  = 8;
   localparam int unsigned LEN_STATUS_WR  = 17;
+  localparam int unsigned LEN_BULK       = 14;
   localparam int unsigned LEN_BURST_TEST = 15;
 
   logic [7:0]  r_line [0:MAX_LINE_BYTES-1];
@@ -355,6 +356,62 @@ module sdram_uart_ascii_ctrl #(
         decoded_data = parse_hex8(r_line[9], r_line[10], r_line[11], r_line[12],
                                   r_line[13], r_line[14], r_line[15], r_line[16]);
         emit_cmd(ASCII_OP_WRITE, 1'b1, 1'b0, 1'b0, decoded_addr, decoded_data, 21'h0);
+      end else if ((r_line_len == LEN_BULK) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   (r_line[1] == ASCII_CMD_R) &&
+                   (r_line[2] == 8'h20) &&
+                   (r_line[8] == 8'h20) &&
+                   fixed_hex5_ok(r_line[3], r_line[4], r_line[5],
+                                 r_line[6], r_line[7]) &&
+                   fixed_hex5_ok(r_line[9], r_line[10], r_line[11],
+                                 r_line[12], r_line[13])) begin
+        decoded_addr  = parse_hex5(r_line[3], r_line[4], r_line[5],
+                                   r_line[6], r_line[7]);
+        decoded_words = parse_hex5(r_line[9], r_line[10], r_line[11],
+                                   r_line[12], r_line[13]);
+        emit_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 1'b0, decoded_addr, 32'h0, decoded_words);
+      end else if ((r_line_len == (LEN_BULK + 1)) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   (r_line[1] == ASCII_CMD_R) &&
+                   (r_line[2] == 8'h20) &&
+                   (r_line[9] == 8'h20) &&
+                   fixed_addr6_ok(r_line[3], r_line[4], r_line[5],
+                                  r_line[6], r_line[7], r_line[8]) &&
+                   fixed_hex5_ok(r_line[10], r_line[11], r_line[12],
+                                 r_line[13], r_line[14])) begin
+        decoded_addr  = parse_hex6(r_line[3], r_line[4], r_line[5],
+                                   r_line[6], r_line[7], r_line[8]);
+        decoded_words = parse_hex5(r_line[10], r_line[11], r_line[12],
+                                   r_line[13], r_line[14]);
+        emit_cmd(ASCII_OP_BULK, 1'b0, 1'b1, 1'b0, decoded_addr, 32'h0, decoded_words);
+      end else if ((r_line_len == LEN_BULK) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   (r_line[1] == ASCII_CMD_W) &&
+                   (r_line[2] == 8'h20) &&
+                   (r_line[8] == 8'h20) &&
+                   fixed_hex5_ok(r_line[3], r_line[4], r_line[5],
+                                 r_line[6], r_line[7]) &&
+                   fixed_hex5_ok(r_line[9], r_line[10], r_line[11],
+                                 r_line[12], r_line[13])) begin
+        decoded_addr  = parse_hex5(r_line[3], r_line[4], r_line[5],
+                                   r_line[6], r_line[7]);
+        decoded_words = parse_hex5(r_line[9], r_line[10], r_line[11],
+                                   r_line[12], r_line[13]);
+        emit_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 1'b0, decoded_addr, 32'h0, decoded_words);
+      end else if ((r_line_len == (LEN_BULK + 1)) &&
+                   (r_line[0] == ASCII_CMD_B) &&
+                   (r_line[1] == ASCII_CMD_W) &&
+                   (r_line[2] == 8'h20) &&
+                   (r_line[9] == 8'h20) &&
+                   fixed_addr6_ok(r_line[3], r_line[4], r_line[5],
+                                  r_line[6], r_line[7], r_line[8]) &&
+                   fixed_hex5_ok(r_line[10], r_line[11], r_line[12],
+                                 r_line[13], r_line[14])) begin
+        decoded_addr  = parse_hex6(r_line[3], r_line[4], r_line[5],
+                                   r_line[6], r_line[7], r_line[8]);
+        decoded_words = parse_hex5(r_line[10], r_line[11], r_line[12],
+                                   r_line[13], r_line[14]);
+        emit_cmd(ASCII_OP_BULK, 1'b0, 1'b0, 1'b0, decoded_addr, 32'h0, decoded_words);
       end else if ((r_line_len == LEN_BURST_TEST) &&
                    (r_line[0] == ASCII_CMD_B) &&
                    (r_line[1] == ASCII_CMD_R) &&

@@ -30,6 +30,10 @@
    "Type" : "verilog"
   },
   {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bulk_rx.sv",
+   "Type" : "verilog"
+  },
+  {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
    "Type" : "verilog"
   },
