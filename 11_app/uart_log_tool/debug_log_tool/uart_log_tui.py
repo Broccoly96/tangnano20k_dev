@@ -1,20 +1,84 @@
-"""Textual TUI for UART log monitor, replay, filtering, and reset control."""
+"""Textual TUI for UART log viewing plus SDRAM map inspection."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import argparse
+import os
+import time
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 
+from sdram_uart_protocol import (
+    HOST_EVT_BURST_DATA,
+    HOST_EVT_BURST_DONE,
+    HOST_EVT_BURST_ERR,
+    HOST_EVT_BULK_DONE,
+    HOST_EVT_BULK_ERR,
+    HOST_EVT_BULK_OK,
+    HOST_EVT_BULK_PROGRESS,
+    HOST_EVT_BULK_ABORT,
+    HOST_EVT_READ_RSP,
+    HOST_EVT_WRITE_ACK,
+    build_pattern_blob,
+    build_burst_test_read_command,
+    build_burst_test_write_command,
+    build_bulk_abort_block,
+    build_bulk_read_command,
+    build_bulk_write_command,
+    build_read_command,
+    build_status_read_command,
+    build_status_write_command,
+    build_write_command,
+    decode_bulk_read_progress,
+    decode_burst_data_packet,
+    drain_frames,
+    iter_bulk_write_blocks,
+    load_bulk_file,
+    padded_word_count,
+    save_bulk_file,
+    select_source_index,
+    validate_bulk_range,
+    write_exact,
+)
 from uart_log_decoder import UARTLogDecoder
 from uart_log_protocol import Event, Frame, FrameParser
 from uart_log_replay import ReplayRecord, load_replay_records
 from uart_log_serial import UARTSerialClient
 from uart_log_tcp import UARTTCPClient
+
+
+HOST_SRC_INDEX = 2
+UART_LOG_NUM_SRC = 3
+SYS_SRC_ID = 0x00
+EV_MODE_CHANGE = 0x01
+HOST_SRC_ID = 0x03
+HOST_EVT_WRITE_ACK = 0x30
+HOST_EVT_READ_RSP = 0x31
+HOST_EVT_CMD_ERR = 0x3E
+CMD_NEXT_SRC = 0x06
+MAP_ROWS = 16
+MAP_WORDS_PER_ROW = 16
+MAP_WORD_COUNT = MAP_ROWS * MAP_WORDS_PER_ROW
+MAP_BYTE_COUNT = MAP_WORD_COUNT * 4
+SDRAM_MAX_WORD_ADDR = 0x1F_FFFF
+MAP_RESPONSE_TIMEOUT_S = 1.0
+MAP_READ_RETRY_LIMIT = 3
+STATUS_BASE_ADDR = 0x00000
+STATUS_BYTE_COUNT = 80
+STATUS_WORD_COUNT = STATUS_BYTE_COUNT // 4
+STATUS_RESPONSE_TIMEOUT_S = 1.0
+STATUS_SELFTEST_ADDR = 0x0003C
+STATUS_SELFTEST_DATA = 0x0000_0001
+BURST_RESPONSE_TIMEOUT_S = 3.0
+BURST_MAX_WORDS = 256
+BULK_RESPONSE_TIMEOUT_S = 5.0
+RW_TASK_RETRY_LIMIT = 3
+BULK_TASK_RETRY_LIMIT = 3
 
 
 @dataclass(frozen=True)
@@ -41,65 +105,429 @@ class LogRow:
     search_text: str
 
 
-class UARTLogApp(App[None]):
-    """Terminal GUI for UART log monitoring over serial or TCP."""
+def parse_u21(text: str) -> int:
+    value = int(text, 0)
+    if value < 0 or value > 0x1F_FFFF:
+        raise ValueError(f"out of range u21 addr: {text}")
+    return value
 
+
+def parse_bulk_length_spec(text: str) -> tuple[int, int]:
+    spec = text.strip().lower()
+    if not spec:
+        raise ValueError("length is required")
+
+    unit = "w"
+    if spec[-1] in {"b", "w"}:
+        unit = spec[-1]
+        spec = spec[:-1].strip()
+    if not spec:
+        raise ValueError("length value is required")
+
+    value = int(spec, 0)
+    if value < 1:
+        raise ValueError("length must be >= 1")
+
+    if unit == "b":
+        byte_len = value
+        words = padded_word_count(byte_len)
+    else:
+        words = value
+        byte_len = words * 4
+
+    return words, byte_len
+
+
+def make_read_packet(addr: int) -> bytes:
+    return build_read_command(addr)
+
+
+def make_status_read_packet(addr: int) -> bytes:
+    return build_status_read_command(addr)
+
+
+def make_write_packet(addr: int, data: int) -> bytes:
+    return build_write_command(addr, data)
+
+
+def make_status_write_packet(addr: int, data: int) -> bytes:
+    return build_status_write_command(addr, data)
+
+
+def make_burst_test_read_packet(addr: int, words: int) -> bytes:
+    return build_burst_test_read_command(addr, words)
+
+
+def make_burst_test_write_packet(addr: int, words: int) -> bytes:
+    return build_burst_test_write_command(addr, words)
+
+
+def next_src_steps(current_idx: int, target_idx: int, num_src: int = UART_LOG_NUM_SRC) -> int:
+    return (target_idx - current_idx) % num_src
+
+
+def format_sdram_map_text(base_addr: int, map_bytes: bytes) -> str:
+    if len(map_bytes) < MAP_BYTE_COUNT:
+        padded = bytearray(MAP_BYTE_COUNT)
+        padded[: len(map_bytes)] = map_bytes
+        map_bytes = bytes(padded)
+
+    lines = [f"Base: 0x{base_addr:05X}  Mode: 4-byte little-endian words"]
+    lines.append("   | " + "  ".join(f"{col:02X}".rjust(8) for col in range(MAP_WORDS_PER_ROW)))
+    for row in range(MAP_ROWS):
+        row_base = row * MAP_WORDS_PER_ROW
+        cells = []
+        for col in range(MAP_WORDS_PER_ROW):
+            idx = (row_base + col) * 4
+            word = int.from_bytes(
+                map_bytes[idx : idx + 4],
+                "little",
+                signed=False,
+            )
+            cells.append(f"{word:08X}")
+        lines.append(f"{row_base:02X} | " + "  ".join(cells))
+    return "\n".join(lines)
+
+
+def _pad_status_bytes(status_bytes: bytes) -> bytes:
+    if len(status_bytes) >= STATUS_BYTE_COUNT:
+        return status_bytes[:STATUS_BYTE_COUNT]
+    padded = bytearray(STATUS_BYTE_COUNT)
+    padded[: len(status_bytes)] = status_bytes
+    return bytes(padded)
+
+
+def _status_word(status_bytes: bytes, offset: int) -> int:
+    return int.from_bytes(status_bytes[offset : offset + 4], "little", signed=False)
+
+
+def _status_state_name(state: int, version: int = 0x05) -> str:
+    if version < 0x05:
+        return {
+            0x0: "IDLE",
+            0x1: "WRITE_WAIT",
+            0x2: "WRITE_REQ",
+            0x3: "WRITE_RUN",
+            0x4: "READ_WAIT",
+            0x5: "READ_REQ",
+            0x6: "READ_RUN",
+            0x7: "RETRY_WAIT",
+            0x8: "RETRY_REQ",
+            0x9: "RETRY_RUN",
+            0xA: "CLEAR_WAIT",
+            0xB: "CLEAR_REQ",
+            0xC: "CLEAR_RUN",
+            0xD: "PASS",
+            0xE: "FAIL",
+        }.get(state, f"STATE_{state:02X}")
+    return {
+        0x0: "IDLE",
+        0x1: "POST_INIT",
+        0x2: "WRITE_WAIT",
+        0x3: "WRITE_ACTIVE_REQ",
+        0x4: "WRITE_ACTIVE_ACK",
+        0x5: "WRITE_REQ",
+        0x6: "WRITE_ACK",
+        0x7: "READ_GAP",
+        0x8: "READ_ACTIVE_REQ",
+        0x9: "READ_ACTIVE_ACK",
+        0xA: "READ_REQ",
+        0xB: "READ_SAMPLE",
+        0xC: "RETRY_WAIT",
+        0xD: "RETRY_ACTIVE_REQ",
+        0xE: "RETRY_ACTIVE_ACK",
+        0xF: "RETRY_READ_REQ",
+        0x10: "RETRY_SAMPLE",
+        0x11: "CLEAR_WAIT",
+        0x12: "CLEAR_ACTIVE_REQ",
+        0x13: "CLEAR_ACTIVE_ACK",
+        0x14: "CLEAR_REQ",
+        0x15: "CLEAR_ACK",
+        0x16: "PASS",
+        0x17: "FAIL",
+    }.get(state, f"STATE_{state:02X}")
+
+
+def _status_fail_reason_name(reason: int) -> str:
+    return {
+        0x00: "NONE",
+        0x01: "TIMEOUT",
+        0x02: "PAGE_CROSS",
+        0x03: "MISMATCH",
+    }.get(reason, f"REASON_{reason:02X}")
+
+
+def _hs_cmd_name(cmd: int) -> str:
+    return {
+        0b000: "LOAD_MODE",
+        0b001: "AUTO_REFRESH",
+        0b010: "PRECHARGE",
+        0b011: "ACTIVE",
+        0b100: "WRITE",
+        0b101: "READ",
+        0b110: "BURST_TERMINATE",
+        0b111: "NOP",
+    }.get(cmd & 0x7, f"CMD_{cmd & 0x7:X}")
+
+
+def format_sdram_status_text(status_bytes: bytes) -> str:
+    status_bytes = _pad_status_bytes(status_bytes)
+
+    summary = _status_word(status_bytes, 0x00)
+    mem_summary = _status_word(status_bytes, 0x04)
+    current_addr = _status_word(status_bytes, 0x08)
+    expected_word = _status_word(status_bytes, 0x0C)
+    last_read = _status_word(status_bytes, 0x10)
+    last_status = _status_word(status_bytes, 0x14)
+    fail_addr = _status_word(status_bytes, 0x18)
+    fail_expected = _status_word(status_bytes, 0x1C)
+    fail_actual = _status_word(status_bytes, 0x20)
+    retry_summary = _status_word(status_bytes, 0x24)
+    retry_data1 = _status_word(status_bytes, 0x28)
+    retry_data2 = _status_word(status_bytes, 0x2C)
+    ctrl_summary = _status_word(status_bytes, 0x30)
+    ctrl_detail = _status_word(status_bytes, 0x34)
+    handshake = _status_word(status_bytes, 0x38)
+    latest_rd = _status_word(status_bytes, 0x3C)
+    refresh_status = _status_word(status_bytes, 0x48)
+
+    summary_version = (summary >> 24) & 0xFF
+    summary_state = (summary >> 16) & 0xFF
+    summary_reason = (summary >> 8) & 0xFF
+
+    mem_base_idx = (mem_summary >> 24) & 0xFF
+    mem_rd_seen = (mem_summary >> 16) & 0xFF
+    mem_wr_count = (mem_summary >> 8) & 0xFF
+    mem_cycle = mem_summary & 0xFF
+
+    retry_limit = (retry_summary >> 24) & 0xFF
+    retry_used = (retry_summary >> 16) & 0xFF
+    retry_total = (retry_summary >> 8) & 0xFF
+
+    ctrl_state = (ctrl_summary >> 28) & 0xF
+    if summary_version >= 0x05:
+        ctrl_state = (ctrl_summary >> 27) & 0x1F
+    ctrl_read_count = (ctrl_summary >> 8) & 0xFF
+    ctrl_write_count = ctrl_summary & 0xFF
+
+    if summary_version >= 0x05:
+        hs_cmd = (handshake >> 20) & 0x7
+        last_status_cmd = (last_status >> 8) & 0x7
+        last_status_lines = [
+            f"  fail_reason       : {_status_fail_reason_name((last_status >> 20) & 0xFF)}",
+            f"  state             : {_status_state_name((last_status >> 15) & 0x1F, summary_version)}",
+            f"  cmd_ack           : {(last_status >> 14) & 0x1}",
+            f"  init_done         : {(last_status >> 13) & 0x1}",
+            f"  client_ready      : {(last_status >> 12) & 0x1}",
+            f"  cmd_en            : {(last_status >> 11) & 0x1}",
+            f"  cmd               : {_hs_cmd_name(last_status_cmd)} (0b{last_status_cmd:03b})",
+            f"  ack_count         : {last_status & 0xFF}",
+        ]
+        ctrl_summary_lines = [
+            f"  cmd_en            : {(ctrl_summary >> 26) & 0x1}",
+            f"  cmd               : {_hs_cmd_name((ctrl_summary >> 23) & 0x7)}",
+            f"  cmd_ack           : {(ctrl_summary >> 22) & 0x1}",
+            f"  init_done         : {(ctrl_summary >> 21) & 0x1}",
+            f"  client_ready      : {(ctrl_summary >> 20) & 0x1}",
+            f"  read_sample_valid : {(ctrl_summary >> 19) & 0x1}",
+            f"  pair_active       : {(ctrl_summary >> 18) & 0x1}",
+            f"  retry_count_lsb2  : {(ctrl_summary >> 16) & 0x3}",
+            f"  read_word_count   : {ctrl_read_count}",
+            f"  write_word_count  : {ctrl_write_count}",
+        ]
+        handshake_lines = [
+            f"0x38 HS_HANDSHAKE  = 0x{handshake:08X}",
+            f"  magic             : 0x{(handshake >> 24) & 0xFF:02X}",
+            f"  cmd_en            : {(handshake >> 23) & 0x1}",
+            f"  cmd               : {_hs_cmd_name(hs_cmd)} (0b{hs_cmd:03b})",
+            f"  cmd_ack           : {(handshake >> 19) & 0x1}",
+            f"  read_sample_valid : {(handshake >> 18) & 0x1}",
+            f"  init_done         : {(handshake >> 17) & 0x1}",
+            f"  host_busy         : {(handshake >> 16) & 0x1}",
+            f"  test_active       : {(handshake >> 15) & 0x1}",
+            f"  test_pass         : {(handshake >> 14) & 0x1}",
+            f"  test_fail         : {(handshake >> 13) & 0x1}",
+            f"  sampled_addr_low  : 0x{handshake & 0x1FFF:04X}",
+        ]
+    else:
+        last_status_lines = [
+            f"  fail_reason       : {_status_fail_reason_name((last_status >> 24) & 0xFF)}",
+            f"  rd_seen_words     : {(last_status >> 16) & 0xFF}",
+            f"  cycle_count       : {(last_status >> 8) & 0xFF}",
+            f"  retry_path        : {(last_status >> 7) & 0x1}",
+            f"  busy_n            : {(last_status >> 6) & 0x1}",
+            f"  rd_valid          : {(last_status >> 5) & 0x1}",
+            f"  wrd_ack           : {(last_status >> 4) & 0x1}",
+            f"  init_done         : {(last_status >> 3) & 0x1}",
+            f"  retry_count       : {last_status & 0x7}",
+        ]
+        ctrl_summary_lines = [
+            f"  wr_launch         : {(ctrl_summary >> 27) & 0x1}",
+            f"  rd_launch         : {(ctrl_summary >> 26) & 0x1}",
+            f"  busy_n            : {(ctrl_summary >> 25) & 0x1}",
+            f"  rd_valid          : {(ctrl_summary >> 24) & 0x1}",
+            f"  wrd_ack           : {(ctrl_summary >> 23) & 0x1}",
+            f"  init_done         : {(ctrl_summary >> 22) & 0x1}",
+            f"  retry_state       : {(ctrl_summary >> 21) & 0x1}",
+            f"  retry_valid       : {(ctrl_summary >> 20) & 0x1}",
+            f"  retry_recovered   : {(ctrl_summary >> 19) & 0x1}",
+            f"  retry_exhausted   : {(ctrl_summary >> 18) & 0x1}",
+            f"  retry_count_lsb2  : {(ctrl_summary >> 16) & 0x3}",
+            f"  read_word_count   : {ctrl_read_count}",
+            f"  write_word_count  : {ctrl_write_count}",
+        ]
+        handshake_lines = [
+            f"0x38 HANDSHAKE      = 0x{handshake:08X}",
+            f"  magic             : 0x{(handshake >> 24) & 0xFF:02X}",
+            f"  busy_n            : {(handshake >> 23) & 0x1}",
+            f"  rd_valid          : {(handshake >> 22) & 0x1}",
+            f"  wrd_ack           : {(handshake >> 21) & 0x1}",
+            f"  init_done         : {(handshake >> 20) & 0x1}",
+            f"  test_active       : {(handshake >> 19) & 0x1}",
+            f"  test_pass         : {(handshake >> 18) & 0x1}",
+            f"  test_fail         : {(handshake >> 17) & 0x1}",
+            f"  host_busy         : {(handshake >> 16) & 0x1}",
+            f"  sampled_addr      : 0x{handshake & 0xFFFF:04X}",
+        ]
+
+    lines = [
+        f"Base: 0x00000  Size: {STATUS_BYTE_COUNT} bytes  Mode: status + write-only control",
+        "Control: SW 0003C 00000001 resets SDRC and reruns selftest",
+        "",
+        f"0x00 SUMMARY        = 0x{summary:08X}",
+        f"  map_version       : 0x{summary_version:02X}",
+        f"  memtest_state     : {_status_state_name(summary_state, summary_version)} (0x{summary_state:02X})",
+        f"  fail_reason       : {_status_fail_reason_name(summary_reason)} (0x{summary_reason:02X})",
+        f"  host_busy         : {(summary >> 7) & 0x1}",
+        f"  test_active       : {(summary >> 6) & 0x1}",
+        f"  test_pass         : {(summary >> 5) & 0x1}",
+        f"  test_fail         : {(summary >> 4) & 0x1}",
+        f"  init_done         : {(summary >> 3) & 0x1}",
+        f"  sdrc_reset_active : {(summary >> 2) & 0x1}",
+        "",
+        f"0x04 MEM_SUMMARY    = 0x{mem_summary:08X}",
+        f"  burst_base_idx    : {mem_base_idx} (0x{mem_base_idx:02X})",
+        f"  read_words_seen   : {mem_rd_seen}",
+        f"  write_word_count  : {mem_wr_count}",
+        f"  cycle_count       : {mem_cycle}",
+        "",
+        f"0x08 CURRENT_ADDR   = 0x{current_addr:08X}",
+        f"0x0C EXPECTED_WORD  = 0x{expected_word:08X}",
+        f"0x10 LAST_READ      = 0x{last_read:08X}",
+        f"0x14 LAST_STATUS    = 0x{last_status:08X}",
+        *last_status_lines,
+        "",
+        f"0x18 FAIL_ADDR      = 0x{fail_addr:08X}",
+        f"0x1C FAIL_EXPECTED  = 0x{fail_expected:08X}",
+        f"0x20 FAIL_ACTUAL    = 0x{fail_actual:08X}",
+        "",
+        f"0x24 RETRY_SUMMARY  = 0x{retry_summary:08X}",
+        f"  retry_limit       : {retry_limit}",
+        f"  retries_used      : {retry_used}",
+        f"  total_attempts    : {retry_total}",
+        f"  recovered         : {(retry_summary >> 7) & 0x1}",
+        f"  exhausted         : {(retry_summary >> 6) & 0x1}",
+        f"  valid             : {(retry_summary >> 5) & 0x1}",
+        f"  fail_reason       : {_status_fail_reason_name(retry_summary & 0x1F)}",
+        f"0x28 RETRY_DATA1    = 0x{retry_data1:08X}",
+        f"0x2C RETRY_DATA2    = 0x{retry_data2:08X}",
+        "",
+        f"0x30 CTRL_SUMMARY   = 0x{ctrl_summary:08X}",
+        f"  state             : {_status_state_name(ctrl_state, summary_version)} (0x{ctrl_state:X})",
+        *ctrl_summary_lines,
+        f"0x34 CTRL_DETAIL    = 0x{ctrl_detail:08X}",
+        "",
+        *handshake_lines,
+        "",
+        f"0x3C LATEST_RD_DATA = 0x{latest_rd:08X}",
+        "",
+        f"0x48 HS_REFRESH     = 0x{refresh_status:08X}",
+        f"  magic             : 0x{(refresh_status >> 24) & 0xFF:02X}",
+        f"  pending           : {(refresh_status >> 23) & 0x1}",
+        f"  active            : {(refresh_status >> 22) & 0x1}",
+        f"  cmd_sent          : {(refresh_status >> 21) & 0x1}",
+        f"  can_start         : {(refresh_status >> 20) & 0x1}",
+        f"  pair_active       : {(refresh_status >> 19) & 0x1}",
+        f"  client_ready      : {(refresh_status >> 18) & 0x1}",
+        f"  defer_count       : {(refresh_status >> 8) & 0xFF}",
+        f"  interval_count_lsb: {refresh_status & 0xFF}",
+        "",
+        "Raw words:",
+    ]
+
+    for offset in range(0, STATUS_BYTE_COUNT, 4):
+        lines.append(f"  0x{offset:02X}: 0x{_status_word(status_bytes, offset):08X}")
+
+    return "\n".join(lines)
+
+
+def format_sdram_status_raw_text(status_bytes: bytes) -> str:
+    status_bytes = _pad_status_bytes(status_bytes)
+    lines = [
+        f"Base: 0x00000  Size: {STATUS_BYTE_COUNT} bytes  Mode: raw 32-bit words",
+        "      00        04        08        0C",
+    ]
+    for row_base in range(0, STATUS_BYTE_COUNT, 16):
+        cells = []
+        for col in range(0, 16, 4):
+            offset = row_base + col
+            cells.append(f"{_status_word(status_bytes, offset):08X}")
+        lines.append(f"{row_base:02X} | " + "  ".join(cells))
+    return "\n".join(lines)
+
+
+class UARTLogApp(App[None]):
     CSS = """
-    #top_bar {
-      height: 3;
-      layout: horizontal;
-      margin: 0 1;
-    }
-    #main_row {
-      layout: horizontal;
-      height: 1fr;
-      margin: 0 1;
-    }
-    #port_select {
-      width: 32;
-      margin-right: 1;
-    }
-    #baud_input {
-      width: 10;
-      margin-right: 1;
-    }
-    #filter_input {
-      width: 32;
-      margin-right: 1;
-    }
-    #btn_rescan {
-      width: 12;
-      margin-right: 1;
-    }
-    #btn_connect {
-      width: 14;
-      margin-right: 1;
-    }
-    #btn_reset {
-      width: 12;
-      margin-right: 1;
-    }
-    #status_line {
-      width: 1fr;
-      content-align: left middle;
-    }
-    #log_table {
-      width: 1fr;
-      height: 1fr;
-    }
-    #stats_panel {
-      width: 38;
-      padding: 0 1;
-      border: round;
-    }
-    #help_line {
-      height: 2;
-      margin: 0 1 1 1;
-      content-align: left middle;
-    }
+    #top_bar { height: 3; layout: horizontal; margin: 0 1; }
+    #main_layout { layout: horizontal; height: 1fr; margin: 0 1; }
+    #nav { width: 18; border: round; padding: 0 1; margin-right: 1; }
+    #nav Button { width: 100%; margin-bottom: 1; }
+    #screen_host { width: 1fr; height: 1fr; }
+    .screen { width: 1fr; height: 1fr; }
+    .hidden { display: none; }
+    .toolbar { height: 3; layout: horizontal; margin-bottom: 1; }
+    .toolbar Input, .toolbar Select, .toolbar Button { margin-right: 1; }
+    #port_select { width: 32; margin-right: 1; }
+    #baud_input { width: 10; margin-right: 1; }
+    #filter_input { width: 32; margin-right: 1; }
+    #btn_rescan { width: 12; margin-right: 1; }
+    #btn_connect { width: 14; margin-right: 1; }
+    #btn_reset { width: 12; margin-right: 1; }
+    #status_line { width: 1fr; content-align: left middle; }
+    #log_main_row { layout: horizontal; height: 1fr; }
+    #log_table { width: 1fr; height: 1fr; }
+    #stats_panel { width: 38; padding: 0 1; border: round; }
+    #map_summary { height: 5; border: round; padding: 0 1; margin-bottom: 1; }
+    #map_view { height: 1fr; border: round; padding: 0 1; overflow: auto; text-wrap: nowrap; }
+    .panel { border: round; padding: 0 1; margin-bottom: 1; }
+    .rw_panel { height: auto; }
+    #rw_grid { width: 1fr; height: 1fr; }
+    #rw_grid .toolbar { margin-bottom: 0; }
+    #map_base_input { width: 18; }
+    #btn_map_refresh { width: 12; }
+    #btn_status_refresh { width: 16; }
+    #btn_status_mode { width: 14; }
+    #btn_status_selftest { width: 14; }
+    #status_summary { height: 5; border: round; padding: 0 1; margin-bottom: 1; }
+    #status_scroll { height: 1fr; border: round; padding: 0 1; }
+    #status_view { width: 1fr; height: auto; }
+    #single_read_addr_input { width: 18; }
+    #single_read_result { width: 28; content-align: left middle; }
+    #single_write_addr_input { width: 18; }
+    #single_write_data_input { width: 18; }
+    #file_read_path_input { width: 1fr; }
+    #file_write_addr_input { width: 18; }
+    #file_write_path_input { width: 1fr; }
+    #help_line { height: 2; margin: 0 1 1 1; content-align: left middle; }
     """
 
     BINDINGS = [
+        ("1", "show_log", "Log"),
+        ("2", "show_map", "SDRAM Map"),
+        ("3", "show_rw", "SDRAM RW"),
+        ("4", "show_status", "SDRAM STS"),
+        ("5", "show_burst", "SDRAM Bulk"),
+        ("6", "show_file", "SDRAM File"),
         ("p", "rescan", "Rescan Ports"),
         ("c", "toggle_connect", "Connect/Disconnect"),
         ("m", "toggle_mode", "Raw/Decode"),
@@ -108,22 +536,11 @@ class UARTLogApp(App[None]):
         ("x", "clear_logs", "Clear Logs"),
         ("r", "send_reset", "Send Ctrl+R"),
         ("f", "focus_filter", "Focus Filter"),
+        ("g", "refresh_map", "Refresh Map"),
         ("q", "quit", "Quit"),
     ]
 
-    def __init__(
-        self,
-        *,
-        transport: str,
-        initial_port: str | None,
-        baud: int,
-        tcp_host: str,
-        tcp_port: int,
-        mode: str,
-        decoder_path: str,
-        log_file: str | None,
-        replay_file: str | None,
-    ) -> None:
+    def __init__(self, *, transport: str, initial_port: str | None, baud: int, tcp_host: str, tcp_port: int, mode: str, decoder_path: str, log_file: str | None, replay_file: str | None) -> None:
         super().__init__()
         self._transport = transport.lower()
         self._initial_port = initial_port
@@ -132,42 +549,99 @@ class UARTLogApp(App[None]):
         self._tcp_port = int(tcp_port)
         self._mode = mode.lower()
         self._filter_text = ""
-
+        self._active_screen = "log"
         self._decoder_path = decoder_path
         self._decoder_path_obj = Path(decoder_path)
         self._decoder = UARTLogDecoder()
         self._decoder_mtime_ns: int | None = None
-
         self._serial = UARTSerialClient()
         self._tcp = UARTTCPClient()
         self._parser = FrameParser()
-
         self._rx_frames = 0
         self._crc_seen = 0
         self._lost_seen = 0
         self._tcp_packets = 0
         self._tcp_bytes = 0
         self._tcp_last_frame = "-"
-
+        self._selected_src_idx = 0
         self._rows: list[StoredEvent] = []
-
         self._log_enabled = bool(log_file)
         self._log_file_path = Path(log_file) if log_file else None
         self._log_fp = None
-
         self._replay_file_path = Path(replay_file) if replay_file else None
         self._replay_records: list[ReplayRecord] = []
         self._replay_idx = 0
         self._replay_finished = False
         self._replay_load_error: str | None = None
-
+        self._map_base_addr = 0
+        self._map_bytes = bytearray(MAP_BYTE_COUNT)
+        self._map_refresh_active = False
+        self._map_restore_src_idx: int | None = None
+        self._map_select_deadline = 0.0
+        self._map_rsp_deadline = 0.0
+        self._map_command_sent = False
+        self._map_pending_queue: list[int] = []
+        self._map_inflight_addr: int | None = None
+        self._map_inflight_retries = 0
+        self._map_retry_count = 0
+        self._map_received_words: dict[int, int] = {}
+        self._map_summary_text = "idle"
+        self._status_bytes = bytearray(STATUS_BYTE_COUNT)
+        self._status_refresh_active = False
+        self._status_select_deadline = 0.0
+        self._status_rsp_deadline = 0.0
+        self._status_pending_queue: list[int] = []
+        self._status_inflight_addr: int | None = None
+        self._status_summary_text = "idle"
+        self._status_mode = "decode"
+        self._status_selftest_active = False
+        self._status_selftest_inflight = False
+        self._status_selftest_select_deadline = 0.0
+        self._status_selftest_rsp_deadline = 0.0
+        self._rw_summary_text = "idle"
+        self._rw_single_read_result = "-"
+        self._rw_single_write_result = "-"
+        self._rw_file_write_result = "-"
+        self._rw_file_read_result = "-"
+        self._file_summary_text = "idle"
+        self._burst_summary_text = "idle"
+        self._burst_result_text = "-"
+        self._burst_task_active = False
+        self._burst_task_kind = ""
+        self._burst_phase = ""
+        self._burst_command_sent = False
+        self._burst_base_addr = 0
+        self._burst_words = 0
+        self._burst_packet_count = 0
+        self._burst_select_deadline = 0.0
+        self._burst_rsp_deadline = 0.0
+        self._burst_received_packets: dict[int, int] = {}
+        self._burst_received_words: dict[int, int] = {}
+        self._burst_write_blocks: list[bytes] = []
+        self._burst_next_block_index = 0
+        self._burst_output_path: Path | None = None
+        self._burst_output_len = 0
+        self._burst_retry_count = 0
+        self._burst_abort_count = 0
+        self._rw_task_active = False
+        self._rw_task_kind = ""
+        self._rw_task_restore_src_idx: int | None = None
+        self._rw_task_select_deadline = 0.0
+        self._rw_task_rsp_deadline = 0.0
+        self._rw_task_pending: list[tuple[str, int, int]] = []
+        self._rw_task_inflight: tuple[str, int, int] | None = None
+        self._rw_task_expected_reads = 0
+        self._rw_task_read_results: dict[int, int] = {}
+        self._rw_task_output_path: Path | None = None
+        self._rw_task_output_len = 0
+        self._rw_task_retry_count = 0
+        self._rw_task_inflight_retries = 0
         if self._replay_file_path is not None:
             try:
                 self._replay_records = load_replay_records(self._replay_file_path)
             except Exception as exc:
                 self._replay_load_error = str(exc)
                 self._replay_records = []
-
         self._table: DataTable | None = None
         self._stats: Static | None = None
         self._status: Static | None = None
@@ -177,6 +651,32 @@ class UARTLogApp(App[None]):
         self._connect_button: Button | None = None
         self._rescan_button: Button | None = None
         self._reset_button: Button | None = None
+        self._map_summary: Static | None = None
+        self._map_view: Static | None = None
+        self._map_base_input: Input | None = None
+        self._status_summary: Static | None = None
+        self._status_view: Static | None = None
+        self._status_mode_button: Button | None = None
+        self._status_selftest_button: Button | None = None
+        self._rw_summary: Static | None = None
+        self._single_read_addr_input: Input | None = None
+        self._single_read_result: Static | None = None
+        self._single_write_addr_input: Input | None = None
+        self._single_write_data_input: Input | None = None
+        self._single_write_result: Static | None = None
+        self._file_summary: Static | None = None
+        self._file_read_addr_input: Input | None = None
+        self._file_read_words_input: Input | None = None
+        self._burst_summary: Static | None = None
+        self._burst_base_input: Input | None = None
+        self._burst_words_input: Input | None = None
+        self._bulk_pattern_input: Input | None = None
+        self._burst_result: Static | None = None
+        self._file_write_addr_input: Input | None = None
+        self._file_write_path_input: Input | None = None
+        self._file_write_result: Static | None = None
+        self._file_read_path_input: Input | None = None
+        self._file_read_result: Static | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -189,13 +689,82 @@ class UARTLogApp(App[None]):
                 yield Button("Connect (c)", id="btn_connect")
                 yield Button("Soft Reset (r)", id="btn_reset")
                 yield Static("disconnected", id="status_line")
-            with Horizontal(id="main_row"):
-                yield DataTable(id="log_table")
-                yield Static("", id="stats_panel")
-            yield Static(
-                "keys: p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter q=quit",
-                id="help_line",
-            )
+            with Horizontal(id="main_layout"):
+                with Vertical(id="nav"):
+                    yield Button("1 Log", id="nav_log")
+                    yield Button("2 SDRAM Map", id="nav_map")
+                    yield Button("3 SDRAM RW", id="nav_rw")
+                    yield Button("4 SDRAM STS", id="nav_status")
+                    yield Button("5 SDRAM Bulk", id="nav_burst")
+                    yield Button("6 SDRAM File", id="nav_file")
+                with Vertical(id="screen_host"):
+                    with Vertical(id="log_screen", classes="screen"):
+                        with Horizontal(id="log_main_row"):
+                            yield DataTable(id="log_table")
+                            yield Static("", id="stats_panel")
+                    with Vertical(id="map_screen", classes="screen hidden"):
+                        with Horizontal(classes="toolbar"):
+                            yield Input(value="0x00000", id="map_base_input", placeholder="base addr")
+                            yield Button("Refresh", id="btn_map_refresh")
+                        yield Static("", id="map_summary")
+                        yield Static("", id="map_view")
+                    with Vertical(id="status_screen", classes="screen hidden"):
+                        with Horizontal(classes="toolbar"):
+                            yield Button("Refresh Status", id="btn_status_refresh")
+                            yield Button("Mode: Decode", id="btn_status_mode")
+                            yield Button("Selftest", id="btn_status_selftest")
+                        yield Static("", id="status_summary")
+                        with VerticalScroll(id="status_scroll"):
+                            yield Static("", id="status_view")
+                    with Vertical(id="rw_screen", classes="screen hidden"):
+                        yield Static("", id="rw_summary", classes="panel")
+                        with Vertical(id="rw_grid"):
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("Single Address Read")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Read", id="btn_single_read")
+                                    yield Input(value="0x00000", id="single_read_addr_input", placeholder="addr")
+                                    yield Static("-", id="single_read_result")
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("Single Address Write")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Write", id="btn_single_write")
+                                    yield Input(value="0x00000", id="single_write_addr_input", placeholder="addr")
+                                    yield Input(value="0x00000000", id="single_write_data_input", placeholder="data")
+                                yield Static("-", id="single_write_result")
+                    with Vertical(id="burst_screen", classes="screen hidden"):
+                        yield Static("", id="burst_summary", classes="panel")
+                        with Vertical(id="burst_grid"):
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("Bulk Range / Burst Test")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Read Range", id="btn_bulk_read_range")
+                                    yield Button("Pattern Write", id="btn_bulk_pattern_write")
+                                    yield Button("Write Test", id="btn_burst_write_test")
+                                    yield Button("Read Test", id="btn_burst_read_test")
+                                with Horizontal(classes="toolbar"):
+                                    yield Input(value="0x00000", id="burst_base_input", placeholder="base addr")
+                                    yield Input(value="0x00010", id="burst_words_input", placeholder="words")
+                                    yield Input(value="0xA5A5A5A5", id="bulk_pattern_input", placeholder="pattern")
+                                yield Static("-", id="burst_result")
+                    with Vertical(id="file_screen", classes="screen hidden"):
+                        yield Static("", id="file_summary", classes="panel")
+                        with Vertical(classes="panel rw_panel"):
+                            yield Static("Bulk File Write")
+                            with Horizontal(classes="toolbar"):
+                                yield Button("Write File", id="btn_file_write")
+                                yield Input(value="0x00000", id="file_write_addr_input", placeholder="base addr")
+                                yield Input(value="", id="file_write_path_input", placeholder="input .bin/.hex path")
+                            yield Static("-", id="file_write_result")
+                        with Vertical(classes="panel rw_panel"):
+                            yield Static("Bulk File Read")
+                            with Horizontal(classes="toolbar"):
+                                yield Button("Read To File", id="btn_file_read_save")
+                                yield Input(value="0x00000", id="file_read_addr_input", placeholder="base addr")
+                                yield Input(value="0x00010", id="file_read_words_input", placeholder="words or bytes (64b)")
+                                yield Input(value="", id="file_read_path_input", placeholder="output .bin/.hex path")
+                            yield Static("-", id="file_read_result")
+            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=bulk 6=file p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -208,24 +777,41 @@ class UARTLogApp(App[None]):
         self._connect_button = self.query_one("#btn_connect", Button)
         self._rescan_button = self.query_one("#btn_rescan", Button)
         self._reset_button = self.query_one("#btn_reset", Button)
-
+        self._map_summary = self.query_one("#map_summary", Static)
+        self._map_view = self.query_one("#map_view", Static)
+        self._map_base_input = self.query_one("#map_base_input", Input)
+        self._status_summary = self.query_one("#status_summary", Static)
+        self._status_view = self.query_one("#status_view", Static)
+        self._status_mode_button = self.query_one("#btn_status_mode", Button)
+        self._status_selftest_button = self.query_one("#btn_status_selftest", Button)
+        self._rw_summary = self.query_one("#rw_summary", Static)
+        self._single_read_addr_input = self.query_one("#single_read_addr_input", Input)
+        self._single_read_result = self.query_one("#single_read_result", Static)
+        self._single_write_addr_input = self.query_one("#single_write_addr_input", Input)
+        self._single_write_data_input = self.query_one("#single_write_data_input", Input)
+        self._single_write_result = self.query_one("#single_write_result", Static)
+        self._file_summary = self.query_one("#file_summary", Static)
+        self._file_read_addr_input = self.query_one("#file_read_addr_input", Input)
+        self._file_read_words_input = self.query_one("#file_read_words_input", Input)
+        self._burst_summary = self.query_one("#burst_summary", Static)
+        self._burst_base_input = self.query_one("#burst_base_input", Input)
+        self._burst_words_input = self.query_one("#burst_words_input", Input)
+        self._bulk_pattern_input = self.query_one("#bulk_pattern_input", Input)
+        self._burst_result = self.query_one("#burst_result", Static)
+        self._file_write_addr_input = self.query_one("#file_write_addr_input", Input)
+        self._file_write_path_input = self.query_one("#file_write_path_input", Input)
+        self._file_write_result = self.query_one("#file_write_result", Static)
+        self._file_read_path_input = self.query_one("#file_read_path_input", Input)
+        self._file_read_result = self.query_one("#file_read_result", Static)
         self._table.cursor_type = "row"
-        self._table.add_columns(
-            "Time",
-            "SEQ",
-            "SRC",
-            "EVT",
-            "TS",
-            "ARG0",
-            "ARG1",
-            "ARG2",
-            "CRC",
-            "Mode",
-            "Text",
-        )
-
+        self._table.add_columns("Time", "SEQ", "SRC", "EVT", "TS", "ARG0", "ARG1", "ARG2", "CRC", "Mode", "Text")
         self._reload_decoder(force=True, manual=False)
-
+        self._refresh_map_view()
+        self._refresh_status_view()
+        self._refresh_rw_view()
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._show_screen("log")
         if self._replay_file_path is not None:
             if self._port_select is not None:
                 self._port_select.disabled = True
@@ -239,14 +825,10 @@ class UARTLogApp(App[None]):
             if self._reset_button is not None:
                 self._reset_button.disabled = True
             if self._replay_load_error is None:
-                self._set_status(
-                    f"replay loaded: {self._replay_file_path} ({len(self._replay_records)} events)"
-                )
+                self._set_status(f"replay loaded: {self._replay_file_path} ({len(self._replay_records)} events)")
                 self.set_interval(0.05, self._poll_replay)
             else:
-                self._set_status(
-                    f"replay load failed: {self._replay_file_path} ({self._replay_load_error})"
-                )
+                self._set_status(f"replay load failed: {self._replay_file_path} ({self._replay_load_error})")
         else:
             if self._transport == "tcp":
                 self._prepare_tcp_mode()
@@ -256,12 +838,15 @@ class UARTLogApp(App[None]):
                 self._refresh_ports()
                 self._set_status("ready")
                 self.set_interval(0.05, self._poll_serial)
-
         if self._log_enabled:
             self._open_log_if_needed()
             if self._log_fp is not None:
                 self._log_meta("logging started")
-
+        self.set_interval(0.05, self._poll_map_refresh)
+        self.set_interval(0.05, self._poll_status_refresh)
+        self.set_interval(0.05, self._poll_status_selftest)
+        self.set_interval(0.05, self._poll_rw_task)
+        self.set_interval(0.05, self._poll_burst_task)
         self.set_interval(0.5, self._watch_decoder)
         self._update_stats()
 
@@ -281,13 +866,66 @@ class UARTLogApp(App[None]):
             self.action_toggle_connect()
         elif button_id == "btn_reset":
             self.action_send_reset()
+        elif button_id == "nav_log":
+            self.action_show_log()
+        elif button_id == "nav_map":
+            self.action_show_map()
+        elif button_id == "nav_status":
+            self.action_show_status()
+        elif button_id == "nav_rw":
+            self.action_show_rw()
+        elif button_id == "nav_burst":
+            self.action_show_burst()
+        elif button_id == "nav_file":
+            self.action_show_file()
+        elif button_id == "btn_map_refresh":
+            self.action_refresh_map()
+        elif button_id == "btn_status_refresh":
+            self.action_refresh_status()
+        elif button_id == "btn_status_mode":
+            self.action_toggle_status_mode()
+        elif button_id == "btn_status_selftest":
+            self.action_status_selftest()
+        elif button_id == "btn_single_read":
+            self._start_single_read()
+        elif button_id == "btn_single_write":
+            self._start_single_write()
+        elif button_id == "btn_bulk_read_range":
+            self._start_bulk_read_range()
+        elif button_id == "btn_bulk_pattern_write":
+            self._start_bulk_pattern_write()
+        elif button_id == "btn_file_write":
+            self._start_file_write()
+        elif button_id == "btn_file_read_save":
+            self._start_file_read_save()
+        elif button_id == "btn_burst_write_test":
+            self._start_burst_test(is_read=False)
+        elif button_id == "btn_burst_read_test":
+            self._start_burst_test(is_read=True)
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id != "filter_input":
-            return
-        self._filter_text = event.value.strip().lower()
-        self._render_table()
-        self._update_stats()
+        if event.input.id == "filter_input":
+            self._filter_text = event.value.strip().lower()
+            self._render_table()
+            self._update_stats()
+
+    def action_show_log(self) -> None:
+        self._show_screen("log")
+
+    def action_show_map(self) -> None:
+        self._show_screen("map")
+
+    def action_show_status(self) -> None:
+        self._show_screen("status")
+
+    def action_show_rw(self) -> None:
+        self._show_screen("rw")
+
+    def action_show_burst(self) -> None:
+        self._show_screen("burst")
+
+    def action_show_file(self) -> None:
+        self._show_screen("file")
 
     def action_focus_filter(self) -> None:
         if self._filter_input is not None:
@@ -344,6 +982,38 @@ class UARTLogApp(App[None]):
     def action_send_reset(self) -> None:
         self._send_reset()
 
+    def action_refresh_map(self) -> None:
+        if self._active_screen == "status":
+            self._start_status_refresh()
+        else:
+            self._start_map_refresh()
+
+    def action_refresh_status(self) -> None:
+        self._start_status_refresh()
+
+    def action_toggle_status_mode(self) -> None:
+        self._status_mode = "raw" if self._status_mode == "decode" else "decode"
+        self._refresh_status_view()
+        self._set_status(f"sdram status mode={self._status_mode}")
+
+    def action_status_selftest(self) -> None:
+        self._start_status_selftest()
+
+    def _show_screen(self, screen_name: str) -> None:
+        self._active_screen = screen_name
+        log_screen = self.query_one("#log_screen", Vertical)
+        map_screen = self.query_one("#map_screen", Vertical)
+        status_screen = self.query_one("#status_screen", Vertical)
+        rw_screen = self.query_one("#rw_screen", Vertical)
+        burst_screen = self.query_one("#burst_screen", Vertical)
+        file_screen = self.query_one("#file_screen", Vertical)
+        log_screen.set_class(screen_name != "log", "hidden")
+        map_screen.set_class(screen_name != "map", "hidden")
+        status_screen.set_class(screen_name != "status", "hidden")
+        rw_screen.set_class(screen_name != "rw", "hidden")
+        burst_screen.set_class(screen_name != "burst", "hidden")
+        file_screen.set_class(screen_name != "file", "hidden")
+
     def _watch_decoder(self) -> None:
         self._reload_decoder(force=False, manual=False)
 
@@ -352,44 +1022,29 @@ class UARTLogApp(App[None]):
             if manual:
                 self._set_status(f"decoder not found: {self._decoder_path_obj}")
             return
-
         mtime_ns = self._decoder_path_obj.stat().st_mtime_ns
         if not force and self._decoder_mtime_ns == mtime_ns:
             return
-
         try:
-            loaded = UARTLogDecoder.from_yaml(self._decoder_path_obj)
+            self._decoder = UARTLogDecoder.from_yaml(self._decoder_path_obj)
         except Exception as exc:
             if manual:
                 self._set_status(f"decoder reload failed: {exc}")
             self._log_meta(f"decoder reload failed: {exc}")
             return
-
-        self._decoder = loaded
         self._decoder_mtime_ns = mtime_ns
         self._render_table()
-
         if manual:
             self._set_status("decoder reloaded")
 
     def _refresh_ports(self) -> None:
         if self._port_select is None:
             return
-
         ports = self._serial.list_ports()
         if ports:
-            options = [
-                (
-                    f"{p.device:<8} | {p.description if p.description else p.hwid}",
-                    p.device,
-                )
-                for p in ports
-            ]
+            options = [(f"{p.device:<8} | {p.description if p.description else p.hwid}", p.device) for p in ports]
             self._port_select.set_options(options)
-            if self._initial_port and any(p.device == self._initial_port for p in ports):
-                self._port_select.value = self._initial_port
-            else:
-                self._port_select.value = ports[0].device
+            self._port_select.value = self._initial_port if self._initial_port and any(p.device == self._initial_port for p in ports) else ports[0].device
         else:
             self._port_select.set_options([("(no serial ports)", "")])
             self._port_select.value = ""
@@ -407,9 +1062,7 @@ class UARTLogApp(App[None]):
             self._rescan_button.disabled = True
 
     def _active_connected(self) -> bool:
-        if self._transport == "tcp":
-            return self._tcp.is_connected
-        return self._serial.is_connected
+        return self._tcp.is_connected if self._transport == "tcp" else self._serial.is_connected
 
     def _connect_active(self) -> None:
         if self._transport == "tcp":
@@ -427,9 +1080,7 @@ class UARTLogApp(App[None]):
         if self._port_select is None:
             return ""
         value = self._port_select.value
-        if value is None or value == Select.BLANK:
-            return ""
-        return str(value)
+        return "" if value is None or value == Select.BLANK else str(value)
 
     def _reset_stream_stats(self) -> None:
         self._parser.reset()
@@ -439,29 +1090,20 @@ class UARTLogApp(App[None]):
         self._tcp_packets = 0
         self._tcp_bytes = 0
         self._tcp_last_frame = "-"
+        self._selected_src_idx = 0
 
     def _connect_serial(self) -> None:
         port = self._selected_port()
-        if not port:
-            self._set_status("no port selected")
+        if not port or self._baud_input is None:
+            self._set_status("invalid serial setup")
             return
-        if self._baud_input is None:
-            self._set_status("baud input unavailable")
-            return
-
         try:
             baud = int(self._baud_input.value.strip())
-        except ValueError:
-            self._set_status("invalid baud")
-            return
-
-        try:
             self._serial.connect(port, baud)
         except Exception as exc:
             self._set_status(f"connect failed: {exc}")
-            self._log_meta(f"connect failed port={port} baud={baud} err={exc}")
+            self._log_meta(f"connect failed port={port} err={exc}")
             return
-
         self._reset_stream_stats()
         if self._connect_button is not None:
             self._connect_button.label = "Disconnect (c)"
@@ -474,11 +1116,8 @@ class UARTLogApp(App[None]):
             self._tcp.connect(self._tcp_host, self._tcp_port)
         except Exception as exc:
             self._set_status(f"tcp connect failed: {exc}")
-            self._log_meta(
-                f"tcp connect failed host={self._tcp_host} port={self._tcp_port} err={exc}"
-            )
+            self._log_meta(f"tcp connect failed host={self._tcp_host} port={self._tcp_port} err={exc}")
             return
-
         self._reset_stream_stats()
         if self._connect_button is not None:
             self._connect_button.label = "Disconnect (c)"
@@ -508,7 +1147,6 @@ class UARTLogApp(App[None]):
         if self._replay_file_path is not None:
             self._set_status("replay mode: TX disabled")
             return
-
         if self._transport == "tcp":
             if not self._tcp.is_connected:
                 self._set_status("not connected")
@@ -519,25 +1157,795 @@ class UARTLogApp(App[None]):
                 self._set_status("not connected")
                 return
             written = self._serial.send_cli_command("reset")
-
         if written > 0:
             self._set_status("sent reset")
             self._log_meta("tx cmd=reset")
         else:
             self._set_status("send failed (reset)")
 
+    def _send_bytes(self, payload: bytes) -> int:
+        if self._replay_file_path is not None:
+            return 0
+        try:
+            if self._transport == "tcp":
+                if not self._tcp.is_connected:
+                    return 0
+                write_exact(self._tcp.write_bytes, payload)
+                return len(payload)
+
+            if not self._serial.is_connected:
+                return 0
+            write_exact(self._serial.write_bytes, payload)
+            return len(payload)
+        except RuntimeError:
+            return 0
+
+    def _read_bytes(self) -> bytes:
+        if self._replay_file_path is not None:
+            return b""
+        if self._transport == "tcp":
+            return b"" if not self._tcp.is_connected else self._tcp.read_bytes()
+        return b"" if not self._serial.is_connected else self._serial.read_bytes()
+
+    def _wait_for_host_event(self, event_id: int, timeout_s: float) -> Frame:
+        return wait_for_frame(
+            self._read_bytes,
+            self._parser,
+            timeout_s,
+            lambda frame: frame.event.src_id == HOST_SRC_ID and frame.event.event_id == event_id,
+        )
+
+    def _send_next_src_steps(self, steps: int) -> bool:
+        for _ in range(steps):
+            if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                return False
+        return True
+
+    def _host_task_busy(self) -> bool:
+        return (
+            self._map_refresh_active
+            or self._status_refresh_active
+            or self._status_selftest_active
+            or self._rw_task_active
+            or self._burst_task_active
+        )
+
+    def _refresh_status_view(self) -> None:
+        mode_label = "Decode" if self._status_mode == "decode" else "Raw"
+        if self._status_mode_button is not None:
+            self._status_mode_button.label = f"Mode: {mode_label}"
+        if self._status_summary is not None:
+            self._status_summary.update(
+                "\n".join(
+                    [
+                        "[SDRAM STS]",
+                        "base       : 0x00000",
+                        f"size       : {STATUS_BYTE_COUNT} bytes",
+                        f"view       : {self._status_mode}",
+                        f"state      : {self._status_operation_state()}",
+                        f"detail     : {self._status_summary_text}",
+                    ]
+                )
+            )
+        if self._status_view is not None:
+            if self._status_mode == "raw":
+                self._status_view.update(format_sdram_status_raw_text(bytes(self._status_bytes)))
+            else:
+                self._status_view.update(format_sdram_status_text(bytes(self._status_bytes)))
+
+    def _start_status_refresh(self) -> None:
+        if self._replay_file_path is not None:
+            self._status_summary_text = "replay mode: SDRAM STS disabled"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+        if not self._active_connected():
+            self._status_summary_text = "not connected"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+        if self._host_task_busy():
+            self._status_summary_text = "host task busy"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+
+        self._status_refresh_active = True
+        self._status_select_deadline = 0.0
+        self._status_rsp_deadline = 0.0
+        self._status_inflight_addr = None
+        self._status_pending_queue = [STATUS_BASE_ADDR + idx * 4 for idx in range(STATUS_WORD_COUNT)]
+        self._status_summary_text = f"queued {STATUS_WORD_COUNT} status reads"
+        self._refresh_status_view()
+        self._set_status(self._status_summary_text)
+
+    def _finish_status_refresh(self, detail: str) -> None:
+        self._status_refresh_active = False
+        self._status_inflight_addr = None
+        self._status_rsp_deadline = 0.0
+        self._status_summary_text = detail
+        self._refresh_status_view()
+        self._set_status(detail)
+
+    def _status_operation_state(self) -> str:
+        if self._status_refresh_active:
+            return "refreshing"
+        if self._status_selftest_active:
+            return "selftest"
+        return "idle"
+
+    def _start_status_selftest(self) -> None:
+        if self._replay_file_path is not None:
+            self._status_summary_text = "replay mode: selftest disabled"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+        if not self._active_connected():
+            self._status_summary_text = "not connected"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+        if self._host_task_busy():
+            self._status_summary_text = "host task busy"
+            self._refresh_status_view()
+            self._set_status(self._status_summary_text)
+            return
+
+        self._status_selftest_active = True
+        self._status_selftest_inflight = False
+        self._status_selftest_select_deadline = 0.0
+        self._status_selftest_rsp_deadline = 0.0
+        self._status_summary_text = "queued selftest trigger"
+        self._refresh_status_view()
+        self._set_status(self._status_summary_text)
+
+    def _finish_status_selftest(self, detail: str, *, refresh_after_ack: bool = False) -> None:
+        self._status_selftest_active = False
+        self._status_selftest_inflight = False
+        self._status_selftest_rsp_deadline = 0.0
+        self._status_summary_text = detail
+        self._refresh_status_view()
+        self._set_status(detail)
+        if refresh_after_ack:
+            self._start_status_refresh()
+
+    def _refresh_rw_view(self) -> None:
+        if self._rw_summary is not None:
+            self._rw_summary.update(
+                "\n".join(
+                    [
+                        "[SDRAM RW]",
+                        f"state  : {'busy' if self._rw_task_active else 'idle'}",
+                        f"task   : {self._rw_task_kind or '-'}",
+                        f"detail : {self._rw_summary_text}",
+                    ]
+                )
+            )
+        if self._single_read_result is not None:
+            self._single_read_result.update(self._rw_single_read_result)
+        if self._single_write_result is not None:
+            self._single_write_result.update(self._rw_single_write_result)
+
+    def _refresh_file_view(self) -> None:
+        file_task_active = self._burst_task_active and self._burst_task_kind in {
+            "bulk_file_write",
+            "bulk_file_read",
+        }
+        detail_text = self._burst_summary_text if file_task_active else self._file_summary_text
+        if self._file_summary is not None:
+            self._file_summary.update(
+                "\n".join(
+                    [
+                        "[SDRAM File]",
+                        f"state  : {'busy' if file_task_active else 'idle'}",
+                        f"task   : {self._burst_task_kind if file_task_active else '-'}",
+                        f"detail : {detail_text}",
+                    ]
+                )
+            )
+        if self._file_write_result is not None:
+            self._file_write_result.update(self._rw_file_write_result)
+        if self._file_read_result is not None:
+            self._file_read_result.update(self._rw_file_read_result)
+
+    def _format_burst_words_preview(self) -> str:
+        if not self._burst_received_words:
+            return "-"
+        lines = []
+        max_words = min(self._burst_words, 32)
+        for base_idx in range(0, max_words, 4):
+            words = []
+            for idx in range(base_idx, min(base_idx + 4, max_words)):
+                value = self._burst_received_words.get(idx)
+                words.append("--------" if value is None else f"{value:08X}")
+            lines.append(f"{base_idx:03X} | " + "  ".join(words))
+        if self._burst_words > max_words:
+            lines.append(f"... {self._burst_words - max_words} more words")
+        return "\n".join(lines)
+
+    def _refresh_burst_view(self) -> None:
+        if self._burst_summary is not None:
+            self._burst_summary.update(
+                "\n".join(
+                    [
+                        "[SDRAM Bulk]",
+                        f"state   : {'busy' if self._burst_task_active else 'idle'}",
+                        f"task    : {self._burst_task_kind or '-'}",
+                        f"base    : 0x{self._burst_base_addr:05X}",
+                        f"words   : {self._burst_words}",
+                        f"packets : {len(self._burst_received_packets)}/{self._burst_packet_count}",
+                        f"detail  : {self._burst_summary_text}",
+                    ]
+                )
+            )
+        if self._burst_result is not None:
+            self._burst_result.update(
+                "\n".join(["[Result]", self._burst_result_text, "", self._format_burst_words_preview()])
+            )
+
+    def _start_bulk_task(
+        self,
+        *,
+        kind: str,
+        base_addr: int,
+        words: int,
+        result_text: str,
+        write_blob: bytes | None = None,
+        output_path: Path | None = None,
+        output_len: int = 0,
+    ) -> bool:
+        if self._replay_file_path is not None:
+            self._set_status("replay mode: SDRAM bulk disabled")
+            return False
+        if not self._active_connected():
+            self._set_status("not connected")
+            return False
+        if self._host_task_busy():
+            self._set_status("host task busy")
+            return False
+
+        # Drop stale host-response frames from a prior task before arming a new
+        # bulk transaction. Otherwise an old BULK_OK/DONE can be mistaken for
+        # the new session and leave the task waiting on a response that belongs
+        # to a different command.
+        drain_frames(self._read_bytes, self._parser, 0.1)
+        try:
+            self._selected_src_idx = select_source_index(
+                self._send_bytes,
+                self._read_bytes,
+                self._parser,
+                HOST_SRC_INDEX,
+                settle_ms=100,
+                timeout_s=1.5,
+            )
+        except TimeoutError:
+            self._set_status("failed to select host source")
+            return False
+
+        self._burst_task_active = True
+        self._burst_task_kind = kind
+        self._burst_phase = "select"
+        self._burst_command_sent = False
+        self._burst_base_addr = base_addr
+        self._burst_words = words
+        self._burst_packet_count = (words + 1) // 2 if "read" in kind else 0
+        self._burst_select_deadline = time.monotonic()
+        self._burst_rsp_deadline = 0.0
+        self._burst_received_packets = {}
+        self._burst_received_words = {}
+        self._burst_write_blocks = iter_bulk_write_blocks(write_blob) if write_blob is not None else []
+        self._burst_next_block_index = 0
+        self._burst_output_path = output_path
+        self._burst_output_len = output_len
+        self._burst_retry_count = 0
+        self._burst_abort_count = 0
+        self._burst_summary_text = f"started {kind}"
+        self._burst_result_text = result_text
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(self._burst_summary_text)
+        return True
+
+    def _start_rw_task(self, *, kind: str, commands: list[tuple[str, int, int]], expected_reads: int = 0, output_path: Path | None = None, output_len: int = 0) -> bool:
+        if self._replay_file_path is not None:
+            self._set_status("replay mode: SDRAM RW disabled")
+            return False
+        if not self._active_connected():
+            self._set_status("not connected")
+            return False
+        if self._host_task_busy():
+            self._set_status("host task busy")
+            return False
+        self._rw_task_active = True
+        self._rw_task_kind = kind
+        self._rw_task_pending = list(commands)
+        self._rw_task_inflight = None
+        self._rw_task_expected_reads = expected_reads
+        self._rw_task_read_results = {}
+        self._rw_task_output_path = output_path
+        self._rw_task_output_len = output_len
+        self._rw_task_restore_src_idx = None
+        self._rw_task_select_deadline = time.monotonic()
+        self._rw_task_rsp_deadline = 0.0
+        self._rw_task_retry_count = 0
+        self._rw_task_inflight_retries = 0
+        self._rw_summary_text = f"started {kind}"
+        self._refresh_rw_view()
+        self._set_status(self._rw_summary_text)
+        return True
+
+    def _finish_rw_task(self, detail: str) -> None:
+        self._rw_task_active = False
+        self._rw_summary_text = detail
+        self._rw_task_restore_src_idx = None
+        self._rw_task_kind = ""
+        self._rw_task_pending = []
+        self._rw_task_inflight = None
+        self._rw_task_expected_reads = 0
+        self._rw_task_rsp_deadline = 0.0
+        self._rw_task_retry_count = 0
+        self._rw_task_inflight_retries = 0
+        self._refresh_rw_view()
+        self._set_status(detail)
+
+    def _start_single_read(self) -> None:
+        if self._single_read_addr_input is None:
+            return
+        try:
+            addr = parse_u21(self._single_read_addr_input.value.strip())
+        except Exception as exc:
+            self._rw_single_read_result = f"invalid addr: {exc}"
+            self._refresh_rw_view()
+            self._set_status(self._rw_single_read_result)
+            return
+        if self._start_rw_task(kind="single_read", commands=[("read", addr, 0)], expected_reads=1):
+            self._rw_single_read_result = f"reading 0x{addr:05X}..."
+            self._refresh_rw_view()
+
+    def _start_single_write(self) -> None:
+        if self._single_write_addr_input is None or self._single_write_data_input is None:
+            return
+        try:
+            addr = parse_u21(self._single_write_addr_input.value.strip())
+            data = int(self._single_write_data_input.value.strip(), 0) & 0xFFFF_FFFF
+        except Exception as exc:
+            self._rw_single_write_result = f"invalid input: {exc}"
+            self._refresh_rw_view()
+            self._set_status(self._rw_single_write_result)
+            return
+        if self._start_rw_task(kind="single_write", commands=[("write", addr, data)]):
+            self._rw_single_write_result = f"writing 0x{data:08X} -> 0x{addr:05X}"
+            self._refresh_rw_view()
+
+    def _start_file_write(self) -> None:
+        if self._file_write_addr_input is None or self._file_write_path_input is None:
+            return
+        try:
+            base_addr = parse_u21(self._file_write_addr_input.value.strip())
+            file_path = Path(self._file_write_path_input.value.strip())
+            blob = load_bulk_file(file_path)
+            if not blob:
+                raise ValueError("input file is empty")
+            words = padded_word_count(len(blob))
+            validate_bulk_range(base_addr, words)
+            pad_bytes = words * 4 - len(blob)
+        except Exception as exc:
+            self._rw_file_write_result = f"validation failed: {exc}"
+            self._file_summary_text = self._rw_file_write_result
+            self._refresh_file_view()
+            self._set_status(self._rw_file_write_result)
+            return
+
+        detail = f"validated {file_path.name} bytes={len(blob)} words={words} pad={pad_bytes}"
+        if self._start_bulk_task(
+            kind="bulk_file_write",
+            base_addr=base_addr,
+            words=words,
+            result_text="waiting for bulk write ack...",
+            write_blob=blob,
+            output_len=len(blob),
+        ):
+            self._rw_file_write_result = detail
+            self._file_summary_text = detail
+            self._refresh_file_view()
+
+    def _start_file_read_save(self) -> None:
+        if (
+            self._file_read_addr_input is None
+            or self._file_read_words_input is None
+            or self._file_read_path_input is None
+        ):
+            return
+        try:
+            base_addr = parse_u21(self._file_read_addr_input.value.strip())
+            words, output_len = parse_bulk_length_spec(self._file_read_words_input.value.strip())
+            validate_bulk_range(base_addr, words)
+            output_path = Path(self._file_read_path_input.value.strip())
+            if output_path.suffix.lower() not in {".bin", ".hex"}:
+                raise ValueError("output path must end with .bin or .hex")
+        except Exception as exc:
+            self._rw_file_read_result = f"validation failed: {exc}"
+            self._file_summary_text = self._rw_file_read_result
+            self._refresh_file_view()
+            self._set_status(self._rw_file_read_result)
+            return
+
+        detail = (
+            f"validated read addr=0x{base_addr:05X} bytes={output_len} "
+            f"words={words} -> {output_path.name}"
+        )
+        if self._start_bulk_task(
+            kind="bulk_file_read",
+            base_addr=base_addr,
+            words=words,
+            result_text="waiting for bulk read ack...",
+            output_path=output_path,
+            output_len=output_len,
+        ):
+            self._rw_file_read_result = detail
+            self._file_summary_text = detail
+            self._refresh_file_view()
+
+    def _start_bulk_read_range(self) -> None:
+        if self._burst_base_input is None or self._burst_words_input is None:
+            return
+        try:
+            base_addr = parse_u21(self._burst_base_input.value.strip())
+            words = int(self._burst_words_input.value.strip(), 0)
+            validate_bulk_range(base_addr, words)
+        except Exception as exc:
+            self._burst_summary_text = f"invalid bulk input: {exc}"
+            self._burst_result_text = self._burst_summary_text
+            self._refresh_burst_view()
+            self._set_status(self._burst_summary_text)
+            return
+
+        self._start_bulk_task(
+            kind="bulk_range_read",
+            base_addr=base_addr,
+            words=words,
+            result_text="waiting for bulk read data...",
+        )
+
+    def _start_bulk_pattern_write(self) -> None:
+        if (
+            self._burst_base_input is None
+            or self._burst_words_input is None
+            or self._bulk_pattern_input is None
+        ):
+            return
+        try:
+            base_addr = parse_u21(self._burst_base_input.value.strip())
+            words = int(self._burst_words_input.value.strip(), 0)
+            pattern = int(self._bulk_pattern_input.value.strip(), 0) & 0xFFFF_FFFF
+            validate_bulk_range(base_addr, words)
+            blob = build_pattern_blob(pattern, words)
+        except Exception as exc:
+            self._burst_summary_text = f"invalid bulk input: {exc}"
+            self._burst_result_text = self._burst_summary_text
+            self._refresh_burst_view()
+            self._set_status(self._burst_summary_text)
+            return
+
+        self._start_bulk_task(
+            kind="bulk_pattern_write",
+            base_addr=base_addr,
+            words=words,
+            result_text=f"pattern=0x{pattern:08X}",
+            write_blob=blob,
+            output_len=len(blob),
+        )
+
+    def _start_burst_test(self, *, is_read: bool) -> None:
+        if self._burst_base_input is None or self._burst_words_input is None:
+            return
+        try:
+            base_addr = parse_u21(self._burst_base_input.value.strip())
+            words = int(self._burst_words_input.value.strip(), 0)
+            if words < 1 or words > BURST_MAX_WORDS:
+                raise ValueError(f"words out of range 1..{BURST_MAX_WORDS}: {words}")
+            if base_addr + words - 1 > SDRAM_MAX_WORD_ADDR:
+                raise ValueError("burst exceeds SDRAM address range")
+            if ((base_addr & 0xFF) + words - 1) > 0xFF:
+                raise ValueError("burst crosses 8-bit column page")
+        except Exception as exc:
+            self._burst_summary_text = f"invalid burst input: {exc}"
+            self._burst_result_text = self._burst_summary_text
+            self._refresh_burst_view()
+            self._set_status(self._burst_summary_text)
+            return
+        if self._replay_file_path is not None:
+            self._set_status("replay mode: SDRAM Burst disabled")
+            return
+        if not self._active_connected():
+            self._set_status("not connected")
+            return
+        if self._host_task_busy():
+            self._set_status("host task busy")
+            return
+
+        self._burst_task_active = True
+        self._burst_task_kind = "burst_read_test" if is_read else "burst_write_test"
+        self._burst_phase = ""
+        self._burst_command_sent = False
+        self._burst_base_addr = base_addr
+        self._burst_words = words
+        self._burst_packet_count = (words + 1) // 2 if is_read else 0
+        self._burst_select_deadline = time.monotonic()
+        self._burst_rsp_deadline = 0.0
+        self._burst_received_packets = {}
+        self._burst_received_words = {}
+        self._burst_write_blocks = []
+        self._burst_next_block_index = 0
+        self._burst_output_path = None
+        self._burst_output_len = 0
+        self._burst_abort_count = 0
+        self._burst_summary_text = f"started {self._burst_task_kind}"
+        self._burst_result_text = "waiting for result..."
+        self._refresh_burst_view()
+        self._set_status(self._burst_summary_text)
+
+    def _finish_burst_task(self, detail: str) -> None:
+        if self._burst_task_kind in {"bulk_file_write", "bulk_file_read"}:
+            self._file_summary_text = detail
+        self._burst_task_active = False
+        self._burst_summary_text = detail
+        self._burst_task_kind = ""
+        self._burst_phase = ""
+        self._burst_command_sent = False
+        self._burst_rsp_deadline = 0.0
+        self._burst_write_blocks = []
+        self._burst_next_block_index = 0
+        self._burst_output_path = None
+        self._burst_output_len = 0
+        self._burst_retry_count = 0
+        self._burst_abort_count = 0
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(detail)
+
+    def _bulk_task_is_write(self) -> bool:
+        return self._burst_task_kind in {"bulk_file_write", "bulk_pattern_write"}
+
+    def _send_bulk_abort(self) -> bool:
+        payload = build_bulk_abort_block(self._burst_next_block_index & 0xFF)
+        return self._send_bytes(payload) == len(payload)
+
+    def _begin_bulk_abort_recovery(self, reason: str) -> bool:
+        if not self._bulk_task_is_write():
+            return False
+        if self._burst_abort_count >= BULK_TASK_RETRY_LIMIT:
+            return False
+        if not self._send_bulk_abort():
+            return False
+
+        self._burst_abort_count += 1
+        self._burst_phase = "abort_wait"
+        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+        self._burst_summary_text = (
+            f"abort recovery {self._burst_abort_count}/{BULK_TASK_RETRY_LIMIT}: "
+            f"{reason}"
+        )
+        self._burst_result_text = self._burst_summary_text
+        if self._burst_task_kind == "bulk_file_write":
+            self._rw_file_write_result = self._burst_summary_text
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(self._burst_summary_text)
+        return True
+
+    def _restart_bulk_after_abort(self, reason: str) -> bool:
+        if self._burst_retry_count >= BULK_TASK_RETRY_LIMIT:
+            return False
+
+        self._burst_retry_count += 1
+        self._burst_phase = "select"
+        self._burst_command_sent = False
+        self._burst_select_deadline = time.monotonic()
+        self._burst_rsp_deadline = 0.0
+        self._burst_received_packets = {}
+        self._burst_received_words = {}
+        self._burst_next_block_index = 0
+        self._burst_abort_count = 0
+        self._burst_summary_text = (
+            f"retry {self._burst_retry_count}/{BULK_TASK_RETRY_LIMIT}: {reason}"
+        )
+        self._burst_result_text = self._burst_summary_text
+        if self._burst_task_kind == "bulk_file_write":
+            self._rw_file_write_result = self._burst_summary_text
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(self._burst_summary_text)
+        return True
+
+    def _retry_bulk_task(self, reason: str) -> bool:
+        if self._burst_retry_count >= BULK_TASK_RETRY_LIMIT:
+            return False
+
+        drain_frames(self._read_bytes, self._parser, 0.1)
+        try:
+            self._selected_src_idx = select_source_index(
+                self._send_bytes,
+                self._read_bytes,
+                self._parser,
+                HOST_SRC_INDEX,
+                settle_ms=100,
+                timeout_s=1.5,
+            )
+        except TimeoutError:
+            return False
+
+        self._burst_retry_count += 1
+        self._burst_phase = "select"
+        self._burst_command_sent = False
+        self._burst_select_deadline = time.monotonic()
+        self._burst_rsp_deadline = 0.0
+        self._burst_received_packets = {}
+        self._burst_received_words = {}
+        self._burst_next_block_index = 0
+        self._burst_abort_count = 0
+        self._burst_summary_text = (
+            f"retry {self._burst_retry_count}/{BULK_TASK_RETRY_LIMIT}: {reason}"
+        )
+        self._burst_result_text = self._burst_summary_text
+        if self._burst_task_kind == "bulk_file_write":
+            self._rw_file_write_result = self._burst_summary_text
+        elif self._burst_task_kind == "bulk_file_read":
+            self._rw_file_read_result = self._burst_summary_text
+        self._refresh_burst_view()
+        self._refresh_file_view()
+        self._set_status(self._burst_summary_text)
+        return True
+
+    def _retry_rw_inflight(self) -> bool:
+        if self._rw_task_inflight is None or self._rw_task_inflight_retries >= RW_TASK_RETRY_LIMIT:
+            return False
+
+        op_kind, addr, data = self._rw_task_inflight
+        payload = make_read_packet(addr) if op_kind == "read" else make_write_packet(addr, data)
+        if self._send_bytes(payload) != len(payload):
+            return False
+
+        self._rw_task_inflight_retries += 1
+        self._rw_task_retry_count += 1
+        self._rw_task_rsp_deadline = time.monotonic() + MAP_RESPONSE_TIMEOUT_S
+        retry_text = f"retry {self._rw_task_inflight_retries}/{RW_TASK_RETRY_LIMIT} at 0x{addr:05X}"
+        self._rw_summary_text = f"{op_kind} {retry_text}"
+        if self._rw_task_kind == "single_read":
+            self._rw_single_read_result = retry_text
+        elif self._rw_task_kind == "single_write":
+            self._rw_single_write_result = retry_text
+        self._refresh_rw_view()
+        self._set_status(self._rw_summary_text)
+        return True
+
+    def _build_bulk_blob_from_words(self) -> bytes:
+        missing = [idx for idx in range(self._burst_words) if idx not in self._burst_received_words]
+        if missing:
+            raise ValueError(f"missing bulk words: first={missing[0]} count={len(missing)}")
+        blob = bytearray()
+        for idx in range(self._burst_words):
+            blob.extend(self._burst_received_words[idx].to_bytes(4, "little"))
+        return bytes(blob)
+
+    def _complete_burst_read(self) -> None:
+        missing = [idx for idx in range(self._burst_words) if idx not in self._burst_received_words]
+        mismatches = [
+            idx
+            for idx in range(self._burst_words)
+            if idx in self._burst_received_words and self._burst_received_words[idx] != idx
+        ]
+        if missing:
+            self._burst_result_text = f"FAIL missing_words={len(missing)} first={missing[0]}"
+            self._finish_burst_task("burst read incomplete")
+        elif mismatches:
+            first = mismatches[0]
+            got = self._burst_received_words[first]
+            self._burst_result_text = (
+                f"FAIL mismatches={len(mismatches)} first={first} "
+                f"expected=0x{first:08X} got=0x{got:08X}"
+            )
+            self._finish_burst_task("burst read mismatch")
+        else:
+            self._burst_result_text = f"PASS read words={self._burst_words}"
+            self._finish_burst_task("burst read pass")
+
+    def _poll_burst_task(self) -> None:
+        if not self._burst_task_active:
+            return
+        now = time.monotonic()
+        is_bulk_task = self._burst_task_kind.startswith("bulk_")
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._burst_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_burst_task("failed to select host source")
+                    return
+                self._burst_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._burst_select_deadline = now + 0.35
+                self._refresh_burst_view()
+                self._refresh_file_view()
+            return
+        if not self._burst_command_sent:
+            if is_bulk_task:
+                is_read = self._burst_task_kind in {"bulk_range_read", "bulk_file_read"}
+                payload = (
+                    build_bulk_read_command(self._burst_base_addr, self._burst_words)
+                    if is_read
+                    else build_bulk_write_command(self._burst_base_addr, self._burst_words)
+                )
+            else:
+                is_read = self._burst_task_kind == "burst_read_test"
+                payload = (
+                    make_burst_test_read_packet(self._burst_base_addr, self._burst_words)
+                    if is_read
+                    else make_burst_test_write_packet(self._burst_base_addr, self._burst_words)
+                )
+            if self._send_bytes(payload) != len(payload):
+                self._finish_burst_task("burst command short write")
+                return
+            self._burst_command_sent = True
+            self._burst_rsp_deadline = now + (BULK_RESPONSE_TIMEOUT_S if is_bulk_task else BURST_RESPONSE_TIMEOUT_S)
+            if is_bulk_task:
+                self._burst_phase = "wait_ok"
+                self._burst_summary_text = (
+                    f"sent {'BR' if is_read else 'BW'} 0x{self._burst_base_addr:05X} words={self._burst_words}"
+                )
+            else:
+                self._burst_summary_text = (
+                    f"sent {'BRT' if is_read else 'BWT'} "
+                    f"0x{self._burst_base_addr:05X} words={self._burst_words}"
+                )
+            self._refresh_burst_view()
+            self._refresh_file_view()
+            return
+        if is_bulk_task:
+            if self._burst_phase == "abort_wait":
+                if now > self._burst_rsp_deadline:
+                    if self._begin_bulk_abort_recovery("abort ack timeout"):
+                        return
+                    self._finish_burst_task("bulk abort recovery timeout")
+                return
+            if self._burst_phase == "send_block":
+                if self._burst_next_block_index >= len(self._burst_write_blocks):
+                    self._finish_burst_task("bulk write has no block to send")
+                    return
+                block_index = self._burst_next_block_index
+                block = self._burst_write_blocks[block_index]
+                if self._send_bytes(block) != len(block):
+                    self._finish_burst_task("bulk block short write")
+                    return
+                self._burst_next_block_index += 1
+                is_end_block = block_index == len(self._burst_write_blocks) - 1
+                self._burst_phase = "wait_write_done" if is_end_block else "wait_write_progress"
+                self._burst_rsp_deadline = now + BULK_RESPONSE_TIMEOUT_S
+                self._burst_summary_text = (
+                    f"sent {'WR_END' if is_end_block else 'WR_DATA'} block {block_index + 1}/{len(self._burst_write_blocks)}"
+                )
+                self._refresh_burst_view()
+                self._refresh_file_view()
+                return
+            if now > self._burst_rsp_deadline:
+                if self._bulk_task_is_write() and self._begin_bulk_abort_recovery("bulk timeout"):
+                    return
+                if self._retry_bulk_task("bulk timeout"):
+                    return
+                self._burst_result_text = "timeout"
+                self._finish_burst_task("bulk timeout")
+            return
+        if now > self._burst_rsp_deadline:
+            self._burst_result_text = "timeout"
+            self._finish_burst_task("burst timeout")
+
     def _poll_serial(self) -> None:
         if not self._serial.is_connected:
             return
         data = self._serial.read_bytes()
-        if not data:
-            return
-        self._handle_stream_data(data, count_tcp=False)
+        if data:
+            self._handle_stream_data(data, count_tcp=False)
 
     def _poll_tcp(self) -> None:
         if not self._tcp.is_connected:
             return
-
         data = self._tcp.read_bytes()
         if not data:
             if not self._tcp.is_connected:
@@ -547,38 +1955,31 @@ class UARTLogApp(App[None]):
                 self._log_meta("tcp disconnected by peer")
                 self._update_stats()
             return
-
         self._tcp_packets += 1
         self._tcp_bytes += len(data)
         self._handle_stream_data(data, count_tcp=True)
 
     def _handle_stream_data(self, data: bytes, *, count_tcp: bool) -> None:
         frames = self._parser.feed(data)
-
         if self._parser.crc_error_count > self._crc_seen:
             delta = self._parser.crc_error_count - self._crc_seen
             self._crc_seen = self._parser.crc_error_count
             self._log_meta(f"crc_error +{delta}")
-
         for frame in frames:
             self._append_live_frame(frame)
-
         if count_tcp and frames:
             self._tcp_last_frame = f"0x{frames[-1].seq:02X}"
-
         self._update_stats()
 
     def _poll_replay(self) -> None:
         if self._replay_finished:
             return
-
         if self._replay_idx >= len(self._replay_records):
             self._replay_finished = True
             self._set_status("replay finished")
             self._log_meta("replay finished")
             self._update_stats()
             return
-
         record = self._replay_records[self._replay_idx]
         self._replay_idx += 1
         self._append_event(record.seq, record.event, record.lost_count, host_time=record.host_time)
@@ -589,89 +1990,353 @@ class UARTLogApp(App[None]):
 
     def _build_row_from_stored(self, stored: StoredEvent) -> LogRow:
         ts_host = stored.host_time or datetime.now().strftime("%H:%M:%S.%f")[:-3]
-
         if self._mode == "decode":
             decoded = self._decoder.decode(stored.event)
             text = f"[{decoded.level}] {decoded.title}: {decoded.message}"
         else:
-            text = (
-                f"src={stored.event.src_id} evt={stored.event.event_id} ts={stored.event.timestamp} "
-                f"arg0={stored.event.arg0} arg1={stored.event.arg1} arg2={stored.event.arg2}"
-            )
+            text = f"src={stored.event.src_id} evt={stored.event.event_id} ts={stored.event.timestamp} arg0={stored.event.arg0} arg1={stored.event.arg1} arg2={stored.event.arg2}"
+        search_text = " ".join([ts_host, f"0x{stored.seq:02X}", f"0x{stored.event.src_id:02X}", f"0x{stored.event.event_id:02X}", str(stored.event.timestamp), f"0x{stored.event.arg0:08X}", f"0x{stored.event.arg1:08X}", f"0x{stored.event.arg2:08X}", text, f"lost={stored.lost_count}"]).lower()
+        return LogRow(ts_host, f"0x{stored.seq:02X}", f"0x{stored.event.src_id:02X}", f"0x{stored.event.event_id:02X}", str(stored.event.timestamp), f"0x{stored.event.arg0:08X}", f"0x{stored.event.arg1:08X}", f"0x{stored.event.arg2:08X}", "OK", self._mode.upper(), text, search_text)
 
-        search_text = " ".join(
-            [
-                ts_host,
-                f"0x{stored.seq:02X}",
-                f"0x{stored.event.src_id:02X}",
-                f"0x{stored.event.event_id:02X}",
-                str(stored.event.timestamp),
-                f"0x{stored.event.arg0:08X}",
-                f"0x{stored.event.arg1:08X}",
-                f"0x{stored.event.arg2:08X}",
-                text,
-                f"lost={stored.lost_count}",
-            ]
-        ).lower()
-
-        return LogRow(
-            host_time=ts_host,
-            seq_text=f"0x{stored.seq:02X}",
-            src_text=f"0x{stored.event.src_id:02X}",
-            evt_text=f"0x{stored.event.event_id:02X}",
-            timestamp_text=str(stored.event.timestamp),
-            arg0_text=f"0x{stored.event.arg0:08X}",
-            arg1_text=f"0x{stored.event.arg1:08X}",
-            arg2_text=f"0x{stored.event.arg2:08X}",
-            crc_text="OK",
-            mode_text=self._mode.upper(),
-            text=text,
-            search_text=search_text,
-        )
-
-    def _append_event(
-        self,
-        seq: int,
-        event: Event,
-        lost_count: int,
-        *,
-        host_time: str | None,
-    ) -> None:
+    def _append_event(self, seq: int, event: Event, lost_count: int, *, host_time: str | None) -> None:
+        self._handle_special_event(event)
         stored = StoredEvent(host_time=host_time, seq=seq, event=event, lost_count=lost_count)
         row = self._build_row_from_stored(stored)
         self._rows.append(stored)
         self._rx_frames += 1
-
         if lost_count > 0:
             self._lost_seen += lost_count
             self._log_meta(f"seq_loss +{lost_count} at seq=0x{seq:02X}")
-
         if self._row_matches_filter(row):
             self._append_row_to_table(row)
-
         self._log_event(seq, event, lost_count, row.text)
 
+    def _handle_special_event(self, event: Event) -> None:
+        if event.src_id == SYS_SRC_ID and event.event_id == EV_MODE_CHANGE:
+            self._selected_src_idx = event.arg1 & 0xFF
+        if not self._map_refresh_active or event.src_id != HOST_SRC_ID:
+            pass
+        else:
+            if event.event_id == HOST_EVT_BULK_OK:
+                done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
+                done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                if done_base != self._map_base_addr or done_words != MAP_WORD_COUNT:
+                    self._finish_map_refresh(
+                        f"BULK_OK mismatch base=0x{done_base:05X} words={done_words}"
+                    )
+                else:
+                    self._map_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                    self._map_summary_text = (
+                        f"bulk read accepted 0x{self._map_base_addr:05X} "
+                        f"words={MAP_WORD_COUNT}"
+                    )
+                    self._refresh_map_view()
+                    self._set_status(self._map_summary_text)
+            elif event.event_id == HOST_EVT_BULK_PROGRESS:
+                try:
+                    progress = decode_bulk_read_progress(event.arg0, event.arg1, event.arg2)
+                except ValueError as exc:
+                    self._finish_map_refresh(f"bulk progress decode failed: {exc}")
+                    return
+
+                for word_offset, value in enumerate(progress.words):
+                    word_index = (progress.base_addr - self._map_base_addr) + word_offset
+                    if 0 <= word_index < MAP_WORD_COUNT:
+                        offset = word_index * 4
+                        addr = self._map_base_addr + word_index
+                        self._map_received_words[addr] = value
+                        self._map_bytes[offset : offset + 4] = value.to_bytes(
+                            4,
+                            "little",
+                        )
+                self._map_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                self._map_summary_text = (
+                    f"bulk read words {len(self._map_received_words)}/{MAP_WORD_COUNT}"
+                )
+                self._refresh_map_view()
+                self._set_status(self._map_summary_text)
+            elif event.event_id == HOST_EVT_BULK_DONE:
+                done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
+                done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                missing = [
+                    idx
+                    for idx in range(MAP_WORD_COUNT)
+                    if (self._map_base_addr + idx) not in self._map_received_words
+                ]
+                if done_base != self._map_base_addr or done_words != MAP_WORD_COUNT:
+                    self._finish_map_refresh(
+                        f"DONE mismatch base=0x{done_base:05X} words={done_words}"
+                    )
+                elif missing:
+                    self._finish_map_refresh(
+                        f"bulk read incomplete missing={len(missing)} first={missing[0]:02X}"
+                    )
+                elif self._map_retry_count == 0:
+                    self._finish_map_refresh("refresh complete")
+                else:
+                    self._finish_map_refresh(
+                        f"refresh complete (retries={self._map_retry_count})"
+                    )
+            elif event.event_id in {HOST_EVT_BULK_ABORT, HOST_EVT_BURST_ERR, HOST_EVT_CMD_ERR}:
+                self._finish_map_refresh(
+                    f"refresh failed evt=0x{event.event_id:02X} "
+                    f"arg0=0x{event.arg0:08X}"
+                )
+
+        if not self._status_refresh_active or event.src_id != HOST_SRC_ID:
+            pass
+        else:
+            if event.event_id == HOST_EVT_READ_RSP and self._status_inflight_addr is not None and event.arg0 == self._status_inflight_addr:
+                offset = event.arg0 - STATUS_BASE_ADDR
+                if 0 <= offset < STATUS_BYTE_COUNT:
+                    self._status_bytes[offset : offset + 4] = event.arg1.to_bytes(4, "little")
+                self._status_inflight_addr = None
+                self._status_rsp_deadline = 0.0
+                self._refresh_status_view()
+                if not self._status_pending_queue:
+                    self._finish_status_refresh("status refresh complete")
+            elif event.event_id == HOST_EVT_CMD_ERR and self._status_inflight_addr is not None:
+                self._finish_status_refresh(
+                    f"status refresh failed at 0x{self._status_inflight_addr:05X}: cmd_err 0x{event.arg0:08X}"
+                )
+
+        if not self._status_selftest_active or event.src_id != HOST_SRC_ID:
+            pass
+        else:
+            if (
+                event.event_id == HOST_EVT_WRITE_ACK
+                and self._status_selftest_inflight
+                and event.arg0 == STATUS_SELFTEST_ADDR
+            ):
+                self._finish_status_selftest(
+                    "selftest trigger acknowledged; refreshing status",
+                    refresh_after_ack=True,
+                )
+            elif event.event_id == HOST_EVT_CMD_ERR and self._status_selftest_inflight:
+                self._finish_status_selftest(
+                    f"selftest trigger failed: cmd_err 0x{event.arg0:08X}"
+                )
+
+        if self._burst_task_active and event.src_id == HOST_SRC_ID:
+            if self._burst_task_kind.startswith("bulk_"):
+                if self._burst_phase == "abort_wait":
+                    if event.event_id in {HOST_EVT_BULK_ABORT, HOST_EVT_BULK_ERR, HOST_EVT_CMD_ERR}:
+                        if self._restart_bulk_after_abort("bulk session aborted"):
+                            return
+                        self._finish_burst_task("bulk session aborted")
+                    elif event.event_id == HOST_EVT_BULK_PROGRESS:
+                        self._burst_rsp_deadline = 0.0
+                        self._burst_summary_text = (
+                            "bulk progress arrived during abort recovery"
+                        )
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    elif event.event_id == HOST_EVT_BULK_DONE:
+                        if self._restart_bulk_after_abort("bulk session completed late"):
+                            return
+                        self._finish_burst_task("bulk session completed late")
+                    return
+                if event.event_id == HOST_EVT_BULK_OK:
+                    done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
+                    done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                    if done_base != self._burst_base_addr or done_words != self._burst_words:
+                        mismatch_text = f"BULK_OK mismatch base=0x{done_base:05X} words={done_words}"
+                        if self._retry_bulk_task(mismatch_text):
+                            return
+                        self._burst_result_text = mismatch_text
+                        self._finish_burst_task("bulk ack mismatch")
+                    elif self._burst_task_kind in {"bulk_range_read", "bulk_file_read"}:
+                        self._burst_phase = "wait_read_done"
+                        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                        self._burst_summary_text = (
+                            f"bulk read accepted 0x{self._burst_base_addr:05X} words={self._burst_words}"
+                        )
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    else:
+                        self._burst_phase = "send_block"
+                        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                        self._burst_summary_text = (
+                            f"bulk write accepted 0x{self._burst_base_addr:05X} words={self._burst_words}"
+                        )
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    return
+                if event.event_id == HOST_EVT_BULK_PROGRESS:
+                    if self._burst_task_kind in {"bulk_range_read", "bulk_file_read"}:
+                        progress = decode_bulk_read_progress(event.arg0, event.arg1, event.arg2)
+                        packet_index = max(0, (progress.base_addr - self._burst_base_addr) // 2)
+                        self._burst_received_packets[packet_index] = progress.valid_word_count
+                        for word_offset, value in enumerate(progress.words):
+                            word_index = (progress.base_addr - self._burst_base_addr) + word_offset
+                            if 0 <= word_index < self._burst_words:
+                                self._burst_received_words[word_index] = value
+                        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                        self._burst_summary_text = (
+                            f"bulk read words {len(self._burst_received_words)}/{self._burst_words}"
+                        )
+                        if self._burst_task_kind == "bulk_range_read":
+                            self._burst_result_text = (
+                                f"received {len(self._burst_received_words)}/{self._burst_words} words"
+                            )
+                        else:
+                            self._rw_file_read_result = (
+                                f"received {len(self._burst_received_words)}/{self._burst_words} words"
+                            )
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    else:
+                        self._burst_phase = "send_block"
+                        self._burst_rsp_deadline = time.monotonic() + BULK_RESPONSE_TIMEOUT_S
+                        self._burst_summary_text = (
+                            f"bulk write progress completed={event.arg1} remaining={event.arg2}"
+                        )
+                        if self._burst_task_kind == "bulk_pattern_write":
+                            self._burst_result_text = self._burst_summary_text
+                        else:
+                            self._rw_file_write_result = self._burst_summary_text
+                        self._refresh_burst_view()
+                        self._refresh_file_view()
+                    return
+                if event.event_id == HOST_EVT_BULK_DONE:
+                    done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
+                    done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                    if done_base != self._burst_base_addr or done_words != self._burst_words:
+                        mismatch_text = f"DONE mismatch base=0x{done_base:05X} words={done_words}"
+                        if self._retry_bulk_task(mismatch_text):
+                            return
+                        self._burst_result_text = mismatch_text
+                        self._finish_burst_task("bulk done mismatch")
+                    elif self._burst_task_kind in {"bulk_range_read", "bulk_file_read"}:
+                        try:
+                            blob = self._build_bulk_blob_from_words()
+                        except Exception as exc:
+                            if self._burst_task_kind == "bulk_file_read":
+                                self._rw_file_read_result = f"bulk read incomplete: {exc}"
+                            else:
+                                self._burst_result_text = f"bulk read incomplete: {exc}"
+                            self._finish_burst_task("bulk read incomplete")
+                            return
+
+                        if self._burst_task_kind == "bulk_file_read":
+                            try:
+                                if self._burst_output_path is None:
+                                    raise ValueError("missing output path")
+                                save_bulk_file(self._burst_output_path, blob[: self._burst_output_len])
+                                self._rw_file_read_result = (
+                                    f"saved {self._burst_output_len} bytes to {self._burst_output_path}"
+                                )
+                                self._finish_burst_task("bulk file read complete")
+                            except Exception as exc:
+                                self._rw_file_read_result = f"save failed: {exc}"
+                                self._finish_burst_task("bulk file read save failed")
+                        else:
+                            self._burst_result_text = (
+                                f"read words={self._burst_words} bytes={len(blob)}"
+                            )
+                            self._finish_burst_task("bulk range read complete")
+                    else:
+                        if self._burst_task_kind == "bulk_file_write":
+                            self._rw_file_write_result = (
+                                f"wrote {self._burst_output_len} bytes to 0x{self._burst_base_addr:05X}"
+                            )
+                            self._finish_burst_task("bulk file write complete")
+                        else:
+                            self._burst_result_text = (
+                                f"pattern write words={self._burst_words} complete"
+                            )
+                            self._finish_burst_task("bulk pattern write complete")
+                    return
+                if event.event_id in {HOST_EVT_BULK_ABORT, HOST_EVT_BURST_ERR, HOST_EVT_CMD_ERR}:
+                    error_text = (
+                        f"evt=0x{event.event_id:02X} arg0=0x{event.arg0:08X} "
+                        f"arg1=0x{event.arg1:08X} arg2=0x{event.arg2:08X}"
+                    )
+                    if self._retry_bulk_task(error_text):
+                        return
+                    if self._burst_task_kind == "bulk_file_write":
+                        self._rw_file_write_result = error_text
+                    elif self._burst_task_kind == "bulk_file_read":
+                        self._rw_file_read_result = error_text
+                    else:
+                        self._burst_result_text = error_text
+                    self._finish_burst_task("bulk transfer failed")
+                    return
+            if event.event_id == HOST_EVT_BURST_DATA and self._burst_task_kind == "burst_read_test":
+                packet = decode_burst_data_packet(event.arg0, event.arg1, event.arg2)
+                self._burst_packet_count = packet.packet_count
+                self._burst_received_packets[packet.packet_id] = packet.valid_word_count
+                for word_offset, value in enumerate(packet.words):
+                    word_index = packet.first_word_index + word_offset
+                    if word_index < self._burst_words:
+                        self._burst_received_words[word_index] = value
+                self._burst_rsp_deadline = time.monotonic() + BURST_RESPONSE_TIMEOUT_S
+                self._burst_summary_text = (
+                    f"read packets {len(self._burst_received_packets)}/{self._burst_packet_count}"
+                )
+                self._refresh_burst_view()
+            elif event.event_id == HOST_EVT_BURST_DONE:
+                is_read_done = ((event.arg2 >> 31) & 0x1) == 1
+                done_base = event.arg0 & 0x1F_FFFF
+                done_words = event.arg1 & 0x1FF
+                if done_base != self._burst_base_addr or done_words != self._burst_words:
+                    self._burst_result_text = (
+                        f"DONE mismatch base=0x{done_base:05X} words={done_words}"
+                    )
+                    self._finish_burst_task("burst done mismatch")
+                elif is_read_done:
+                    self._complete_burst_read()
+                else:
+                    self._burst_result_text = f"PASS write words={self._burst_words}"
+                    self._finish_burst_task("burst write pass")
+            elif event.event_id == HOST_EVT_BURST_ERR:
+                self._burst_result_text = (
+                    f"ERR reason=0x{event.arg0:08X} "
+                    f"base=0x{event.arg1 & 0x1F_FFFF:05X} words={event.arg2 & 0xFFFF}"
+                )
+                self._finish_burst_task("burst error")
+
+        if not self._rw_task_active or event.src_id != HOST_SRC_ID:
+            return
+        if self._rw_task_inflight is None:
+            return
+        op_kind, inflight_addr, inflight_data = self._rw_task_inflight
+        if event.event_id == HOST_EVT_READ_RSP and op_kind == "read" and event.arg0 == inflight_addr:
+            self._rw_task_read_results[inflight_addr] = event.arg1
+            self._rw_task_inflight = None
+            self._rw_task_inflight_retries = 0
+            self._rw_task_rsp_deadline = 0.0
+            if self._rw_task_kind == "single_read":
+                self._rw_single_read_result = f"0x{inflight_addr:05X} -> 0x{event.arg1:08X}"
+            self._refresh_rw_view()
+        elif event.event_id == HOST_EVT_WRITE_ACK and op_kind == "write" and event.arg0 == inflight_addr:
+            self._rw_task_inflight = None
+            self._rw_task_inflight_retries = 0
+            self._rw_task_rsp_deadline = 0.0
+            if self._rw_task_kind == "single_write":
+                self._rw_single_write_result = f"0x{inflight_data:08X} -> 0x{inflight_addr:05X} OK"
+            self._refresh_rw_view()
+        elif event.event_id == HOST_EVT_CMD_ERR:
+            self._rw_task_inflight = None
+            self._rw_task_inflight_retries = 0
+            self._rw_task_rsp_deadline = 0.0
+            if self._rw_task_kind == "single_read":
+                self._rw_single_read_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+            elif self._rw_task_kind == "single_write":
+                self._rw_single_write_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+            elif self._rw_task_kind == "file_write":
+                self._rw_file_write_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+            elif self._rw_task_kind == "file_read_save":
+                self._rw_file_read_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+            self._finish_rw_task("rw task failed: cmd_err")
+
     def _row_matches_filter(self, row: LogRow) -> bool:
-        if not self._filter_text:
-            return True
-        return self._filter_text in row.search_text
+        return True if not self._filter_text else self._filter_text in row.search_text
 
     def _append_row_to_table(self, row: LogRow) -> None:
         if self._table is None:
             return
-        self._table.add_row(
-            row.host_time,
-            row.seq_text,
-            row.src_text,
-            row.evt_text,
-            row.timestamp_text,
-            row.arg0_text,
-            row.arg1_text,
-            row.arg2_text,
-            row.crc_text,
-            row.mode_text,
-            row.text,
-        )
+        self._table.add_row(row.host_time, row.seq_text, row.src_text, row.evt_text, row.timestamp_text, row.arg0_text, row.arg1_text, row.arg2_text, row.crc_text, row.mode_text, row.text)
         try:
             self._table.scroll_end(animate=False)
         except Exception:
@@ -689,20 +2354,264 @@ class UARTLogApp(App[None]):
             if self._row_matches_filter(row):
                 self._append_row_to_table(row)
 
+    def _refresh_map_view(self) -> None:
+        if self._map_summary is not None:
+            self._map_summary.update("\n".join(["[SDRAM Map]", f"base       : 0x{self._map_base_addr:05X}", "mode       : 4-byte words", f"state      : {'refreshing' if self._map_refresh_active else 'idle'}", f"detail     : {self._map_summary_text}"]))
+        if self._map_view is not None:
+            self._map_view.update(format_sdram_map_text(self._map_base_addr, self._map_bytes))
+
+    def _start_map_refresh(self) -> None:
+        if self._map_base_input is not None:
+            try:
+                self._map_base_addr = parse_u21(self._map_base_input.value.strip())
+            except Exception as exc:
+                self._map_summary_text = f"invalid base addr: {exc}"
+                self._refresh_map_view()
+                self._set_status(self._map_summary_text)
+                return
+            if self._map_base_addr + MAP_WORD_COUNT - 1 > SDRAM_MAX_WORD_ADDR:
+                self._map_summary_text = (
+                    f"map range exceeds SDRAM limit 0x{SDRAM_MAX_WORD_ADDR:05X}"
+                )
+                self._refresh_map_view()
+                self._set_status(self._map_summary_text)
+                return
+        if self._replay_file_path is not None:
+            self._map_summary_text = "replay mode: SDRAM Map disabled"
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+        if not self._active_connected():
+            self._map_summary_text = "not connected"
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+        if self._host_task_busy():
+            self._map_summary_text = "host task busy"
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+
+        self._map_refresh_active = True
+        self._map_restore_src_idx = None
+        self._map_select_deadline = 0.0
+        self._map_rsp_deadline = 0.0
+        self._map_command_sent = False
+        self._map_inflight_addr = None
+        self._map_inflight_retries = 0
+        self._map_retry_count = 0
+        self._map_received_words = {}
+        self._map_bytes = bytearray(MAP_BYTE_COUNT)
+        self._map_pending_queue = []
+        self._map_summary_text = f"queued bulk read {MAP_WORD_COUNT} SDRAM words"
+        self._refresh_map_view()
+        self._set_status(self._map_summary_text)
+
+    def _poll_map_refresh(self) -> None:
+        if not self._map_refresh_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._map_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._map_refresh_active = False
+                    self._map_summary_text = "failed to select host source"
+                    self._refresh_map_view()
+                    self._set_status(self._map_summary_text)
+                    return
+                self._map_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._map_select_deadline = now + 0.35
+                self._refresh_map_view()
+            return
+        if not self._map_command_sent:
+            payload = build_bulk_read_command(self._map_base_addr, MAP_WORD_COUNT)
+            if self._send_bytes(payload) != len(payload):
+                self._map_refresh_active = False
+                self._map_summary_text = (
+                    f"short bulk read write for 0x{self._map_base_addr:05X}"
+                )
+                self._refresh_map_view()
+                self._set_status(self._map_summary_text)
+                return
+            self._map_command_sent = True
+            self._map_rsp_deadline = now + BULK_RESPONSE_TIMEOUT_S
+            self._map_summary_text = (
+                f"sent BR 0x{self._map_base_addr:05X} words={MAP_WORD_COUNT}"
+            )
+            self._refresh_map_view()
+            self._set_status(self._map_summary_text)
+            return
+        if now > self._map_rsp_deadline:
+            if self._map_inflight_retries < MAP_READ_RETRY_LIMIT:
+                self._map_inflight_retries += 1
+                self._map_retry_count += 1
+                self._map_command_sent = False
+                self._map_rsp_deadline = 0.0
+                self._map_received_words = {}
+                self._map_bytes = bytearray(MAP_BYTE_COUNT)
+                self._map_summary_text = (
+                    f"retry {self._map_inflight_retries}/{MAP_READ_RETRY_LIMIT} "
+                    f"for BR 0x{self._map_base_addr:05X}"
+                )
+                self._refresh_map_view()
+                self._set_status(self._map_summary_text)
+            else:
+                self._finish_map_refresh(
+                    f"timeout waiting for BR 0x{self._map_base_addr:05X}"
+                )
+
+    def _poll_status_refresh(self) -> None:
+        if not self._status_refresh_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._status_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_status_refresh("failed to select host source")
+                    return
+                self._status_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._status_select_deadline = now + 0.35
+                self._refresh_status_view()
+            return
+        if self._status_inflight_addr is not None and now > self._status_rsp_deadline:
+            self._finish_status_refresh(f"timeout waiting for 0x{self._status_inflight_addr:05X}")
+            return
+        if self._status_inflight_addr is not None or now < self._status_select_deadline or not self._status_pending_queue:
+            return
+
+        next_addr = self._status_pending_queue.pop(0)
+        payload = make_status_read_packet(next_addr)
+        if self._send_bytes(payload) != len(payload):
+            self._finish_status_refresh(f"short write for 0x{next_addr:05X}")
+            return
+        self._status_inflight_addr = next_addr
+        self._status_rsp_deadline = now + STATUS_RESPONSE_TIMEOUT_S
+        completed = STATUS_WORD_COUNT - len(self._status_pending_queue)
+        self._status_summary_text = f"reading 0x{next_addr:05X} ({completed}/{STATUS_WORD_COUNT})"
+        self._refresh_status_view()
+
+    def _poll_status_selftest(self) -> None:
+        if not self._status_selftest_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._status_selftest_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_status_selftest("failed to select host source")
+                    return
+                self._status_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._status_selftest_select_deadline = now + 0.35
+                self._refresh_status_view()
+            return
+        if self._status_selftest_inflight and now > self._status_selftest_rsp_deadline:
+            self._finish_status_selftest(
+                f"timeout waiting for selftest ack at 0x{STATUS_SELFTEST_ADDR:05X}"
+            )
+            return
+        if self._status_selftest_inflight or now < self._status_selftest_select_deadline:
+            return
+
+        payload = make_status_write_packet(STATUS_SELFTEST_ADDR, STATUS_SELFTEST_DATA)
+        if self._send_bytes(payload) != len(payload):
+            self._finish_status_selftest(
+                f"short write for selftest trigger at 0x{STATUS_SELFTEST_ADDR:05X}"
+            )
+            return
+        self._status_selftest_inflight = True
+        self._status_selftest_rsp_deadline = now + STATUS_RESPONSE_TIMEOUT_S
+        self._status_summary_text = (
+            f"triggering selftest SW 0x{STATUS_SELFTEST_ADDR:05X} 0x{STATUS_SELFTEST_DATA:08X}"
+        )
+        self._refresh_status_view()
+
+    def _poll_rw_task(self) -> None:
+        if not self._rw_task_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != HOST_SRC_INDEX:
+            if now >= self._rw_task_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_rw_task("failed to select host source")
+                    return
+                self._rw_summary_text = f"selecting host source (current={self._selected_src_idx})"
+                self._rw_task_select_deadline = now + 0.35
+                self._refresh_rw_view()
+            return
+        if self._rw_task_inflight is not None and now > self._rw_task_rsp_deadline:
+            op_kind, inflight_addr, _ = self._rw_task_inflight
+            if self._retry_rw_inflight():
+                return
+            if self._rw_task_kind == "single_read":
+                self._rw_single_read_result = f"timeout at 0x{inflight_addr:05X}"
+            elif self._rw_task_kind == "single_write":
+                self._rw_single_write_result = f"timeout at 0x{inflight_addr:05X}"
+            elif self._rw_task_kind == "file_write":
+                self._rw_file_write_result = f"timeout at 0x{inflight_addr:05X}"
+            elif self._rw_task_kind == "file_read_save":
+                self._rw_file_read_result = f"timeout at 0x{inflight_addr:05X}"
+            self._rw_task_inflight = None
+            self._finish_rw_task(f"{op_kind} timeout at 0x{inflight_addr:05X}")
+            return
+        if self._rw_task_inflight is not None or now < self._rw_task_select_deadline:
+            return
+        if not self._rw_task_pending:
+            if self._rw_task_kind == "file_write":
+                self._rw_file_write_result = "file write complete"
+            elif self._rw_task_kind == "file_read_save":
+                self._complete_file_read_save()
+            else:
+                self._finish_rw_task(f"{self._rw_task_kind} complete")
+            self._refresh_rw_view()
+            return
+        op_kind, addr, data = self._rw_task_pending.pop(0)
+        payload = make_read_packet(addr) if op_kind == "read" else make_write_packet(addr, data)
+        expected = len(payload)
+        if self._send_bytes(payload) != expected:
+            self._finish_rw_task(f"{op_kind} short write at 0x{addr:05X}")
+            return
+        self._rw_task_inflight = (op_kind, addr, data)
+        self._rw_task_inflight_retries = 0
+        self._rw_task_rsp_deadline = now + MAP_RESPONSE_TIMEOUT_S
+        self._rw_summary_text = f"{op_kind} 0x{addr:05X}"
+        self._refresh_rw_view()
+
+    def _complete_file_read_save(self) -> None:
+        if self._rw_task_output_path is None:
+            self._finish_rw_task("file read complete")
+            return
+        ordered_addrs = sorted(self._rw_task_read_results.keys())
+        blob = bytearray()
+        for addr in ordered_addrs:
+            blob.extend(self._rw_task_read_results[addr].to_bytes(4, "little"))
+        try:
+            self._rw_task_output_path.parent.mkdir(parents=True, exist_ok=True)
+            self._rw_task_output_path.write_bytes(bytes(blob[: self._rw_task_output_len]))
+            self._rw_file_read_result = f"saved {self._rw_task_output_len} bytes to {self._rw_task_output_path}"
+            self._finish_rw_task("file read save complete")
+        except Exception as exc:
+            self._rw_file_read_result = f"save failed: {exc}"
+            self._finish_rw_task("file read save failed")
+
+    def _finish_map_refresh(self, detail: str) -> None:
+        self._map_refresh_active = False
+        self._map_summary_text = detail
+        self._map_restore_src_idx = None
+        self._map_command_sent = False
+        self._map_rsp_deadline = 0.0
+        self._map_inflight_addr = None
+        self._map_inflight_retries = 0
+        self._refresh_map_view()
+        self._set_status(detail)
+
     def _set_status(self, message: str) -> None:
         if self._status is None:
             return
-
-        if self._replay_file_path is not None:
-            conn = "replay"
-        else:
-            conn = "connected" if self._active_connected() else "disconnected"
+        conn = "replay" if self._replay_file_path is not None else ("connected" if self._active_connected() else "disconnected")
         self._status.update(f"{conn} | {message}")
 
     def _update_stats(self) -> None:
         if self._stats is None:
             return
-
         if self._replay_file_path is not None:
             conn = "replay"
             port = "-"
@@ -711,52 +2620,21 @@ class UARTLogApp(App[None]):
         else:
             conn = "connected" if self._active_connected() else "disconnected"
             transport = self._transport
-            if self._transport == "tcp":
-                port = f"{self._tcp_host}:{self._tcp_port}"
-            else:
-                port = self._selected_port() or "-"
+            port = f"{self._tcp_host}:{self._tcp_port}" if self._transport == "tcp" else (self._selected_port() or "-")
             replay_state = "-"
-
-        filtered_rows = sum(
-            1 for stored in self._rows if self._row_matches_filter(self._build_row_from_stored(stored))
-        )
+        filtered_rows = sum(1 for stored in self._rows if self._row_matches_filter(self._build_row_from_stored(stored)))
         log_state = "ON" if self._log_enabled else "OFF"
-
-        self._stats.update(
-            "\n".join(
-                [
-                    "[Stats]",
-                    f"transport  : {transport}",
-                    f"port       : {port}",
-                    f"connection : {conn}",
-                    f"mode       : {self._mode}",
-                    f"filter     : {self._filter_text or '-'}",
-                    f"rows       : {filtered_rows}/{len(self._rows)}",
-                    f"rx_frames  : {self._rx_frames}",
-                    f"tcp_pkts   : {self._tcp_packets}",
-                    f"tcp_bytes  : {self._tcp_bytes}",
-                    f"seq_lost   : {self._lost_seen}",
-                    f"crc_errors : {self._crc_seen}",
-                    f"last_seq   : {self._tcp_last_frame}",
-                    f"replay     : {replay_state}",
-                    f"log_file   : {log_state}",
-                    f"decoder    : {self._decoder_path}",
-                ]
-            )
-        )
+        self._stats.update("\n".join(["[Stats]", f"transport  : {transport}", f"port       : {port}", f"connection : {conn}", f"screen     : {self._active_screen}", f"mode       : {self._mode}", f"filter     : {self._filter_text or '-'}", f"src_sel    : {self._selected_src_idx}", f"rows       : {filtered_rows}/{len(self._rows)}", f"rx_frames  : {self._rx_frames}", f"tcp_pkts   : {self._tcp_packets}", f"tcp_bytes  : {self._tcp_bytes}", f"seq_lost   : {self._lost_seen}", f"crc_errors : {self._crc_seen}", f"last_seq   : {self._tcp_last_frame}", f"replay     : {replay_state}", f"log_file   : {log_state}", f"decoder    : {self._decoder_path}"]))
 
     def _open_log_if_needed(self) -> None:
         if not self._log_enabled or self._log_fp is not None:
             return
-
         if self._log_file_path is None:
             logs_dir = Path("logs")
             logs_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self._log_file_path = logs_dir / f"uart_{timestamp}.log"
+            self._log_file_path = logs_dir / f"uart_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         else:
             self._log_file_path.parent.mkdir(parents=True, exist_ok=True)
-
         self._log_fp = self._log_file_path.open("a", encoding="utf-8")
 
     def _log_meta(self, message: str) -> None:
@@ -765,7 +2643,6 @@ class UARTLogApp(App[None]):
         self._open_log_if_needed()
         if self._log_fp is None:
             return
-
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         self._log_fp.write(f"{ts} mode=META {message}\n")
         self._log_fp.flush()
@@ -776,12 +2653,50 @@ class UARTLogApp(App[None]):
         self._open_log_if_needed()
         if self._log_fp is None:
             return
-
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        self._log_fp.write(
-            f"{ts} mode={self._mode.upper()} seq=0x{seq:02X} "
-            f"src=0x{event.src_id:02X} evt=0x{event.event_id:02X} ts={event.timestamp} "
-            f"arg0=0x{event.arg0:08X} arg1=0x{event.arg1:08X} arg2=0x{event.arg2:08X} "
-            f"crc=OK lost={lost_count} msg={text}\n"
-        )
+        self._log_fp.write(f"{ts} mode={self._mode.upper()} seq=0x{seq:02X} src=0x{event.src_id:02X} evt=0x{event.event_id:02X} ts={event.timestamp} arg0=0x{event.arg0:08X} arg1=0x{event.arg1:08X} arg2=0x{event.arg2:08X} crc=OK lost={lost_count} msg={text}\n")
         self._log_fp.flush()
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    script_dir = Path(__file__).resolve().parent
+    default_decoder = script_dir / "decode_rules.default.yaml"
+
+    parser = argparse.ArgumentParser(description="UART log monitor for tangnano20k uart_log_cli")
+    parser.add_argument("--transport", type=str, choices=["serial", "tcp"], default="tcp")
+    parser.add_argument("--port", type=str, default=None)
+    parser.add_argument("--baud", type=int, default=115200)
+    parser.add_argument("--tcp-host", type=str, default="192.168.10.40")
+    parser.add_argument("--tcp-port", type=int, default=2323)
+    parser.add_argument("--mode", type=str, choices=["raw", "decode"], default="decode")
+    parser.add_argument("--decoder", type=str, default=str(default_decoder))
+    parser.add_argument("--log-file", type=str, default=None)
+    parser.add_argument("--replay", type=str, default=None)
+    parser.add_argument("--no-color", action="store_true")
+    return parser
+
+
+def main() -> None:
+    parser = _build_parser()
+    args = parser.parse_args()
+
+    if args.no_color:
+        os.environ["NO_COLOR"] = "1"
+        os.environ["TEXTUAL_NO_COLOR"] = "1"
+
+    app = UARTLogApp(
+        transport=args.transport,
+        initial_port=args.port,
+        baud=args.baud,
+        tcp_host=args.tcp_host,
+        tcp_port=args.tcp_port,
+        mode=args.mode,
+        decoder_path=args.decoder,
+        log_file=args.log_file,
+        replay_file=args.replay,
+    )
+    app.run()
+
+
+if __name__ == "__main__":
+    main()

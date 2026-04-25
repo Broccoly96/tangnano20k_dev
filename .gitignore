@@ -1,0 +1,33 @@
+.vscode
+work
+wlf*
+*.wlf
+transcript
+vsim.log
+*.log
+*.jou
+*.zip
+04_simlib/*
+!04_simlib/INSERT_LIBRARIES_HERE
+*.bak
+run_output*
+__pycache__
+tmp
+logs
+
+# Questa/ModelSim transient files
+*.db
+*.bin
+.visualizer
+*.ses
+*.qdb
+*.qpg
+*.qtl
+
+# Gowin EDA transient files
+impl/gwsynthesis
+impl/temp
+run_all*
+
+# Prompts
+*.prompt*

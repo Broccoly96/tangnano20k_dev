@@ -89,7 +89,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td class="label">Created Time</td>
-<td>Sat Apr  4 22:13:09 2026
+<td>Sat Apr 25 10:23:59 2026
 </td>
 </tr>
 <tr>
@@ -161,7 +161,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <table class="summary_table">
 <tr>
 <td class="label">Total Power (mW)</td>
-<td>178.915</td>
+<td>222.124</td>
 </tr>
 <tr>
 <td class="label">Quiescent Power (mW)</td>
@@ -169,14 +169,14 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td class="label">Dynamic Power (mW)</td>
-<td>56.115</td>
+<td>99.324</td>
 </tr>
 </table>
 <h2><a name="Thermal_Info">Thermal Information:</a></h2>
 <table class="summary_table">
 <tr>
 <td class="label">Junction Temperature</td>
-<td>30.339</td>
+<td>31.628</td>
 </tr>
 <tr>
 <td class="label">Theta JA</td>
@@ -184,7 +184,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td class="label">Max Allowed Ambient Temperature</td>
-<td>79.661</td>
+<td>78.372</td>
 </tr>
 </table>
 <h2><a name="Supply_Summary">Supply Information:</a></h2>
@@ -199,23 +199,23 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <tr>
 <td>VCC</td>
 <td>1.000</td>
-<td>55.424</td>
+<td>82.537</td>
 <td>70.000</td>
-<td>125.424</td>
+<td>152.537</td>
 </tr>
 <tr>
 <td>VCCX</td>
 <td>3.300</td>
-<td>0.105</td>
+<td>2.543</td>
 <td>15.000</td>
-<td>49.845</td>
+<td>57.893</td>
 </tr>
 <tr>
 <td>VCCIO33</td>
 <td>3.300</td>
-<td>0.105</td>
+<td>2.543</td>
 <td>1.000</td>
-<td>3.645</td>
+<td>11.693</td>
 </tr>
 </table>
 <h1><a name="Detail">Power Details</a></h1>
@@ -229,25 +229,25 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td>Logic</td>
-<td>0.567</td>
+<td>7.333</td>
 <td>NA</td>
-<td>3.000</td>
+<td>5.537</td>
 </tr>
 <tr>
 <td>IO</td>
-<td>5.504
-<td>4.709
-<td>2.000
+<td>32.769
+<td>13.434
+<td>5.936
 </tr>
 <tr>
 <td>BSRAM</td>
-<td>52.326
+<td>67.619
 <td>NA</td>
 <td>NA</td>
 </tr>
 <tr>
 <td>PLL</td>
-<td>2.421
+<td>5.021
 <td>NA</td>
 <td>NA</td>
 </tr>
@@ -261,44 +261,92 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td>tangnano20k_top</td>
-<td>55.313</td>
-<td>55.313(55.298)</td>
+<td>79.972</td>
+<td>79.972(79.970)</td>
 <tr>
 <td>tangnano20k_top/u0_gowin_pll/</td>
-<td>2.421</td>
-<td>2.421(0.000)</td>
+<td>5.021</td>
+<td>5.021(0.000)</td>
 <tr>
 <td>tangnano20k_top/u0_reset_mng/</td>
-<td>0.000</td>
-<td>0.000(0.000)</td>
+<td>0.085</td>
+<td>0.085(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_cli_rx_bridge/</td>
+<td>0.006</td>
+<td>0.006(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_embedded_sdram_hs/</td>
+<td>0.213</td>
+<td>0.213(0.213)</td>
+<tr>
+<td>tangnano20k_top/u_embedded_sdram_hs/u_sdrc_hs_top/</td>
+<td>0.213</td>
+<td>0.213(0.132)</td>
+<tr>
+<td>tangnano20k_top/u_embedded_sdram_hs/u_sdrc_hs_top/u_sdrc_control_fsm/</td>
+<td>0.132</td>
+<td>0.132(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_sdram_emb_hostif_ctrl/</td>
+<td>21.718</td>
+<td>21.718(21.292)</td>
+<tr>
+<td>tangnano20k_top/u_sdram_emb_hostif_ctrl/u_sdram_memtest_ctrl/</td>
+<td>0.740</td>
+<td>0.740(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/</td>
+<td>20.553</td>
+<td>20.553(17.457)</td>
+<tr>
+<td>tangnano20k_top/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/u_sdram_uart_access_engine/</td>
+<td>16.213</td>
+<td>16.213(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/u_sdram_uart_ascii_ctrl/</td>
+<td>0.473</td>
+<td>0.473(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_sdram_emb_hostif_ctrl/u_sdram_uart_bridge_ctrl/u_sdram_uart_bulk_rx/</td>
+<td>0.771</td>
+<td>0.771(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_sdram_host_evt_bridge/</td>
+<td>0.038</td>
+<td>0.038(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_sdram_test_evt_bridge/</td>
+<td>0.035</td>
+<td>0.035(0.000)</td>
 <tr>
 <td>tangnano20k_top/u_uart_log_cli/</td>
-<td>52.797</td>
-<td>52.797(52.442)</td>
+<td>52.854</td>
+<td>52.854(52.565)</td>
 <tr>
-<td>tangnano20k_top/u_uart_log_cli/g_log_tap[0].u_tap/</td>
-<td>0.053</td>
-<td>0.053(0.000)</td>
+<td>tangnano20k_top/u_uart_log_cli/g_log_tap[1].g_enabled_tap.u_tap/</td>
+<td>0.036</td>
+<td>0.036(0.000)</td>
+<tr>
+<td>tangnano20k_top/u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/</td>
+<td>0.121</td>
+<td>0.121(0.000)</td>
 <tr>
 <td>tangnano20k_top/u_uart_log_cli/u_evt_fifo/</td>
-<td>52.350</td>
-<td>52.350(52.350)</td>
+<td>52.369</td>
+<td>52.369(52.369)</td>
 <tr>
 <td>tangnano20k_top/u_uart_log_cli/u_evt_fifo/u_sim_fifo/</td>
-<td>52.350</td>
-<td>52.350(0.000)</td>
+<td>52.369</td>
+<td>52.369(0.000)</td>
 <tr>
 <td>tangnano20k_top/u_uart_log_cli/u_uart_rx/</td>
-<td>0.021</td>
-<td>0.021(0.000)</td>
+<td>0.020</td>
+<td>0.020(0.000)</td>
 <tr>
 <td>tangnano20k_top/u_uart_log_cli/u_uart_tx/</td>
-<td>0.019</td>
-<td>0.019(0.000)</td>
-<tr>
-<td>tangnano20k_top/u_uart_log_testsrc1/</td>
-<td>0.080</td>
-<td>0.080(0.000)</td>
+<td>0.018</td>
+<td>0.018(0.000)</td>
 </table>
 <h2><a name="By_Clock_Domain">Power By Clock Domain:</a></h2>
 <table class="detail_table">
@@ -308,14 +356,24 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <th class="label">Total Dynamic Power(mW)</th>
 </tr>
 <tr>
-<td>CLK_FPGA_24M</td>
+<td>CLK_SYS_24M</td>
 <td>24.000</td>
-<td>52.899</td>
+<td>53.002</td>
+</tr>
+<tr>
+<td>CLK_SDRAM_48M</td>
+<td>48.000</td>
+<td>21.966</td>
+</tr>
+<tr>
+<td>NO CLOCK DOMAIN</td>
+<td>0.000</td>
+<td>0.000</td>
 </tr>
 <tr>
 <td>CLK_IN_27M</td>
 <td>27.000</td>
-<td>2.421</td>
+<td>5.021</td>
 </tr>
 </table>
 </div><!-- content -->

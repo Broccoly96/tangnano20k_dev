@@ -296,11 +296,7 @@ def launch_simulation(
     do_cmds: str
 
     if openwave:
-        wave_do = tb_dir / "wave.do"
-        if wave_do.exists():
-            do_cmds = f'do "{wave_do}"; run -all'
-        else:
-            do_cmds = "run -all"
+        do_cmds = f'do wave.do; run -all'
     else:
         vsim_mode = ["-c"]
         do_cmds = "run -all; quit -code 0"
@@ -308,11 +304,12 @@ def launch_simulation(
     command: List[str] = ["vsim"] + vsim_mode + [
         f"work.{tb_top}",
         "-voptargs=+acc",
-        "-L",
-        "gw1n",
-        "-L",
-        "gw2a",
     ]
+
+    simlib_root = script_dir.parent / "04_simlib"
+    for library_name in ("gw1n", "gw2a"):
+      if (simlib_root / library_name).exists():
+        command.extend(["-L", library_name])
     command.extend(vsim_plusargs)
     command.extend(["-do", do_cmds, "-l", "sim.log"])
 

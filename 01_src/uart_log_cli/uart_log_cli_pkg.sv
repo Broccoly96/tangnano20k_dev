@@ -33,6 +33,7 @@ package uart_log_cli_pkg;
   localparam logic [7:0] CMD_NEXT_SRC     = 8'h06;  // Ctrl+F
   localparam logic [7:0] CMD_PREV_SRC     = 8'h04;  // Ctrl+D
   localparam logic [7:0] CMD_STATUS_REQ   = 8'h14;  // Ctrl+T
+  localparam logic [7:0] CMD_LITERAL_NEXT = 8'h10;  // DLE
 
   //------------------------------------------------------------------------------
   // pack_event_payload
