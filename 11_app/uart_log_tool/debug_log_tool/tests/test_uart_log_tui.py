@@ -16,6 +16,7 @@ from uart_log_protocol import Event  # noqa: E402
 
 from uart_log_tui import (  # noqa: E402
     UARTLogApp,
+    format_eeprom_map_text,
     format_sdram_map_text,
     format_sdram_status_raw_text,
     format_sdram_status_text,
@@ -70,6 +71,14 @@ class UARTLogTuiTests(unittest.TestCase):
             "33323130  37363534  3B3A3938  3F3E3D3C",
             text,
         )
+
+    def test_format_eeprom_map_text_byte_mode(self) -> None:
+        blob = bytes(range(32))
+        text = format_eeprom_map_text(0x00120, blob)
+        self.assertIn("Base: 0x00120  Mode: byte hex + ASCII", text)
+        self.assertIn("Addr   | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  | ASCII", text)
+        self.assertIn("00120 | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F | ................", text)
+        self.assertIn("00130 | 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F | ................", text)
 
     def test_format_sdram_status_text_decodes_pass_state(self) -> None:
         blob = bytearray(80)
@@ -148,7 +157,12 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.query_one("#nav_rw", Button).label.plain, "3 SDRAM RW")
             self.assertEqual(app.query_one("#nav_status", Button).label.plain, "4 SDRAM STS")
             self.assertEqual(app.query_one("#nav_burst", Button).label.plain, "5 SDRAM Bulk")
+            self.assertEqual(app.query_one("#nav_eeprom_map", Button).label.plain, "7 EEPROM Map")
+            self.assertEqual(app.query_one("#nav_eeprom_rw", Button).label.plain, "8 EEPROM RW")
             self.assertIsNotNone(app.query_one("#status_scroll", VerticalScroll))
+            self.assertEqual(app.query_one("#btn_eeprom_map_refresh", Button).label.plain, "Refresh")
+            self.assertEqual(app.query_one("#eeprom_single_read_addr_input", Input).value, "0x00000")
+            self.assertEqual(app.query_one("#eeprom_single_write_data_input", Input).value, "0x00")
             self.assertEqual(app.query_one("#btn_file_read_save", Button).label.plain, "Read To File")
             self.assertEqual(app.query_one("#btn_file_write", Button).label.plain, "Write File")
             self.assertEqual(app.query_one("#file_write_addr_input", Input).value, "0x00000")
@@ -194,6 +208,57 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             app._poll_map_refresh()
             self.assertEqual(sock.sent[-1], b"BR 00000 00100\n")
             self.assertTrue(app._map_command_sent)
+
+    async def test_eeprom_map_refresh_sends_bulk_read_packet(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            sock = DummySock()
+            app._tcp._sock = sock
+            app._selected_src_idx = 0
+            app.query_one("#eeprom_map_base_input", Input).value = "0x00120"
+            app._start_eeprom_map_refresh()
+            app._poll_eeprom_map_refresh()
+            self.assertEqual(sock.sent[-1], b"BR 00120 00100\n")
+            self.assertTrue(app._eeprom_map_command_sent)
+
+    async def test_eeprom_single_read_updates_result_from_event(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            sock = DummySock()
+            app._tcp._sock = sock
+            app._selected_src_idx = 0
+            app.query_one("#eeprom_single_read_addr_input", Input).value = "0x00123"
+            app._start_eeprom_single_read()
+            app._poll_eeprom_rw_task()
+
+            self.assertEqual(sock.sent[-1], b"R 00123\n")
+            app._handle_special_event(Event(0x01, 0x31, 0, 0x00000123, 0x0000005A, 0))
+            app._poll_eeprom_rw_task()
+
+            self.assertFalse(app._eeprom_rw_task_active)
+            self.assertEqual(app._eeprom_single_read_result, "0x00123 -> 0x5A")
 
     async def test_map_refresh_retries_timed_out_bulk_read(self) -> None:
         app = UARTLogApp(

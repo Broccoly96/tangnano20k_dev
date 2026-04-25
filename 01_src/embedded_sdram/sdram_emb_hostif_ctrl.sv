@@ -327,7 +327,7 @@ module sdram_emb_hostif_ctrl #(
   sdram_uart_bridge_ctrl u_sdram_uart_bridge_ctrl (
     .I_CLK                    (I_CLK),
     .I_RST_N                  (I_RST_N),
-    .I_ENABLE                 (1'b1),
+    .I_ENABLE                 (HOST_EVT_IF.enable),
     .I_HOST_ACCESS_ENABLE     (l_host_access_enable),
     .I_CLI_RX_VALID           (I_CLI_RX_VALID),
     .I_CLI_RX_DATA            (I_CLI_RX_DATA),

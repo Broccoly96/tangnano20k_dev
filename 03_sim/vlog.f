@@ -18,7 +18,13 @@
 ..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv
 ..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv
 ..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv
+..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv
+..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv
+..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv
+..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv
+..\02_tb\eeprom_i2c\eeprom_i2c_model.sv
 ..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv
+..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv
 ..\01_src\embedded_sdram\sdram_uart_access_engine.sv
 ..\01_src\embedded_sdram\sdram_status_reg_map.sv
 ..\01_src\embedded_sdram\sdram_memtest_ctrl.sv

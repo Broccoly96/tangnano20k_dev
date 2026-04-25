@@ -1,4 +1,4 @@
-"""Textual TUI for UART log viewing plus SDRAM map inspection."""
+"""Textual TUI for UART log viewing plus SDRAM and EEPROM inspection."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 
+import eeprom_uart_protocol as eeprom_proto
 from sdram_uart_protocol import (
     HOST_EVT_BURST_DATA,
     HOST_EVT_BURST_DONE,
@@ -79,6 +80,13 @@ BURST_MAX_WORDS = 256
 BULK_RESPONSE_TIMEOUT_S = 5.0
 RW_TASK_RETRY_LIMIT = 3
 BULK_TASK_RETRY_LIMIT = 3
+EEPROM_MAP_ROWS = 16
+EEPROM_MAP_BYTES_PER_ROW = 16
+EEPROM_MAP_BYTE_COUNT = EEPROM_MAP_ROWS * EEPROM_MAP_BYTES_PER_ROW
+EEPROM_MAP_RESPONSE_TIMEOUT_S = 5.0
+EEPROM_MAP_READ_RETRY_LIMIT = 3
+EEPROM_RW_RESPONSE_TIMEOUT_S = 1.0
+EEPROM_RW_TASK_RETRY_LIMIT = 3
 
 
 @dataclass(frozen=True)
@@ -186,6 +194,25 @@ def format_sdram_map_text(base_addr: int, map_bytes: bytes) -> str:
             )
             cells.append(f"{word:08X}")
         lines.append(f"{row_base:02X} | " + "  ".join(cells))
+    return "\n".join(lines)
+
+
+def format_eeprom_map_text(base_addr: int, map_bytes: bytes) -> str:
+    if len(map_bytes) < EEPROM_MAP_BYTE_COUNT:
+        padded = bytearray(EEPROM_MAP_BYTE_COUNT)
+        padded[: len(map_bytes)] = map_bytes
+        map_bytes = bytes(padded)
+
+    lines = [f"Base: 0x{base_addr:05X}  Mode: byte hex + ASCII"]
+    lines.append("Addr  | " + " ".join(f"{col:02X}" for col in range(EEPROM_MAP_BYTES_PER_ROW)) + "  | ASCII")
+    for row in range(EEPROM_MAP_ROWS):
+        row_addr = base_addr + (row * EEPROM_MAP_BYTES_PER_ROW)
+        chunk = map_bytes[
+            row * EEPROM_MAP_BYTES_PER_ROW : (row + 1) * EEPROM_MAP_BYTES_PER_ROW
+        ]
+        hex_text = " ".join(f"{value:02X}" for value in chunk)
+        ascii_text = "".join(chr(value) if 32 <= value < 127 else "." for value in chunk)
+        lines.append(f"{row_addr:05X} | {hex_text} | {ascii_text}")
     return "\n".join(lines)
 
 
@@ -499,12 +526,16 @@ class UARTLogApp(App[None]):
     #stats_panel { width: 38; padding: 0 1; border: round; }
     #map_summary { height: 5; border: round; padding: 0 1; margin-bottom: 1; }
     #map_view { height: 1fr; border: round; padding: 0 1; overflow: auto; text-wrap: nowrap; }
+    #eeprom_map_summary { height: 5; border: round; padding: 0 1; margin-bottom: 1; }
+    #eeprom_map_view { height: 1fr; border: round; padding: 0 1; overflow: auto; text-wrap: nowrap; }
     .panel { border: round; padding: 0 1; margin-bottom: 1; }
     .rw_panel { height: auto; }
     #rw_grid { width: 1fr; height: 1fr; }
     #rw_grid .toolbar { margin-bottom: 0; }
     #map_base_input { width: 18; }
+    #eeprom_map_base_input { width: 18; }
     #btn_map_refresh { width: 12; }
+    #btn_eeprom_map_refresh { width: 12; }
     #btn_status_refresh { width: 16; }
     #btn_status_mode { width: 14; }
     #btn_status_selftest { width: 14; }
@@ -515,6 +546,10 @@ class UARTLogApp(App[None]):
     #single_read_result { width: 28; content-align: left middle; }
     #single_write_addr_input { width: 18; }
     #single_write_data_input { width: 18; }
+    #eeprom_single_read_addr_input { width: 18; }
+    #eeprom_single_read_result { width: 22; content-align: left middle; }
+    #eeprom_single_write_addr_input { width: 18; }
+    #eeprom_single_write_data_input { width: 12; }
     #file_read_path_input { width: 1fr; }
     #file_write_addr_input { width: 18; }
     #file_write_path_input { width: 1fr; }
@@ -528,6 +563,8 @@ class UARTLogApp(App[None]):
         ("4", "show_status", "SDRAM STS"),
         ("5", "show_burst", "SDRAM Bulk"),
         ("6", "show_file", "SDRAM File"),
+        ("7", "show_eeprom_map", "EEPROM Map"),
+        ("8", "show_eeprom_rw", "EEPROM RW"),
         ("p", "rescan", "Rescan Ports"),
         ("c", "toggle_connect", "Connect/Disconnect"),
         ("m", "toggle_mode", "Raw/Decode"),
@@ -586,6 +623,16 @@ class UARTLogApp(App[None]):
         self._map_retry_count = 0
         self._map_received_words: dict[int, int] = {}
         self._map_summary_text = "idle"
+        self._eeprom_map_base_addr = 0
+        self._eeprom_map_bytes = bytearray(EEPROM_MAP_BYTE_COUNT)
+        self._eeprom_map_refresh_active = False
+        self._eeprom_map_select_deadline = 0.0
+        self._eeprom_map_rsp_deadline = 0.0
+        self._eeprom_map_command_sent = False
+        self._eeprom_map_inflight_retries = 0
+        self._eeprom_map_retry_count = 0
+        self._eeprom_map_received_bytes: dict[int, int] = {}
+        self._eeprom_map_summary_text = "idle"
         self._status_bytes = bytearray(STATUS_BYTE_COUNT)
         self._status_refresh_active = False
         self._status_select_deadline = 0.0
@@ -601,6 +648,9 @@ class UARTLogApp(App[None]):
         self._rw_summary_text = "idle"
         self._rw_single_read_result = "-"
         self._rw_single_write_result = "-"
+        self._eeprom_rw_summary_text = "idle"
+        self._eeprom_single_read_result = "-"
+        self._eeprom_single_write_result = "-"
         self._rw_file_write_result = "-"
         self._rw_file_read_result = "-"
         self._file_summary_text = "idle"
@@ -636,6 +686,14 @@ class UARTLogApp(App[None]):
         self._rw_task_output_len = 0
         self._rw_task_retry_count = 0
         self._rw_task_inflight_retries = 0
+        self._eeprom_rw_task_active = False
+        self._eeprom_rw_task_kind = ""
+        self._eeprom_rw_task_select_deadline = 0.0
+        self._eeprom_rw_task_rsp_deadline = 0.0
+        self._eeprom_rw_task_pending: list[tuple[str, int, int]] = []
+        self._eeprom_rw_task_inflight: tuple[str, int, int] | None = None
+        self._eeprom_rw_task_retry_count = 0
+        self._eeprom_rw_task_inflight_retries = 0
         if self._replay_file_path is not None:
             try:
                 self._replay_records = load_replay_records(self._replay_file_path)
@@ -654,6 +712,9 @@ class UARTLogApp(App[None]):
         self._map_summary: Static | None = None
         self._map_view: Static | None = None
         self._map_base_input: Input | None = None
+        self._eeprom_map_summary: Static | None = None
+        self._eeprom_map_view: Static | None = None
+        self._eeprom_map_base_input: Input | None = None
         self._status_summary: Static | None = None
         self._status_view: Static | None = None
         self._status_mode_button: Button | None = None
@@ -664,6 +725,12 @@ class UARTLogApp(App[None]):
         self._single_write_addr_input: Input | None = None
         self._single_write_data_input: Input | None = None
         self._single_write_result: Static | None = None
+        self._eeprom_rw_summary: Static | None = None
+        self._eeprom_single_read_addr_input: Input | None = None
+        self._eeprom_single_read_result_widget: Static | None = None
+        self._eeprom_single_write_addr_input: Input | None = None
+        self._eeprom_single_write_data_input: Input | None = None
+        self._eeprom_single_write_result_widget: Static | None = None
         self._file_summary: Static | None = None
         self._file_read_addr_input: Input | None = None
         self._file_read_words_input: Input | None = None
@@ -697,6 +764,8 @@ class UARTLogApp(App[None]):
                     yield Button("4 SDRAM STS", id="nav_status")
                     yield Button("5 SDRAM Bulk", id="nav_burst")
                     yield Button("6 SDRAM File", id="nav_file")
+                    yield Button("7 EEPROM Map", id="nav_eeprom_map")
+                    yield Button("8 EEPROM RW", id="nav_eeprom_rw")
                 with Vertical(id="screen_host"):
                     with Vertical(id="log_screen", classes="screen"):
                         with Horizontal(id="log_main_row"):
@@ -764,7 +833,29 @@ class UARTLogApp(App[None]):
                                 yield Input(value="0x00010", id="file_read_words_input", placeholder="words or bytes (64b)")
                                 yield Input(value="", id="file_read_path_input", placeholder="output .bin/.hex path")
                             yield Static("-", id="file_read_result")
-            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=bulk 6=file p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
+                    with Vertical(id="eeprom_map_screen", classes="screen hidden"):
+                        with Horizontal(classes="toolbar"):
+                            yield Input(value="0x00000", id="eeprom_map_base_input", placeholder="base addr")
+                            yield Button("Refresh", id="btn_eeprom_map_refresh")
+                        yield Static("", id="eeprom_map_summary")
+                        yield Static("", id="eeprom_map_view")
+                    with Vertical(id="eeprom_rw_screen", classes="screen hidden"):
+                        yield Static("", id="eeprom_rw_summary", classes="panel")
+                        with Vertical(id="eeprom_rw_grid"):
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("Single Byte Read")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Read", id="btn_eeprom_single_read")
+                                    yield Input(value="0x00000", id="eeprom_single_read_addr_input", placeholder="addr")
+                                    yield Static("-", id="eeprom_single_read_result")
+                            with Vertical(classes="panel rw_panel"):
+                                yield Static("Single Byte Write")
+                                with Horizontal(classes="toolbar"):
+                                    yield Button("Write", id="btn_eeprom_single_write")
+                                    yield Input(value="0x00000", id="eeprom_single_write_addr_input", placeholder="addr")
+                                    yield Input(value="0x00", id="eeprom_single_write_data_input", placeholder="data")
+                                yield Static("-", id="eeprom_single_write_result")
+            yield Static("keys: 1=log 2=map 3=rw 4=sts 5=bulk 6=file 7=eeprom-map 8=eeprom-rw p=rescan c=connect m=mode u=reload l=log x=clear r=reset f=filter g=refresh q=quit", id="help_line")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -780,6 +871,9 @@ class UARTLogApp(App[None]):
         self._map_summary = self.query_one("#map_summary", Static)
         self._map_view = self.query_one("#map_view", Static)
         self._map_base_input = self.query_one("#map_base_input", Input)
+        self._eeprom_map_summary = self.query_one("#eeprom_map_summary", Static)
+        self._eeprom_map_view = self.query_one("#eeprom_map_view", Static)
+        self._eeprom_map_base_input = self.query_one("#eeprom_map_base_input", Input)
         self._status_summary = self.query_one("#status_summary", Static)
         self._status_view = self.query_one("#status_view", Static)
         self._status_mode_button = self.query_one("#btn_status_mode", Button)
@@ -790,6 +884,12 @@ class UARTLogApp(App[None]):
         self._single_write_addr_input = self.query_one("#single_write_addr_input", Input)
         self._single_write_data_input = self.query_one("#single_write_data_input", Input)
         self._single_write_result = self.query_one("#single_write_result", Static)
+        self._eeprom_rw_summary = self.query_one("#eeprom_rw_summary", Static)
+        self._eeprom_single_read_addr_input = self.query_one("#eeprom_single_read_addr_input", Input)
+        self._eeprom_single_read_result_widget = self.query_one("#eeprom_single_read_result", Static)
+        self._eeprom_single_write_addr_input = self.query_one("#eeprom_single_write_addr_input", Input)
+        self._eeprom_single_write_data_input = self.query_one("#eeprom_single_write_data_input", Input)
+        self._eeprom_single_write_result_widget = self.query_one("#eeprom_single_write_result", Static)
         self._file_summary = self.query_one("#file_summary", Static)
         self._file_read_addr_input = self.query_one("#file_read_addr_input", Input)
         self._file_read_words_input = self.query_one("#file_read_words_input", Input)
@@ -807,8 +907,10 @@ class UARTLogApp(App[None]):
         self._table.add_columns("Time", "SEQ", "SRC", "EVT", "TS", "ARG0", "ARG1", "ARG2", "CRC", "Mode", "Text")
         self._reload_decoder(force=True, manual=False)
         self._refresh_map_view()
+        self._refresh_eeprom_map_view()
         self._refresh_status_view()
         self._refresh_rw_view()
+        self._refresh_eeprom_rw_view()
         self._refresh_burst_view()
         self._refresh_file_view()
         self._show_screen("log")
@@ -843,9 +945,11 @@ class UARTLogApp(App[None]):
             if self._log_fp is not None:
                 self._log_meta("logging started")
         self.set_interval(0.05, self._poll_map_refresh)
+        self.set_interval(0.05, self._poll_eeprom_map_refresh)
         self.set_interval(0.05, self._poll_status_refresh)
         self.set_interval(0.05, self._poll_status_selftest)
         self.set_interval(0.05, self._poll_rw_task)
+        self.set_interval(0.05, self._poll_eeprom_rw_task)
         self.set_interval(0.05, self._poll_burst_task)
         self.set_interval(0.5, self._watch_decoder)
         self._update_stats()
@@ -878,8 +982,14 @@ class UARTLogApp(App[None]):
             self.action_show_burst()
         elif button_id == "nav_file":
             self.action_show_file()
+        elif button_id == "nav_eeprom_map":
+            self.action_show_eeprom_map()
+        elif button_id == "nav_eeprom_rw":
+            self.action_show_eeprom_rw()
         elif button_id == "btn_map_refresh":
             self.action_refresh_map()
+        elif button_id == "btn_eeprom_map_refresh":
+            self.action_refresh_eeprom_map()
         elif button_id == "btn_status_refresh":
             self.action_refresh_status()
         elif button_id == "btn_status_mode":
@@ -890,6 +1000,10 @@ class UARTLogApp(App[None]):
             self._start_single_read()
         elif button_id == "btn_single_write":
             self._start_single_write()
+        elif button_id == "btn_eeprom_single_read":
+            self._start_eeprom_single_read()
+        elif button_id == "btn_eeprom_single_write":
+            self._start_eeprom_single_write()
         elif button_id == "btn_bulk_read_range":
             self._start_bulk_read_range()
         elif button_id == "btn_bulk_pattern_write":
@@ -926,6 +1040,12 @@ class UARTLogApp(App[None]):
 
     def action_show_file(self) -> None:
         self._show_screen("file")
+
+    def action_show_eeprom_map(self) -> None:
+        self._show_screen("eeprom_map")
+
+    def action_show_eeprom_rw(self) -> None:
+        self._show_screen("eeprom_rw")
 
     def action_focus_filter(self) -> None:
         if self._filter_input is not None:
@@ -991,6 +1111,9 @@ class UARTLogApp(App[None]):
     def action_refresh_status(self) -> None:
         self._start_status_refresh()
 
+    def action_refresh_eeprom_map(self) -> None:
+        self._start_eeprom_map_refresh()
+
     def action_toggle_status_mode(self) -> None:
         self._status_mode = "raw" if self._status_mode == "decode" else "decode"
         self._refresh_status_view()
@@ -1007,12 +1130,16 @@ class UARTLogApp(App[None]):
         rw_screen = self.query_one("#rw_screen", Vertical)
         burst_screen = self.query_one("#burst_screen", Vertical)
         file_screen = self.query_one("#file_screen", Vertical)
+        eeprom_map_screen = self.query_one("#eeprom_map_screen", Vertical)
+        eeprom_rw_screen = self.query_one("#eeprom_rw_screen", Vertical)
         log_screen.set_class(screen_name != "log", "hidden")
         map_screen.set_class(screen_name != "map", "hidden")
         status_screen.set_class(screen_name != "status", "hidden")
         rw_screen.set_class(screen_name != "rw", "hidden")
         burst_screen.set_class(screen_name != "burst", "hidden")
         file_screen.set_class(screen_name != "file", "hidden")
+        eeprom_map_screen.set_class(screen_name != "eeprom_map", "hidden")
+        eeprom_rw_screen.set_class(screen_name != "eeprom_rw", "hidden")
 
     def _watch_decoder(self) -> None:
         self._reload_decoder(force=False, manual=False)
@@ -1204,9 +1331,11 @@ class UARTLogApp(App[None]):
     def _host_task_busy(self) -> bool:
         return (
             self._map_refresh_active
+            or self._eeprom_map_refresh_active
             or self._status_refresh_active
             or self._status_selftest_active
             or self._rw_task_active
+            or self._eeprom_rw_task_active
             or self._burst_task_active
         )
 
@@ -1325,6 +1454,91 @@ class UARTLogApp(App[None]):
             self._single_read_result.update(self._rw_single_read_result)
         if self._single_write_result is not None:
             self._single_write_result.update(self._rw_single_write_result)
+
+    def _refresh_eeprom_rw_view(self) -> None:
+        if self._eeprom_rw_summary is not None:
+            self._eeprom_rw_summary.update(
+                "\n".join(
+                    [
+                        "[EEPROM RW]",
+                        f"state  : {'busy' if self._eeprom_rw_task_active else 'idle'}",
+                        f"task   : {self._eeprom_rw_task_kind or '-'}",
+                        f"detail : {self._eeprom_rw_summary_text}",
+                    ]
+                )
+            )
+        if self._eeprom_single_read_result_widget is not None:
+            self._eeprom_single_read_result_widget.update(self._eeprom_single_read_result)
+        if self._eeprom_single_write_result_widget is not None:
+            self._eeprom_single_write_result_widget.update(self._eeprom_single_write_result)
+
+    def _start_eeprom_rw_task(self, *, kind: str, commands: list[tuple[str, int, int]]) -> bool:
+        if self._replay_file_path is not None:
+            self._set_status("replay mode: EEPROM RW disabled")
+            return False
+        if not self._active_connected():
+            self._set_status("not connected")
+            return False
+        if self._host_task_busy():
+            self._set_status("host task busy")
+            return False
+        self._eeprom_rw_task_active = True
+        self._eeprom_rw_task_kind = kind
+        self._eeprom_rw_task_select_deadline = time.monotonic()
+        self._eeprom_rw_task_rsp_deadline = 0.0
+        self._eeprom_rw_task_pending = list(commands)
+        self._eeprom_rw_task_inflight = None
+        self._eeprom_rw_task_retry_count = 0
+        self._eeprom_rw_task_inflight_retries = 0
+        self._eeprom_rw_summary_text = f"started {kind}"
+        self._refresh_eeprom_rw_view()
+        self._set_status(self._eeprom_rw_summary_text)
+        return True
+
+    def _finish_eeprom_rw_task(self, detail: str) -> None:
+        self._eeprom_rw_task_active = False
+        self._eeprom_rw_task_kind = ""
+        self._eeprom_rw_task_select_deadline = 0.0
+        self._eeprom_rw_task_rsp_deadline = 0.0
+        self._eeprom_rw_task_pending = []
+        self._eeprom_rw_task_inflight = None
+        self._eeprom_rw_task_retry_count = 0
+        self._eeprom_rw_task_inflight_retries = 0
+        self._eeprom_rw_summary_text = detail
+        self._refresh_eeprom_rw_view()
+        self._set_status(detail)
+
+    def _start_eeprom_single_read(self) -> None:
+        if self._eeprom_single_read_addr_input is None:
+            return
+        try:
+            addr = eeprom_proto.parse_addr(self._eeprom_single_read_addr_input.value.strip())
+        except Exception as exc:
+            self._eeprom_single_read_result = f"invalid addr: {exc}"
+            self._refresh_eeprom_rw_view()
+            self._set_status(self._eeprom_single_read_result)
+            return
+        if self._start_eeprom_rw_task(kind="single_read", commands=[("read", addr, 0)]):
+            self._eeprom_single_read_result = f"reading 0x{addr:05X}..."
+            self._refresh_eeprom_rw_view()
+
+    def _start_eeprom_single_write(self) -> None:
+        if (
+            self._eeprom_single_write_addr_input is None
+            or self._eeprom_single_write_data_input is None
+        ):
+            return
+        try:
+            addr = eeprom_proto.parse_addr(self._eeprom_single_write_addr_input.value.strip())
+            data = eeprom_proto.parse_data_byte(self._eeprom_single_write_data_input.value.strip())
+        except Exception as exc:
+            self._eeprom_single_write_result = f"invalid input: {exc}"
+            self._refresh_eeprom_rw_view()
+            self._set_status(self._eeprom_single_write_result)
+            return
+        if self._start_eeprom_rw_task(kind="single_write", commands=[("write", addr, data)]):
+            self._eeprom_single_write_result = f"writing 0x{data:02X} -> 0x{addr:05X}"
+            self._refresh_eeprom_rw_view()
 
     def _refresh_file_view(self) -> None:
         file_task_active = self._burst_task_active and self._burst_task_kind in {
@@ -1819,6 +2033,40 @@ class UARTLogApp(App[None]):
         self._set_status(self._rw_summary_text)
         return True
 
+    def _retry_eeprom_rw_inflight(self) -> bool:
+        if (
+            self._eeprom_rw_task_inflight is None
+            or self._eeprom_rw_task_inflight_retries >= EEPROM_RW_TASK_RETRY_LIMIT
+        ):
+            return False
+
+        op_kind, addr, data = self._eeprom_rw_task_inflight
+        payload = (
+            eeprom_proto.build_read_command(addr)
+            if op_kind == "read"
+            else eeprom_proto.build_write_command(addr, data)
+        )
+        if self._send_bytes(payload) != len(payload):
+            return False
+
+        self._eeprom_rw_task_inflight_retries += 1
+        self._eeprom_rw_task_retry_count += 1
+        self._eeprom_rw_task_rsp_deadline = (
+            time.monotonic() + EEPROM_RW_RESPONSE_TIMEOUT_S
+        )
+        retry_text = (
+            f"retry {self._eeprom_rw_task_inflight_retries}/"
+            f"{EEPROM_RW_TASK_RETRY_LIMIT} at 0x{addr:05X}"
+        )
+        self._eeprom_rw_summary_text = f"{op_kind} {retry_text}"
+        if self._eeprom_rw_task_kind == "single_read":
+            self._eeprom_single_read_result = retry_text
+        elif self._eeprom_rw_task_kind == "single_write":
+            self._eeprom_single_write_result = retry_text
+        self._refresh_eeprom_rw_view()
+        self._set_status(self._eeprom_rw_summary_text)
+        return True
+
     def _build_bulk_blob_from_words(self) -> bytes:
         missing = [idx for idx in range(self._burst_words) if idx not in self._burst_received_words]
         if missing:
@@ -2014,6 +2262,115 @@ class UARTLogApp(App[None]):
     def _handle_special_event(self, event: Event) -> None:
         if event.src_id == SYS_SRC_ID and event.event_id == EV_MODE_CHANGE:
             self._selected_src_idx = event.arg1 & 0xFF
+        if self._eeprom_map_refresh_active and event.src_id == eeprom_proto.HOST_SRC_ID:
+            if event.event_id == eeprom_proto.HOST_EVT_BULK_OK:
+                done_base = event.arg0 & eeprom_proto.EEPROM_MAX_ADDR
+                done_bytes = event.arg1 & eeprom_proto.EEPROM_MAX_ADDR
+                if done_base != self._eeprom_map_base_addr or done_bytes != EEPROM_MAP_BYTE_COUNT:
+                    self._finish_eeprom_map_refresh(
+                        f"BULK_OK mismatch base=0x{done_base:05X} bytes={done_bytes}"
+                    )
+                else:
+                    self._eeprom_map_rsp_deadline = (
+                        time.monotonic() + EEPROM_MAP_RESPONSE_TIMEOUT_S
+                    )
+                    self._eeprom_map_summary_text = (
+                        f"EEPROM BR accepted 0x{done_base:05X} bytes={done_bytes}"
+                    )
+                    self._refresh_eeprom_map_view()
+                return
+            if event.event_id == eeprom_proto.HOST_EVT_BULK_PROGRESS:
+                try:
+                    progress = eeprom_proto.decode_bulk_read_progress(
+                        event.arg0,
+                        event.arg1,
+                        event.arg2,
+                    )
+                except Exception as exc:
+                    self._finish_eeprom_map_refresh(f"EEPROM bulk decode failed: {exc}")
+                    return
+
+                for offset, byte_value in enumerate(progress.data):
+                    byte_index = (progress.base_addr + offset) - self._eeprom_map_base_addr
+                    if 0 <= byte_index < EEPROM_MAP_BYTE_COUNT:
+                        self._eeprom_map_bytes[byte_index] = byte_value
+                        self._eeprom_map_received_bytes[byte_index] = byte_value
+
+                self._eeprom_map_rsp_deadline = (
+                    time.monotonic() + EEPROM_MAP_RESPONSE_TIMEOUT_S
+                )
+                self._eeprom_map_summary_text = (
+                    f"bulk read bytes {len(self._eeprom_map_received_bytes)}/"
+                    f"{EEPROM_MAP_BYTE_COUNT}"
+                )
+                self._refresh_eeprom_map_view()
+                return
+            if event.event_id == eeprom_proto.HOST_EVT_BULK_DONE:
+                done_base = event.arg0 & eeprom_proto.EEPROM_MAX_ADDR
+                done_bytes = event.arg1 & eeprom_proto.EEPROM_MAX_ADDR
+                if done_base != self._eeprom_map_base_addr or done_bytes != EEPROM_MAP_BYTE_COUNT:
+                    self._finish_eeprom_map_refresh(
+                        f"DONE mismatch base=0x{done_base:05X} bytes={done_bytes}"
+                    )
+                elif len(self._eeprom_map_received_bytes) != EEPROM_MAP_BYTE_COUNT:
+                    self._finish_eeprom_map_refresh(
+                        "EEPROM map incomplete: missing bulk bytes"
+                    )
+                else:
+                    self._finish_eeprom_map_refresh("EEPROM map refresh complete")
+                return
+            if event.event_id in {
+                eeprom_proto.HOST_EVT_BULK_ABORT,
+                eeprom_proto.HOST_EVT_BULK_ERR,
+                eeprom_proto.HOST_EVT_CMD_ERR,
+            }:
+                self._finish_eeprom_map_refresh(
+                    f"EEPROM map failed evt=0x{event.event_id:02X} arg0=0x{event.arg0:08X}"
+                )
+                return
+
+        if self._eeprom_rw_task_active and event.src_id == eeprom_proto.HOST_SRC_ID:
+            if self._eeprom_rw_task_inflight is None:
+                return
+            op_kind, inflight_addr, inflight_data = self._eeprom_rw_task_inflight
+            event_addr = event.arg0 & eeprom_proto.EEPROM_MAX_ADDR
+            if (
+                event.event_id == eeprom_proto.HOST_EVT_READ_RSP
+                and op_kind == "read"
+                and event_addr == inflight_addr
+            ):
+                data_byte = event.arg1 & 0xFF
+                self._eeprom_rw_task_inflight = None
+                self._eeprom_rw_task_inflight_retries = 0
+                self._eeprom_rw_task_rsp_deadline = 0.0
+                if self._eeprom_rw_task_kind == "single_read":
+                    self._eeprom_single_read_result = (
+                        f"0x{inflight_addr:05X} -> 0x{data_byte:02X}"
+                    )
+                self._refresh_eeprom_rw_view()
+            elif (
+                event.event_id == eeprom_proto.HOST_EVT_WRITE_ACK
+                and op_kind == "write"
+                and event_addr == inflight_addr
+            ):
+                self._eeprom_rw_task_inflight = None
+                self._eeprom_rw_task_inflight_retries = 0
+                self._eeprom_rw_task_rsp_deadline = 0.0
+                if self._eeprom_rw_task_kind == "single_write":
+                    self._eeprom_single_write_result = (
+                        f"0x{inflight_data & 0xFF:02X} -> 0x{inflight_addr:05X} OK"
+                    )
+                self._refresh_eeprom_rw_view()
+            elif event.event_id == eeprom_proto.HOST_EVT_CMD_ERR:
+                self._eeprom_rw_task_inflight = None
+                self._eeprom_rw_task_inflight_retries = 0
+                self._eeprom_rw_task_rsp_deadline = 0.0
+                if self._eeprom_rw_task_kind == "single_read":
+                    self._eeprom_single_read_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+                elif self._eeprom_rw_task_kind == "single_write":
+                    self._eeprom_single_write_result = f"CMD_ERR arg0=0x{event.arg0:08X}"
+                self._finish_eeprom_rw_task("eeprom rw task failed: cmd_err")
+            return
         if not self._map_refresh_active or event.src_id != HOST_SRC_ID:
             pass
         else:
@@ -2360,6 +2717,75 @@ class UARTLogApp(App[None]):
         if self._map_view is not None:
             self._map_view.update(format_sdram_map_text(self._map_base_addr, self._map_bytes))
 
+    def _refresh_eeprom_map_view(self) -> None:
+        if self._eeprom_map_summary is not None:
+            self._eeprom_map_summary.update(
+                "\n".join(
+                    [
+                        "[EEPROM Map]",
+                        f"base       : 0x{self._eeprom_map_base_addr:05X}",
+                        "mode       : bytes",
+                        f"state      : {'refreshing' if self._eeprom_map_refresh_active else 'idle'}",
+                        f"detail     : {self._eeprom_map_summary_text}",
+                    ]
+                )
+            )
+        if self._eeprom_map_view is not None:
+            self._eeprom_map_view.update(
+                format_eeprom_map_text(self._eeprom_map_base_addr, self._eeprom_map_bytes)
+            )
+
+    def _start_eeprom_map_refresh(self) -> None:
+        if self._eeprom_map_base_input is not None:
+            try:
+                self._eeprom_map_base_addr = eeprom_proto.parse_addr(
+                    self._eeprom_map_base_input.value.strip()
+                )
+            except Exception as exc:
+                self._eeprom_map_summary_text = f"invalid base addr: {exc}"
+                self._refresh_eeprom_map_view()
+                self._set_status(self._eeprom_map_summary_text)
+                return
+            if (
+                self._eeprom_map_base_addr + EEPROM_MAP_BYTE_COUNT - 1
+                > eeprom_proto.EEPROM_MAX_ADDR
+            ):
+                self._eeprom_map_summary_text = (
+                    f"map range exceeds EEPROM limit 0x{eeprom_proto.EEPROM_MAX_ADDR:05X}"
+                )
+                self._refresh_eeprom_map_view()
+                self._set_status(self._eeprom_map_summary_text)
+                return
+        if self._replay_file_path is not None:
+            self._eeprom_map_summary_text = "replay mode: EEPROM Map disabled"
+            self._refresh_eeprom_map_view()
+            self._set_status(self._eeprom_map_summary_text)
+            return
+        if not self._active_connected():
+            self._eeprom_map_summary_text = "not connected"
+            self._refresh_eeprom_map_view()
+            self._set_status(self._eeprom_map_summary_text)
+            return
+        if self._host_task_busy():
+            self._eeprom_map_summary_text = "host task busy"
+            self._refresh_eeprom_map_view()
+            self._set_status(self._eeprom_map_summary_text)
+            return
+
+        self._eeprom_map_refresh_active = True
+        self._eeprom_map_select_deadline = 0.0
+        self._eeprom_map_rsp_deadline = 0.0
+        self._eeprom_map_command_sent = False
+        self._eeprom_map_inflight_retries = 0
+        self._eeprom_map_retry_count = 0
+        self._eeprom_map_received_bytes = {}
+        self._eeprom_map_bytes = bytearray(EEPROM_MAP_BYTE_COUNT)
+        self._eeprom_map_summary_text = (
+            f"queued bulk read {EEPROM_MAP_BYTE_COUNT} EEPROM bytes"
+        )
+        self._refresh_eeprom_map_view()
+        self._set_status(self._eeprom_map_summary_text)
+
     def _start_map_refresh(self) -> None:
         if self._map_base_input is not None:
             try:
@@ -2458,6 +2884,58 @@ class UARTLogApp(App[None]):
             else:
                 self._finish_map_refresh(
                     f"timeout waiting for BR 0x{self._map_base_addr:05X}"
+                )
+
+    def _poll_eeprom_map_refresh(self) -> None:
+        if not self._eeprom_map_refresh_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != eeprom_proto.HOST_SRC_INDEX:
+            if now >= self._eeprom_map_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_eeprom_map_refresh("failed to select EEPROM source")
+                    return
+                self._eeprom_map_summary_text = (
+                    f"selecting EEPROM source (current={self._selected_src_idx})"
+                )
+                self._eeprom_map_select_deadline = now + 0.35
+                self._refresh_eeprom_map_view()
+            return
+        if not self._eeprom_map_command_sent:
+            payload = eeprom_proto.build_bulk_read_command(
+                self._eeprom_map_base_addr,
+                EEPROM_MAP_BYTE_COUNT,
+            )
+            if self._send_bytes(payload) != len(payload):
+                self._finish_eeprom_map_refresh(
+                    f"short EEPROM bulk read write for 0x{self._eeprom_map_base_addr:05X}"
+                )
+                return
+            self._eeprom_map_command_sent = True
+            self._eeprom_map_rsp_deadline = now + EEPROM_MAP_RESPONSE_TIMEOUT_S
+            self._eeprom_map_summary_text = (
+                f"sent BR 0x{self._eeprom_map_base_addr:05X} bytes={EEPROM_MAP_BYTE_COUNT}"
+            )
+            self._refresh_eeprom_map_view()
+            self._set_status(self._eeprom_map_summary_text)
+            return
+        if now > self._eeprom_map_rsp_deadline:
+            if self._eeprom_map_inflight_retries < EEPROM_MAP_READ_RETRY_LIMIT:
+                self._eeprom_map_inflight_retries += 1
+                self._eeprom_map_retry_count += 1
+                self._eeprom_map_command_sent = False
+                self._eeprom_map_rsp_deadline = 0.0
+                self._eeprom_map_received_bytes = {}
+                self._eeprom_map_bytes = bytearray(EEPROM_MAP_BYTE_COUNT)
+                self._eeprom_map_summary_text = (
+                    f"retry {self._eeprom_map_inflight_retries}/"
+                    f"{EEPROM_MAP_READ_RETRY_LIMIT} for BR 0x{self._eeprom_map_base_addr:05X}"
+                )
+                self._refresh_eeprom_map_view()
+                self._set_status(self._eeprom_map_summary_text)
+            else:
+                self._finish_eeprom_map_refresh(
+                    f"timeout waiting for EEPROM BR 0x{self._eeprom_map_base_addr:05X}"
                 )
 
     def _poll_status_refresh(self) -> None:
@@ -2575,6 +3053,57 @@ class UARTLogApp(App[None]):
         self._rw_summary_text = f"{op_kind} 0x{addr:05X}"
         self._refresh_rw_view()
 
+    def _poll_eeprom_rw_task(self) -> None:
+        if not self._eeprom_rw_task_active:
+            return
+        now = time.monotonic()
+        if self._selected_src_idx != eeprom_proto.HOST_SRC_INDEX:
+            if now >= self._eeprom_rw_task_select_deadline:
+                if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
+                    self._finish_eeprom_rw_task("failed to select EEPROM source")
+                    return
+                self._eeprom_rw_summary_text = (
+                    f"selecting EEPROM source (current={self._selected_src_idx})"
+                )
+                self._eeprom_rw_task_select_deadline = now + 0.35
+                self._refresh_eeprom_rw_view()
+            return
+        if (
+            self._eeprom_rw_task_inflight is not None
+            and now > self._eeprom_rw_task_rsp_deadline
+        ):
+            op_kind, inflight_addr, _ = self._eeprom_rw_task_inflight
+            if self._retry_eeprom_rw_inflight():
+                return
+            if self._eeprom_rw_task_kind == "single_read":
+                self._eeprom_single_read_result = f"timeout at 0x{inflight_addr:05X}"
+            elif self._eeprom_rw_task_kind == "single_write":
+                self._eeprom_single_write_result = f"timeout at 0x{inflight_addr:05X}"
+            self._eeprom_rw_task_inflight = None
+            self._finish_eeprom_rw_task(f"{op_kind} timeout at 0x{inflight_addr:05X}")
+            return
+        if self._eeprom_rw_task_inflight is not None or now < self._eeprom_rw_task_select_deadline:
+            return
+        if not self._eeprom_rw_task_pending:
+            self._finish_eeprom_rw_task(f"{self._eeprom_rw_task_kind} complete")
+            self._refresh_eeprom_rw_view()
+            return
+
+        op_kind, addr, data = self._eeprom_rw_task_pending.pop(0)
+        payload = (
+            eeprom_proto.build_read_command(addr)
+            if op_kind == "read"
+            else eeprom_proto.build_write_command(addr, data)
+        )
+        if self._send_bytes(payload) != len(payload):
+            self._finish_eeprom_rw_task(f"{op_kind} short write at 0x{addr:05X}")
+            return
+        self._eeprom_rw_task_inflight = (op_kind, addr, data)
+        self._eeprom_rw_task_inflight_retries = 0
+        self._eeprom_rw_task_rsp_deadline = now + EEPROM_RW_RESPONSE_TIMEOUT_S
+        self._eeprom_rw_summary_text = f"{op_kind} 0x{addr:05X}"
+        self._refresh_eeprom_rw_view()
+
     def _complete_file_read_save(self) -> None:
         if self._rw_task_output_path is None:
             self._finish_rw_task("file read complete")
@@ -2601,6 +3130,16 @@ class UARTLogApp(App[None]):
         self._map_inflight_addr = None
         self._map_inflight_retries = 0
         self._refresh_map_view()
+        self._set_status(detail)
+
+    def _finish_eeprom_map_refresh(self, detail: str) -> None:
+        self._eeprom_map_refresh_active = False
+        self._eeprom_map_summary_text = detail
+        self._eeprom_map_select_deadline = 0.0
+        self._eeprom_map_rsp_deadline = 0.0
+        self._eeprom_map_command_sent = False
+        self._eeprom_map_inflight_retries = 0
+        self._refresh_eeprom_map_view()
         self._set_status(detail)
 
     def _set_status(self, message: str) -> None:

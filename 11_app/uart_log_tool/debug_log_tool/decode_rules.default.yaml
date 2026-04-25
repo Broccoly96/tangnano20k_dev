@@ -89,3 +89,43 @@ default:
   level: ERROR
   title: SDRAM_HOST_CMD_ERR
   message: "embedded SDRAM host command error reason=0x{arg0_hex} cmd=0x{arg1_hex} detail=0x{arg2_hex}"
+
+"0x01:0x30":
+  level: INFO
+  title: EEPROM_HOST_WRITE_ACK
+  message: "EEPROM host write ack addr=0x{arg0_hex} data=0x{arg1_b0:02X} status=0x{arg2_hex}"
+
+"0x01:0x31":
+  level: INFO
+  title: EEPROM_HOST_READ_RSP
+  message: "EEPROM host read response addr=0x{arg0_hex} data=0x{arg1_b0:02X} status=0x{arg2_hex}"
+
+"0x01:0x32":
+  level: INFO
+  title: EEPROM_HOST_BULK_OK
+  message: "EEPROM bulk accepted addr=0x{arg0_hex} bytes={arg1_u32}"
+
+"0x01:0x33":
+  level: ERROR
+  title: EEPROM_HOST_BULK_ERR
+  message: "EEPROM bulk error reason=0x{arg0_hex} addr=0x{arg1_hex} detail=0x{arg2_hex}"
+
+"0x01:0x34":
+  level: INFO
+  title: EEPROM_HOST_BULK_PROGRESS
+  message: "EEPROM bulk progress meta=0x{arg0_hex} data0=0x{arg1_hex} data1=0x{arg2_hex}"
+
+"0x01:0x35":
+  level: INFO
+  title: EEPROM_HOST_BULK_DONE
+  message: "EEPROM bulk done addr=0x{arg0_hex} bytes={arg1_u32} completed={arg2_u32}"
+
+"0x01:0x36":
+  level: WARN
+  title: EEPROM_HOST_BULK_ABORT
+  message: "EEPROM bulk abort reason=0x{arg0_hex} addr=0x{arg1_hex} completed=0x{arg2_hex}"
+
+"0x01:0x3E":
+  level: ERROR
+  title: EEPROM_HOST_CMD_ERR
+  message: "EEPROM host command error reason=0x{arg0_hex} cmd=0x{arg1_hex} detail=0x{arg2_hex}"

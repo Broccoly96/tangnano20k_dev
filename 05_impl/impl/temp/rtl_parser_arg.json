@@ -18,7 +18,27 @@
    "Type" : "verilog"
   },
   {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/eeprom_i2c/eeprom_uart_proto_pkg.sv",
+   "Type" : "verilog"
+  },
+  {
    "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_evt_if.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/eeprom_i2c/eeprom_uart_ascii_ctrl.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/eeprom_i2c/eeprom_i2c_byte_ctrl.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/eeprom_i2c/eeprom_i2c_access_engine.sv",
+   "Type" : "verilog"
+  },
+  {
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv",
    "Type" : "verilog"
   },
   {

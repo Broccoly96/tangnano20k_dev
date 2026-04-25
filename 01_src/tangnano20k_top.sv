@@ -39,7 +39,7 @@ module tangnano20k_top(
   input   wire      PIN39_IOB40A,
   input   wire      PIN40_IOB40B,
   input   wire      PIN41_IOB43A,
-  input   wire      PIN42_IOB42B,   // EEPROM_SDA
+  inout   wire      PIN42_IOB42B,   // EEPROM_SDA
   input   wire      PIN48_IOR49B,
   input   wire      PIN49_IOR49A,
   input   wire      PIN51_IOR45A,
@@ -61,18 +61,18 @@ module tangnano20k_top(
   input   wire      PIN73_IOT40A,   // SSD1306_CS
   input   wire      PIN74_IOT34B,   // SSD1306_D0
   input   wire      PIN75_IOT34A,   // SSD1306_D1
-  input   wire      PIN76_IOT30B,
-  input   wire      PIN77_IOT30A,
+  output  wire      PIN76_IOT30B,   // EEPROM_WP
+  input   wire      PIN77_IOT30A,   // SSD1306_DC
   input   wire      PIN79_IOT27B,
-  input   wire      PIN80_IOT27A,   // EEPROM_SCL
+  inout   wire      PIN80_IOT27A,   // EEPROM_SCL
   input   wire      PIN81_IOT17B,
   input   wire      PIN82_IOT17A,
   input   wire      PIN83_IOT6B,
   input   wire      PIN84_IOT6A,
   input   wire      PIN85_IOT4B,    // SSD1306_RES
   input   wire      PIN86_IOT4A,
-  input   wire      PIN87_IOT30B,   // EEPROM_WP
-  input   wire      PIN88_IOT30A,   // SSD1306_DC
+  input   wire      PIN87_IOT30B,
+  input   wire      PIN88_IOT30A,
   // Embedded SDRAM ports
   output            O_sdram_clk,
   output            O_sdram_cke,
@@ -88,18 +88,20 @@ module tangnano20k_top(
 
   localparam int unsigned FPGA_INIT_WAIT            = 24000;
 
-  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 3'b110;
+  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 3'b111;
   localparam int unsigned UART_LOG_CLK_HZ           = 24_000_000;
   localparam int unsigned UART_LOG_BAUD             = 115_200;
   localparam int unsigned UART_LOG_NUM_SRC          = 3;
 
   localparam int unsigned SOFT_RESET_HOLD_CYCLES    = UART_LOG_CLK_HZ;
+  localparam int unsigned EEPROM_I2C_BIT_RATE_HZ    = 1_000_000;
   localparam int unsigned SDRAM_MEMTEST_BURST_WORDS = 1;
   localparam int unsigned SDRAM_MEMTEST_TEST_WORDS  = 256;
   localparam int unsigned SDRAM_MEMTEST_CLEAR_WORDS = 256;
 
   // Interface
   uart_log_evt_if  l_uart_src_if [UART_LOG_NUM_SRC] ();
+  uart_log_evt_if  l_eeprom_evt_if ();
   uart_log_evt_if  l_sdram_test_evt_if ();
   uart_log_evt_if  l_sdram_host_evt_if ();
 
@@ -110,14 +112,14 @@ module tangnano20k_top(
   wire        pll_lock;
   wire        rst_fpga_24m_n;
   logic       rst_fpga_48m_n;
-  // Button
-  logic       button_s1;
-  logic       button_s2;
-
   // UART to ESP_WROOM2
   logic       uart_esp_tx;
   logic       uart_esp_rx;
   logic       soft_rst_req_cli_24m;
+  logic       l_eeprom_i2c_sda_drive_low;
+  logic       l_eeprom_i2c_scl_drive_low;
+  logic       l_eeprom_i2c_sda_in;
+  logic       l_eeprom_i2c_scl_in;
 
   logic         l_sdram_init_done;
   logic         l_sdram_test_active;
@@ -189,10 +191,6 @@ module tangnano20k_top(
     .O_RST_FPGA_48M_N   (rst_fpga_48m_n)
   );
 
-  assign button_s1 = PIN88_IOT30A;
-  assign button_s2 = PIN87_IOT30B;
-
-
   //---------------------------------------------------------------------------------------------
   // UART ESP-WROOM2 / uart_log_cli
   //---------------------------------------------------------------------------------------------
@@ -214,16 +212,24 @@ module tangnano20k_top(
 
   assign uart_esp_rx       = PIN18_IOL49B_LED3;
   assign PIN19_IOL51A_LED4 = uart_esp_tx;
+  assign l_eeprom_i2c_sda_in = PIN42_IOB42B;
+  assign l_eeprom_i2c_scl_in = PIN80_IOT27A;
+  assign PIN42_IOB42B = l_eeprom_i2c_sda_drive_low ? 1'b0 : 1'bz;
+  assign PIN80_IOT27A = l_eeprom_i2c_scl_drive_low ? 1'b0 : 1'bz;
+  assign PIN76_IOT30B = 1'b0;
 
 
   //---------------------------------------------------------------------------------------------
   // UART debug log source wiring
   //---------------------------------------------------------------------------------------------
-  assign l_uart_src_if[0].evt_valid = 1'b0;
-  assign l_uart_src_if[0].evt_id    = 8'h00;
-  assign l_uart_src_if[0].arg0      = 32'h0000_0000;
-  assign l_uart_src_if[0].arg1      = 32'h0000_0000;
-  assign l_uart_src_if[0].arg2      = 32'h0000_0000;
+  uart_log_src_async_bridge u_eeprom_evt_bridge (
+    .I_SRC_CLK        (clk_48m_sdram),
+    .I_SRC_RST_N      (rst_fpga_48m_n),
+    .I_DST_CLK        (clk_24m_sys),
+    .I_DST_RST_N      (rst_fpga_24m_n),
+    .SRC_IF           (l_eeprom_evt_if),
+    .DST_IF           (l_uart_src_if[0])
+  );
 
   uart_log_src_async_bridge u_sdram_test_evt_bridge (
     .I_SRC_CLK        (clk_48m_sdram),
@@ -254,6 +260,22 @@ module tangnano20k_top(
     .O_DST_VALID      (l_cli_rx_valid_48m),
     .O_DST_DATA       (l_cli_rx_data_48m),
     .I_DST_READY      (1'b1)
+  );
+
+  eeprom_uart_bridge_ctrl #(
+    .I2C_BIT_RATE_HZ        (EEPROM_I2C_BIT_RATE_HZ)
+  ) u_eeprom_uart_bridge_ctrl (
+    .I_CLK                (clk_48m_sdram),
+    .I_RST_N              (rst_fpga_48m_n),
+    .I_ENABLE             (1'b1),
+    .I_CLI_RX_VALID       (l_cli_rx_valid_48m),
+    .I_CLI_RX_DATA        (l_cli_rx_data_48m),
+    .I_I2C_SDA_IN         (l_eeprom_i2c_sda_in),
+    .I_I2C_SCL_IN         (l_eeprom_i2c_scl_in),
+    .O_I2C_SDA_DRIVE_LOW  (l_eeprom_i2c_sda_drive_low),
+    .O_I2C_SCL_DRIVE_LOW  (l_eeprom_i2c_scl_drive_low),
+    .O_CMD_BUSY           (),
+    .HOST_EVT_IF          (l_eeprom_evt_if)
   );
 
   sdram_emb_hostif_ctrl #(
