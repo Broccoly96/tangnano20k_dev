@@ -23,10 +23,10 @@ module tangnano20k_top(
   output  wire      PIN19_IOL51A_LED4,
   output  wire      PIN20_IOL51B_LED5,
   input   wire      PIN25_IOB06A,
-  input   wire      PIN26_IOB06B,
+  output  wire      PIN26_IOB06B,   // SSD1331_RES_N
   input   wire      PIN27_IOB08A,
   input   wire      PIN28_IOB08B,
-  input   wire      PIN29_IOB14A,
+  output  wire      PIN29_IOB14A,   // SSD1331_DC
   input   wire      PIN30_IOB14B,
   input   wire      PIN31_IOB18A,
   input   wire      PIN32_IOB18B,
@@ -62,14 +62,14 @@ module tangnano20k_top(
   output  wire      PIN74_IOT34B,   // SSD1331_D0_SCLK
   output  wire      PIN75_IOT34A,   // SSD1331_D1_SDIN
   output  wire      PIN76_IOT30B,   // EEPROM_WP
-  output  wire      PIN77_IOT30A,   // SSD1331_DC
+  output  wire      PIN77_IOT30A,
   input   wire      PIN79_IOT27B,
   inout   wire      PIN80_IOT27A,   // EEPROM_SCL
   input   wire      PIN81_IOT17B,
   input   wire      PIN82_IOT17A,
   input   wire      PIN83_IOT6B,
   input   wire      PIN84_IOT6A,
-  output  wire      PIN85_IOT4B,    // SSD1331_RES_N
+  output  wire      PIN85_IOT4B,
   input   wire      PIN86_IOT4A,
   input   wire      PIN87_IOT30B,
   input   wire      PIN88_IOT30A,
@@ -95,6 +95,10 @@ module tangnano20k_top(
 
   localparam int unsigned SOFT_RESET_HOLD_CYCLES    = UART_LOG_CLK_HZ;
   localparam int unsigned EEPROM_I2C_BIT_RATE_HZ    = 1_000_000;
+  localparam int unsigned SSD1331_SPI_CLK_DIV        = 12;
+  localparam int unsigned SSD1331_RESET_ASSERT_CYCLES  = 240_000;
+  localparam int unsigned SSD1331_RESET_RELEASE_CYCLES = 2_400_000;
+  localparam int unsigned SSD1331_AUTO_PATTERN_DELAY   = 12_000_000;
   localparam int unsigned SDRAM_MEMTEST_BURST_WORDS = 1;
   localparam int unsigned SDRAM_MEMTEST_TEST_WORDS  = 256;
   localparam int unsigned SDRAM_MEMTEST_CLEAR_WORDS = 256;
@@ -225,8 +229,10 @@ module tangnano20k_top(
   assign PIN73_IOT40A = l_display_cs_n;
   assign PIN74_IOT34B = l_display_sclk;
   assign PIN75_IOT34A = l_display_sdin;
-  assign PIN77_IOT30A = l_display_dc;
-  assign PIN85_IOT4B  = l_display_res_n;
+  assign PIN26_IOB06B = l_display_res_n;
+  assign PIN29_IOB14A = l_display_dc;
+  assign PIN77_IOT30A = 1'b0;
+  assign PIN85_IOT4B  = 1'b1;
 
 
   //---------------------------------------------------------------------------------------------
@@ -288,7 +294,15 @@ module tangnano20k_top(
     .HOST_EVT_IF          (l_eeprom_evt_if)
   );
 
-  ssd1331_uart_bridge_ctrl u_ssd1331_uart_bridge_ctrl (
+  ssd1331_uart_bridge_ctrl #(
+    .SPI_CLK_DIV              (SSD1331_SPI_CLK_DIV),
+    .RESET_ASSERT_CYCLES      (SSD1331_RESET_ASSERT_CYCLES),
+    .RESET_RELEASE_CYCLES     (SSD1331_RESET_RELEASE_CYCLES),
+    .AUTO_INIT_ON_RESET       (1),
+    .AUTO_ALL_ON_AFTER_INIT   (1),
+    .AUTO_PATTERN_AFTER_INIT  (0),
+    .AUTO_PATTERN_DELAY_CYCLES(SSD1331_AUTO_PATTERN_DELAY)
+  ) u_ssd1331_uart_bridge_ctrl (
     .I_CLK                (clk_24m_sys),
     .I_RST_N              (rst_fpga_24m_n),
     .I_ENABLE             (1'b1),

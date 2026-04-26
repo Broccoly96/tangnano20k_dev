@@ -10,6 +10,10 @@ Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\eep
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1331_display\ssd1331_spi_master.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1331_display\ssd1331_display_ctrl.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_memtest_ctrl.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bulk_rx.sv'
@@ -37,7 +41,7 @@ Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uar
 Compiling module 'tangnano20k_top'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":9)
 Compiling module 'gowin_pll'("C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\gowin_pll\gowin_pll.v":10)
 Compiling module 'reset_mng(FPGA_INIT_WAIT=32'b00000000000000000101110111000000,SOFT_RESET_HOLD_CYCLES=32'b00000001011011100011011000000000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\reset_mng.sv":7)
-Compiling module 'uart_log_cli(CLK_HZ=32'b00000001011011100011011000000000,BAUD=32'b00000000000000011100001000000000,NUM_SRC=32'b00000000000000000000000000000011,SRC_ENABLE_MASK=3'b111,SRC_IF=uart_log_evt_if_consumer)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli.sv":18)
+Compiling module 'uart_log_cli(CLK_HZ=32'b00000001011011100011011000000000,BAUD=32'b00000000000000011100001000000000,NUM_SRC=32'b00000000000000000000000000000100,SRC_ENABLE_MASK=4'b1111,SRC_IF=uart_log_evt_if_consumer)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli.sv":18)
 Compiling module 'uart_rx_stream(C_BAUD_COUNT=32'b00000000000000000000000011010000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_lite\uart_rx_stream.sv":6)
 Compiling module 'uart_tx_stream(C_BAUD_COUNT=32'b00000000000000000000000011010000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_lite\uart_tx_stream.sv":6)
 Compiling module 'uart_log_tap'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tap.sv":18)
@@ -53,6 +57,10 @@ Compiling module 'eeprom_i2c_access_engine(I2C_BIT_RATE_HZ=32'b00000000000011110
 Compiling module 'eeprom_i2c_byte_ctrl(CLK_HZ=32'b00000010110111000110110000000000,I2C_BIT_RATE_HZ=32'b00000000000011110100001001000000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv":10)
 Compiling module 'sdram_uart_bulk_rx'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bulk_rx.sv":7)
 WARN  (EX3791) : Expression size 14 truncated to fit in target size 6("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bulk_rx.sv":204)
+Compiling module 'ssd1331_uart_bridge_ctrl(SPI_CLK_DIV=32'b00000000000000000000000000001100,RESET_ASSERT_CYCLES=32'b00000000000000111010100110000000,RESET_RELEASE_CYCLES=32'b00000000001001001001111100000000,AUTO_INIT_ON_RESET=32'b00000000000000000000000000000001,AUTO_ALL_ON_AFTER_INIT=32'b00000000000000000000000000000001,AUTO_PATTERN_AFTER_INIT=32'b00000000000000000000000000000000,AUTO_PATTERN_DELAY_CYCLES=32'b00000000101101110001101100000000,HOST_EVT_IF=uart_log_evt_if_producer)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv":15)
+Extracting RAM for identifier 'r_evt_fifo_mem'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv":73)
+Compiling module 'ssd1331_display_ctrl(SPI_CLK_DIV=32'b00000000000000000000000000001100,RESET_ASSERT_CYCLES=32'b00000000000000111010100110000000,RESET_RELEASE_CYCLES=32'b00000000001001001001111100000000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1331_display\ssd1331_display_ctrl.sv":14)
+Compiling module 'ssd1331_spi_master(CLK_DIV=32'b00000000000000000000000000001100)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1331_display\ssd1331_spi_master.sv":10)
 Compiling module 'sdram_emb_hostif_ctrl(MEMTEST_BURST_WORDS=32'b00000000000000000000000000000001,MEMTEST_TEST_WORDS=32'b00000000000000000000000100000000,MEMTEST_POST_INIT_WAIT_CYCLES=32'b00000000001001001001111100000000,MEMTEST_CLEAR_WORDS=32'b00000000000000000000000100000000,TEST_EVT_IF=uart_log_evt_if_producer,HOST_EVT_IF=uart_log_evt_if_producer)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv":12)
 Compiling module 'sdram_memtest_ctrl(BURST_WORDS=32'b00000000000000000000000000000001,BURST_COUNT=32'b00000000000000000000000000001000,TEST_WORDS=32'b00000000000000000000000100000000,POST_INIT_WAIT_CYCLES=32'b00000000001001001001111100000000,CLEAR_WORDS=32'b00000000000000000000000100000000,TEST_EVT_IF=uart_log_evt_if_producer)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_memtest_ctrl.sv":18)
 Compiling module 'sdram_status_reg_map'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_status_reg_map.sv":14)
@@ -69,10 +77,8 @@ WARN  (CV0016) : Input PIN10_IOL29A is unused("C:\Electronics\GitHubProjects\tan
 WARN  (CV0016) : Input PIN11_IOL29B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":17)
 WARN  (CV0016) : Input PIN13_IOL45A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":18)
 WARN  (CV0016) : Input PIN25_IOB06A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":25)
-WARN  (CV0016) : Input PIN26_IOB06B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":26)
 WARN  (CV0016) : Input PIN27_IOB08A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":27)
 WARN  (CV0016) : Input PIN28_IOB08B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":28)
-WARN  (CV0016) : Input PIN29_IOB14A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":29)
 WARN  (CV0016) : Input PIN30_IOB14B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":30)
 WARN  (CV0016) : Input PIN31_IOB18A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":31)
 WARN  (CV0016) : Input PIN32_IOB18B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":32)
@@ -95,16 +101,11 @@ WARN  (CV0016) : Input PIN69_IOT50A is unused("C:\Electronics\GitHubProjects\tan
 WARN  (CV0016) : Input PIN70_IOT44B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":58)
 WARN  (CV0016) : Input PIN71_IOT44A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":59)
 WARN  (CV0016) : Input PIN72_IOT40B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":60)
-WARN  (CV0016) : Input PIN73_IOT40A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":61)
-WARN  (CV0016) : Input PIN74_IOT34B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":62)
-WARN  (CV0016) : Input PIN75_IOT34A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":63)
-WARN  (CV0016) : Input PIN77_IOT30A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":65)
 WARN  (CV0016) : Input PIN79_IOT27B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":66)
 WARN  (CV0016) : Input PIN81_IOT17B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":68)
 WARN  (CV0016) : Input PIN82_IOT17A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":69)
 WARN  (CV0016) : Input PIN83_IOT6B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":70)
 WARN  (CV0016) : Input PIN84_IOT6A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":71)
-WARN  (CV0016) : Input PIN85_IOT4B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":72)
 WARN  (CV0016) : Input PIN86_IOT4A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":73)
 WARN  (CV0016) : Input PIN87_IOT30B is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":74)
 WARN  (CV0016) : Input PIN88_IOT30A is unused("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":75)

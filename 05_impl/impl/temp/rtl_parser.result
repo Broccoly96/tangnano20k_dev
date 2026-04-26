@@ -9,7 +9,7 @@
   "SubInsts" : [
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 170,
+    "InstLine" : 179,
     "InstName" : "u0_gowin_pll",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_pll/gowin_pll.v",
     "ModuleLine" : 10,
@@ -17,7 +17,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 184,
+    "InstLine" : 193,
     "InstName" : "u0_reset_mng",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/reset_mng.sv",
     "ModuleLine" : 7,
@@ -25,7 +25,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 202,
+    "InstLine" : 211,
     "InstName" : "u_uart_log_cli",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
     "ModuleLine" : 18,
@@ -73,6 +73,14 @@
      },
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
+      "InstLine" : 299,
+      "InstName" : "g_log_tap[3].g_enabled_tap.u_tap",
+      "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_tap.sv",
+      "ModuleLine" : 18,
+      "ModuleName" : "uart_log_tap"
+     },
+     {
+      "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
       "InstLine" : 324,
       "InstName" : "u_evt_fifo",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_evt_fifo.sv",
@@ -93,7 +101,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 225,
+    "InstLine" : 241,
     "InstName" : "u_eeprom_evt_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv",
     "ModuleLine" : 10,
@@ -101,7 +109,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 234,
+    "InstLine" : 250,
     "InstName" : "u_sdram_test_evt_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv",
     "ModuleLine" : 10,
@@ -109,7 +117,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 243,
+    "InstLine" : 259,
     "InstName" : "u_sdram_host_evt_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv",
     "ModuleLine" : 10,
@@ -117,7 +125,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 252,
+    "InstLine" : 268,
     "InstName" : "u_cli_rx_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv",
     "ModuleLine" : 12,
@@ -125,7 +133,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 267,
+    "InstLine" : 283,
     "InstName" : "u_eeprom_uart_bridge_ctrl",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv",
     "ModuleLine" : 11,
@@ -169,7 +177,35 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 286,
+    "InstLine" : 305,
+    "InstName" : "u_ssd1331_uart_bridge_ctrl",
+    "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv",
+    "ModuleLine" : 15,
+    "ModuleName" : "ssd1331_uart_bridge_ctrl",
+    "SubInsts" : [
+     {
+      "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv",
+      "InstLine" : 228,
+      "InstName" : "u_ssd1331_display_ctrl",
+      "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_display_ctrl.sv",
+      "ModuleLine" : 14,
+      "ModuleName" : "ssd1331_display_ctrl",
+      "SubInsts" : [
+       {
+        "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_display_ctrl.sv",
+        "InstLine" : 293,
+        "InstName" : "u_ssd1331_spi_master",
+        "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_spi_master.sv",
+        "ModuleLine" : 10,
+        "ModuleName" : "ssd1331_spi_master"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
+    "InstLine" : 325,
     "InstName" : "u_sdram_emb_hostif_ctrl",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
     "ModuleLine" : 12,
@@ -229,7 +265,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 335,
+    "InstLine" : 374,
     "InstName" : "u_embedded_sdram_hs",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/embedded_sdram_hs/embedded_sdram_hs.v",
     "ModuleLine" : 1251,

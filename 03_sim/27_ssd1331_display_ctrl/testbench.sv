@@ -6,7 +6,7 @@ module testbench;
   import ssd1331_uart_proto_pkg::*;
 
   localparam time CLK_PERIOD = 20ns;
-  localparam int unsigned CAP_MAX_BYTES = 64;
+  localparam int unsigned CAP_MAX_BYTES = 12310;
 
   logic        tb_clk;
   logic        tb_rst_n;
@@ -52,7 +52,7 @@ module testbench;
   end
 
   initial begin
-    #(5ms);
+    #(20ms);
     log_fatal(1, "SSD1331 CTRL TB", "simulation timeout");
   end
 

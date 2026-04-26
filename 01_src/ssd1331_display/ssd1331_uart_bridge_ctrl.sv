@@ -6,6 +6,7 @@
 //                  I
 //                  C
 //                  P
+//                  A
 //                  O
 //                  X
 //                  F RRGGBB
@@ -14,7 +15,11 @@
 module ssd1331_uart_bridge_ctrl #(
   parameter int unsigned SPI_CLK_DIV          = 4,
   parameter int unsigned RESET_ASSERT_CYCLES  = 256,
-  parameter int unsigned RESET_RELEASE_CYCLES = 256
+  parameter int unsigned RESET_RELEASE_CYCLES = 256,
+  parameter int unsigned AUTO_INIT_ON_RESET   = 0,
+  parameter int unsigned AUTO_ALL_ON_AFTER_INIT = 0,
+  parameter int unsigned AUTO_PATTERN_AFTER_INIT = 0,
+  parameter int unsigned AUTO_PATTERN_DELAY_CYCLES = 0
 ) (
   input  logic       I_CLK,
   input  logic       I_RST_N,
@@ -36,10 +41,23 @@ module ssd1331_uart_bridge_ctrl #(
   localparam int unsigned EVT_FIFO_DEPTH = 4;
   localparam int unsigned EVT_FIFO_PTR_W = (EVT_FIFO_DEPTH <= 1) ? 1 : $clog2(EVT_FIFO_DEPTH);
   localparam int unsigned EVT_FIFO_CNT_W = $clog2(EVT_FIFO_DEPTH + 1);
+  localparam int unsigned AUTO_DELAY_W =
+    (AUTO_PATTERN_DELAY_CYCLES <= 1) ? 1 : $clog2(AUTO_PATTERN_DELAY_CYCLES + 1);
+
+  typedef enum logic [2:0] {
+    AUTO_DONE,
+    AUTO_REQ_INIT,
+    AUTO_WAIT_INIT,
+    AUTO_DELAY_PATTERN,
+    AUTO_REQ_PATTERN,
+    AUTO_REQ_ALL_ON
+  } st_auto_e;
 
   logic [7:0]  r_line [0:MAX_LINE_BYTES-1];
   logic [4:0]  r_line_len;
   logic        r_line_overflow;
+  st_auto_e    st_auto;
+  logic [AUTO_DELAY_W-1:0] r_auto_delay_cnt;
 
   logic        r_disp_req_valid;
   logic [2:0]  r_disp_req_op;
@@ -183,6 +201,8 @@ module ssd1331_uart_bridge_ctrl #(
         issue_req(DISP_OP_CLEAR, 24'h000000, detail_word);
       end else if ((r_line_len == 1) && (r_line[0] == ASCII_CMD_PATTERN)) begin
         issue_req(DISP_OP_PATTERN, 24'h000000, detail_word);
+      end else if ((r_line_len == 1) && (r_line[0] == ASCII_CMD_ALL_ON)) begin
+        issue_req(DISP_OP_ALL_ON, 24'h000000, detail_word);
       end else if ((r_line_len == 1) && (r_line[0] == ASCII_CMD_ON)) begin
         issue_req(DISP_OP_ON, 24'h000000, detail_word);
       end else if ((r_line_len == 1) && (r_line[0] == ASCII_CMD_OFF)) begin
@@ -221,6 +241,16 @@ module ssd1331_uart_bridge_ctrl #(
     .O_DISP_DC    (O_DISP_DC),
     .O_DISP_RES_N (O_DISP_RES_N)
   );
+
+  function automatic st_auto_e auto_reset_state;
+    begin
+      if (AUTO_INIT_ON_RESET != 0) begin
+        auto_reset_state = AUTO_REQ_INIT;
+      end else begin
+        auto_reset_state = AUTO_DONE;
+      end
+    end
+  endfunction
 
   // Small event FIFO so command completion and parse errors can be surfaced
   // through uart_log_cli without forcing direct combinational backpressure.
@@ -274,6 +304,8 @@ module ssd1331_uart_bridge_ctrl #(
       r_evt_push_arg0  <= 32'h0;
       r_evt_push_arg1  <= 32'h0;
       r_evt_push_arg2  <= 32'h0;
+      st_auto          <= auto_reset_state();
+      r_auto_delay_cnt <= '0;
     end else begin
       if (s_disp_req_fire) begin
         r_disp_req_valid <= 1'b0;
@@ -286,6 +318,61 @@ module ssd1331_uart_bridge_ctrl #(
       if (s_disp_done_valid) begin
         arm_event(EVT_CMD_ACK, {29'h0, s_disp_done_op}, {8'h00, r_last_req_color}, 32'h0000_0000);
       end
+
+      // Optional hardware bring-up path. When enabled by the top module, the
+      // OLED is initialized after FPGA reset and can run a visible diagnostic
+      // command without requiring a working UART console.
+      case (st_auto)
+        AUTO_REQ_INIT: begin
+          if (!s_disp_busy && !r_disp_req_valid) begin
+            issue_req(DISP_OP_INIT, 24'h000000, 32'hA001_0000);
+            st_auto <= AUTO_WAIT_INIT;
+          end
+        end
+
+        AUTO_WAIT_INIT: begin
+          if (s_disp_done_valid && (s_disp_done_op == DISP_OP_INIT)) begin
+            if ((AUTO_ALL_ON_AFTER_INIT != 0) || (AUTO_PATTERN_AFTER_INIT != 0)) begin
+              if (AUTO_PATTERN_DELAY_CYCLES > 0) begin
+                r_auto_delay_cnt <= AUTO_PATTERN_DELAY_CYCLES - 1;
+              end else begin
+                r_auto_delay_cnt <= '0;
+              end
+              st_auto <= AUTO_DELAY_PATTERN;
+            end else begin
+              st_auto <= AUTO_DONE;
+            end
+          end
+        end
+
+        AUTO_DELAY_PATTERN: begin
+          if (r_auto_delay_cnt != '0) begin
+            r_auto_delay_cnt <= r_auto_delay_cnt - 1'b1;
+          end else if (AUTO_ALL_ON_AFTER_INIT != 0) begin
+            st_auto <= AUTO_REQ_ALL_ON;
+          end else begin
+            st_auto <= AUTO_REQ_PATTERN;
+          end
+        end
+
+        AUTO_REQ_ALL_ON: begin
+          if (!s_disp_busy && !r_disp_req_valid) begin
+            issue_req(DISP_OP_ALL_ON, 24'h000000, 32'hA001_0006);
+            st_auto <= AUTO_DONE;
+          end
+        end
+
+        AUTO_REQ_PATTERN: begin
+          if (!s_disp_busy && !r_disp_req_valid) begin
+            issue_req(DISP_OP_PATTERN, 24'h000000, 32'hA001_0003);
+            st_auto <= AUTO_DONE;
+          end
+        end
+
+        default: begin
+          st_auto <= AUTO_DONE;
+        end
+      endcase
 
       if (s_cli_enable && I_CLI_RX_VALID) begin
         if (I_CLI_RX_DATA == 8'h0D) begin

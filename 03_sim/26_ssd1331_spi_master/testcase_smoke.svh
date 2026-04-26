@@ -31,7 +31,7 @@ initial begin
     );
   end
 
-  if (tb_cs_n != 1'b1 || tb_sclk != 1'b0 || tb_busy != 1'b0) begin
+  if (tb_cs_n != 1'b1 || tb_sclk != 1'b1 || tb_busy != 1'b0) begin
     log_fatal(
       1,
       "SSD1331 SPI TB",
