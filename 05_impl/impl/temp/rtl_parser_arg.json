@@ -42,19 +42,15 @@
    "Type" : "verilog"
   },
   {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_uart_proto_pkg.sv",
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1306_display/ssd1306_uart_proto_pkg.sv",
    "Type" : "verilog"
   },
   {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_spi_master.sv",
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1306_display/ssd1306_display_ctrl.sv",
    "Type" : "verilog"
   },
   {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_display_ctrl.sv",
-   "Type" : "verilog"
-  },
-  {
-   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv",
+   "Path" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv",
    "Type" : "verilog"
   },
   {

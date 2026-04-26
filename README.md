@@ -22,7 +22,7 @@ FPGA uart_log_cli -> UART -> ESP UART-to-TCP bridge -> 192.168.10.40:2323
 
 The current production top is [tangnano20k_top.sv](./01_src/tangnano20k_top.sv).
 It instantiates `embedded_sdram_hs`, the SDRAM host/test control layer,
-and `uart_log_cli`.
+`uart_log_cli`, and an SSD1306 128 x 32 OLED control path over I2C.
 
 ## Directory Layout
 
@@ -52,16 +52,36 @@ The HS native command interface is driven directly by user RTL.
 The old `busy_n`, `rd_valid`, and `wrd_ack` style interface is no longer
 used by the production top.
 
+## SSD1306 Display Path
+
+The current RTL also includes an SSD1306 display bridge for a 128 x 32
+monochrome OLED panel.
+
+- Bus: `I2C`
+- Default 7-bit slave address: `0x3C`
+- Default I2C rate in top RTL: `400 kHz`
+- Request operations: `INIT`, `DISPLAY_ON`, `DISPLAY_OFF`, `CLEAR`,
+  `FRAME_WRITE`
+- Reset policy: no dedicated `RES#` drive in the current RTL
+
+The implemented full-frame write path transfers exactly `512` bytes.
+The controller sends the addressing setup in one I2C transaction and the
+pixel payload in a second I2C transaction.
+
+The current SSD1306 path has simulation coverage and top-level integration,
+but it has not yet been hardware-validated in this repository.
+
 ## UART Log Sources
 
-`uart_log_cli` is configured with three source slots.
-Production enables source indices 1 and 2 only.
+`uart_log_cli` is configured with four source slots.
+The current top enables all four sources.
 
 | Source index | Frame `src_id` | Producer             | Purpose                              |
 | ------------ | -------------- | -------------------- | ------------------------------------ |
-| 0            | `0x01`         | disabled             | Reserved / production disabled       |
+| 0            | `0x01`         | EEPROM bridge        | EEPROM single and bulk I2C events    |
 | 1            | `0x02`         | SDRAM self-test      | Startup and restart self-test events |
 | 2            | `0x03`         | SDRAM host interface | Status, single R/W, and burst events |
+| 3            | `0x04`         | SSD1306 display      | Display control and frame upload     |
 
 Source selection is controlled by `uart_log_cli` control bytes and is
 reported through system `EV_MODE_CHANGE` events.  There is no external
@@ -95,6 +115,34 @@ single-byte read/write and bulk file write using `.bin` or `.hex` payloads.
 The command-line SDRAM helper is:
 
 [11_app/debug_log_cli/sdram_hostif_tool.py](./11_app/debug_log_cli/sdram_hostif_tool.py)
+
+The SSD1306 helper is:
+
+[11_app/debug_log_cli/ssd1306_tool.py](./11_app/debug_log_cli/ssd1306_tool.py)
+
+Example TCP flow:
+
+```powershell
+python .\11_app\debug_log_cli\ssd1306_tool.py `
+  --transport tcp `
+  select-display
+
+python .\11_app\debug_log_cli\ssd1306_tool.py `
+  --transport tcp `
+  init --select-display
+
+python .\11_app\debug_log_cli\ssd1306_tool.py `
+  --transport tcp `
+  clear --select-display
+
+python .\11_app\debug_log_cli\ssd1306_tool.py `
+  --transport tcp `
+  frame-write .\tmp\ssd1306_frame.bin --select-display
+```
+
+`frame-write` accepts a `.bin` payload only and requires exactly `512` bytes.
+The host sends the frame as eight 64-byte raw bulk blocks and waits for one
+progress event after each block.
 
 Example TCP flow:
 
@@ -163,6 +211,8 @@ Important current tests:
 - `08_sdram_uart_bridge_ctrl`: ASCII bridge, status, single R/W, burst
 - `10_sdram_emb_hostif_ctrl`: host interface and self-test integration
 - `20_uart_log_cli_smoke`: UART log source selection and system events
+- `29_ssd1306_display_ctrl`: SSD1306 I2C init / clear / frame-write smoke
+- `30_ssd1306_uart_bridge_ctrl`: SSD1306 UART ASCII + bulk frame smoke
 
 Latest checked simulations:
 
@@ -171,6 +221,8 @@ Latest checked simulations:
 10_sdram_emb_hostif_ctrl     PASS
 01_tangnano20k_top           PASS
 20_uart_log_cli_smoke        PASS
+29_ssd1306_display_ctrl      PASS
+30_ssd1306_uart_bridge_ctrl  PASS
 ```
 
 ## FPGA Build
@@ -285,6 +337,8 @@ BRT 000F8 00010 -> ERR_ADDR_RANGE
   [docs/embedded_sdram/uart_log_tui_sdram_pages_manual_en.md](./docs/embedded_sdram/uart_log_tui_sdram_pages_manual_en.md)
 - UART log tool manual:
   [11_app/uart_log_tool/debug_log_tool/uart_log_tool_manual.md](./11_app/uart_log_tool/debug_log_tool/uart_log_tool_manual.md)
+- SSD1306 controller spec:
+  [docs/ssd1306_display/ssd1306_controller_spec.md](./docs/ssd1306_display/ssd1306_controller_spec.md)
 
 ## Related RTL
 
@@ -294,6 +348,10 @@ BRT 000F8 00010 -> ERR_ADDR_RANGE
   [01_src/uart_log_cli/uart_log_cli.sv](./01_src/uart_log_cli/uart_log_cli.sv)
 - Event interface:
   [01_src/uart_log_cli/uart_log_evt_if.sv](./01_src/uart_log_cli/uart_log_evt_if.sv)
+- SSD1306 display control:
+  [01_src/ssd1306_display/ssd1306_display_ctrl.sv](./01_src/ssd1306_display/ssd1306_display_ctrl.sv)
+- SSD1306 UART bridge:
+  [01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv](./01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv)
 - SDRAM host/control:
   [01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv](./01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv)
 - SDRAM UART bridge:

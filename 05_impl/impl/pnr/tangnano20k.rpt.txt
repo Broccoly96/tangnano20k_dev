@@ -12,27 +12,27 @@
   <Part Number>: GW2AR-LV18QN88C8/I7
   <Device>: GW2AR-18
   <Device Version>: C
-  <Created Time>:Sun Apr 26 10:53:09 2026
+  <Created Time>:Sun Apr 26 14:02:47 2026
 
 
 2. PnR Details
 
   Running placement:
-    Placement Phase 0: CPU time = 0h 0m 5s, Elapsed time = 0h 0m 5s
-    Placement Phase 1: CPU time = 0h 0m 0.66s, Elapsed time = 0h 0m 0.66s
-    Placement Phase 2: CPU time = 0h 0m 9s, Elapsed time = 0h 0m 9s
-    Placement Phase 3: CPU time = 0h 0m 29s, Elapsed time = 0h 0m 29s
-    Total Placement: CPU time = 0h 0m 43s, Elapsed time = 0h 0m 43s
+    Placement Phase 0: CPU time = 0h 0m 4s, Elapsed time = 0h 0m 4s
+    Placement Phase 1: CPU time = 0h 0m 0.299s, Elapsed time = 0h 0m 0.3s
+    Placement Phase 2: CPU time = 0h 0m 5s, Elapsed time = 0h 0m 5s
+    Placement Phase 3: CPU time = 0h 0m 9s, Elapsed time = 0h 0m 9s
+    Total Placement: CPU time = 0h 0m 18s, Elapsed time = 0h 0m 18s
  Running routing:
-    Routing Phase 0: CPU time = 0h 0m 0.008s, Elapsed time = 0h 0m 0.008s
-    Routing Phase 1: CPU time = 0h 0m 0.392s, Elapsed time = 0h 0m 0.392s
-    Routing Phase 2: CPU time = 0h 1m 0s, Elapsed time = 0h 1m 0s
+    Routing Phase 0: CPU time = 0h 0m 0.007s, Elapsed time = 0h 0m 0.006s
+    Routing Phase 1: CPU time = 0h 0m 0.338s, Elapsed time = 0h 0m 0.339s
+    Routing Phase 2: CPU time = 0h 0m 11s, Elapsed time = 0h 0m 11s
     Routing Phase 3: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s
-    Total Routing: CPU time = 0h 1m 0s, Elapsed time = 0h 1m 0s
+    Total Routing: CPU time = 0h 0m 12s, Elapsed time = 0h 0m 12s
  Generate output files:
     CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
 
- Total Time and Memory Usage: CPU time = 0h 1m 45s, Elapsed time = 0h 1m 45s, Peak memory usage = 690MB
+ Total Time and Memory Usage: CPU time = 0h 0m 32s, Elapsed time = 0h 0m 32s, Peak memory usage = 636MB
 
 
 3. Resource Usage Summary
@@ -40,24 +40,23 @@
   --------------------------------------------------------------------------------
   Resources                   | Usage                               | Utilization
   --------------------------------------------------------------------------------
-  Logic                       | 16252/20736                         |  79%
-    --LUT,ALU,ROM16           | 14944(13881 LUT, 1063 ALU, 0 ROM16) | -
-    --SSRAM(RAM16)            | 218                                 | -
-  Register                    | 11461/15915                         |  73%
+  Logic                       | 11368/20736                         |  55%
+    --LUT,ALU,ROM16           | 10522(9824 LUT, 698 ALU, 0 ROM16)   | -
+    --SSRAM(RAM16)            | 141                                 | -
+  Register                    | 9391/15915                          |  59%
     --Logic Register as Latch | 0/15552                             |  0%
-    --Logic Register as FF    | 11385/15552                         |  74%
+    --Logic Register as FF    | 9320/15552                          |  60%
     --I/O Register as Latch   | 0/363                               |  0%
-    --I/O Register as FF      | 76/363                              |  21%
-  CLS                         | 9704/10368                          |  94%
+    --I/O Register as FF      | 71/363                              |  20%
+  CLS                         | 9445/10368                          |  92%
   I/O Port                    | 53/66                               |  81%
-  I/O Buf                     | 17                                  | -
+  I/O Buf                     | 19                                  | -
     --Input Buf               | 2                                   | -
-    --Output Buf              | 14                                  | -
-    --Inout Buf               | 1                                   | -
+    --Output Buf              | 13                                  | -
+    --Inout Buf               | 4                                   | -
   IOLOGIC                     | 1/121                               | <1%
     --ODDR                    | 1
-  BSRAM                       | 17/46                               | 37%
-    --SDPB                    | 2
+  BSRAM                       | 15/46                               | 33%
     --SDPX9B                  | 15
   ================================================================================
 
@@ -99,16 +98,16 @@
   PIN04_IOL07A_LPLL1_d| PRIMARY        |  BL
   clk_48m_sdram  | PRIMARY        |  TR TL BR BL
   clk_24m_sys    | PRIMARY        |  TR TL BR BL
-  u_uart_log_cli/s_shared_rd_en| PRIMARY        |  TR TL
-  u_eeprom_uart_bridge_ctrl/n3401_4| PRIMARY        |  BR
+  u_eeprom_uart_bridge_ctrl/r_bulk_evt_id_0_9| PRIMARY        |  TR BR
+  u_eeprom_uart_bridge_ctrl/u_eeprom_i2c_access_engine/n8195_7| PRIMARY        |  TR BR
   r_sys_q_mem[0]_ER_init| LW             |  -
   r_evt_fifo_mem[0]_ER_init| LW             |  -
   l_hostif_sdrc_rst_n| LW             |  -
+  u_uart_log_cli/s_shared_rd_en| LW             |  -
   u_uart_log_cli/r_shared_rd_pending| LW             |  -
-  u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/n2375_3| LW             |  -
-  u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/n2503_3| LW             |  -
-  u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/n2631_3| LW             |  -
-  u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/n2759_3| LW             |  -
+  u_eeprom_uart_bridge_ctrl/n3401_4| LW             |  -
+  u_eeprom_uart_bridge_ctrl/n16078_7| LW             |  -
+  u_eeprom_uart_bridge_ctrl/r_access_req_raw_wr_data_7_8| LW             |  -
   ===========================================
 
 
@@ -134,7 +133,6 @@ PIN39_IOB40A        | -         | 39/4          | Y          | in    | IOB40[A] 
 PIN40_IOB40B        | -         | 40/4          | Y          | in    | IOB40[B] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
 PIN41_IOB43A        | -         | 41/4          | Y          | in    | IOB43[A] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
 PIN48_IOR49B        | -         | 48/3          | Y          | in    | IOR49[B] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3       
-PIN49_IOR49A        | -         | 49/3          | Y          | in    | IOR49[A] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3       
 PIN51_IOR45A        | -         | 51/3          | Y          | in    | IOR45[A] | RPLL2_T_in      | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3       
 PIN52_IOR39A        | -         | 52/3          | Y          | in    | IOR39[A] | SCLK            | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3       
 PIN53_IOR38B        | -         | 53/3          | Y          | in    | IOR38[B] | DOUT/WE_N       | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3       
@@ -147,12 +145,11 @@ PIN69_IOT50A        | -         | 69/1          | Y          | in    | IOT50[A] 
 PIN70_IOT44B        | -         | 70/1          | Y          | in    | IOT44[B] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
 PIN71_IOT44A        | -         | 71/1          | Y          | in    | IOT44[A] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
 PIN72_IOT40B        | -         | 72/1          | Y          | in    | IOT40[B] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
-PIN79_IOT27B        | -         | 79/0          | Y          | in    | IOT27[B] | GCLKC_0         | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
+PIN79_IOT27B        | -         | 79/0          | Y          | in    | IOT27[B] | GCLKC_0         | LVCMOS33   | NA    | UP        | ON        | HIGH       | NA         | NA         | NA              | NA            | 3.3       
 PIN81_IOT17B        | -         | 81/0          | Y          | in    | IOT17[B] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
 PIN82_IOT17A        | -         | 82/0          | Y          | in    | IOT17[A] | -               | LVCMOS33   | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
 PIN83_IOT6B         | -         | 83/0          | Y          | in    | IOT6[B]  | -               | LVCMOS33   | NA    | NONE      | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
 PIN84_IOT6A         | -         | 84/0          | Y          | in    | IOT6[A]  | -               | LVCMOS33   | NA    | NONE      | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
-PIN86_IOT4A         | -         | 86/0          | Y          | in    | IOT4[A]  | -               | LVCMOS33   | NA    | NONE      | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3       
 PIN87_IOT30B        | -         | 87/3          | Y          | in    | IOR30[B] | MODE1           | LVCMOS33   | NA    | DOWN      | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3       
 PIN88_IOT30A        | -         | 88/3          | Y          | in    | IOR30[A] | MODE0           | LVCMOS33   | NA    | DOWN      | ON        | HIGH       | NA         | NA         | OFF             | NA            | 3.3       
 PIN15_IOL47A_LED0   | -         | 15/6          | Y          | out   | IOL47[A] | LPLL2_T_fb      | LVCMOS33   | 8     | UP        | NA        | NA         | OFF        | NA         | OFF             | NA            | 3.3       
@@ -192,7 +189,9 @@ O_sdram_addr[10]    | -         | p68/2         | -          | out   | IOR12[B] 
 O_sdram_ba[0]       | -         | p69/2         | -          | out   | IOR13[A] | -               | LVTTL33    | -     | UP        | -         | -          | -          | -          | -               | -             | -         
 O_sdram_ba[1]       | -         | p70/2         | -          | out   | IOR12[A] | -               | LVTTL33    | -     | UP        | -         | -          | -          | -          | -               | -             | -         
 PIN42_IOB42B        | -         | 42/4          | Y          | io    | IOB42[B] | -               | LVCMOS33   | 8     | UP        | NA        | HIGH       | OFF        | NA         | NA              | NA            | 3.3       
-PIN80_IOT27A        | -         | 80/0          | Y          | io    | IOT27[A] | GCLKT_0         | LVCMOS33   | 8     | UP        | NA        | NA         | OFF        | NA         | NA              | NA            | 3.3       
+PIN49_IOR49A        | -         | 49/3          | Y          | io    | IOR49[A] | -               | LVCMOS33   | 8     | UP        | NA        | NONE       | ON         | NA         | OFF             | NA            | 3.3       
+PIN80_IOT27A        | -         | 80/0          | Y          | io    | IOT27[A] | GCLKT_0         | LVCMOS33   | 8     | UP        | NA        | HIGH       | OFF        | NA         | NA              | NA            | 3.3       
+PIN86_IOT4A         | -         | 86/0          | Y          | io    | IOT4[A]  | -               | LVCMOS33   | 8     | UP        | NA        | NONE       | OFF        | NA         | NA              | NA            | 3.3       
 IO_sdram_dq[0]      | -         | p1/7          | -          | io    | IOL3[A]  | -               | LVTTL33    | -     | UP        | -         | -          | -          | -          | -               | -             | -         
 IO_sdram_dq[1]      | -         | p2/7          | -          | io    | IOL3[B]  | -               | LVTTL33    | -     | UP        | -         | -          | -          | -          | -               | -             | -         
 IO_sdram_dq[2]      | -         | p5/7          | -          | io    | IOL8[A]  | LPLL1_T_fb      | LVTTL33    | -     | UP        | -         | -          | -          | -          | -               | -             | -         
@@ -235,14 +234,14 @@ IO_sdram_dq[31]     | -         | p48/3         | -          | io    | IOR44[B] 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 Loc./Bank| Signal              | Dir.  | Site     | CFG             | IO Type  | Drive | Pull Mode | PCI Clamp | Hysteresis | Open Drain | Vref       | Single Resistor | Diff Resistor | Bank Vccio
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-86/0     | PIN86_IOT4A         | in    | IOT4[A]  | -               | LVCMOS33 | NA    | NONE      | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3  
+86/0     | PIN86_IOT4A         | io    | IOT4[A]  | -               | LVCMOS33 | 8     | UP        | NA        | NONE       | OFF        | NA         | NA              | NA            | 3.3  
 85/0     | PIN85_IOT4B         | out   | IOT4[B]  | -               | LVCMOS33 | 8     | NONE      | NA        | NA         | OFF        | NA         | NA              | NA            | 3.3  
 84/0     | PIN84_IOT6A         | in    | IOT6[A]  | -               | LVCMOS33 | NA    | NONE      | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3  
 83/0     | PIN83_IOT6B         | in    | IOT6[B]  | -               | LVCMOS33 | NA    | NONE      | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3  
 82/0     | PIN82_IOT17A        | in    | IOT17[A] | -               | LVCMOS33 | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3  
 81/0     | PIN81_IOT17B        | in    | IOT17[B] | -               | LVCMOS33 | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3  
-80/0     | PIN80_IOT27A        | out   | IOT27[A] | GCLKT_0         | LVCMOS33 | 8     | UP        | NA        | NA         | OFF        | NA         | NA              | NA            | 3.3  
-79/0     | PIN79_IOT27B        | in    | IOT27[B] | GCLKC_0         | LVCMOS33 | NA    | UP        | ON        | NONE       | NA         | NA         | NA              | NA            | 3.3  
+80/0     | PIN80_IOT27A        | io    | IOT27[A] | GCLKT_0         | LVCMOS33 | 8     | UP        | NA        | HIGH       | OFF        | NA         | NA              | NA            | 3.3  
+79/0     | PIN79_IOT27B        | in    | IOT27[B] | GCLKC_0         | LVCMOS33 | NA    | UP        | ON        | HIGH       | NA         | NA         | NA              | NA            | 3.3  
 77/1     | PIN77_IOT30A        | out   | IOT30[A] | GCLKT_1         | LVCMOS33 | 8     | UP        | NA        | NA         | OFF        | NA         | NA              | NA            | 3.3  
 76/1     | PIN76_IOT30B        | out   | IOT30[B] | GCLKC_1         | LVCMOS33 | 8     | DOWN      | NA        | NA         | OFF        | NA         | NA              | NA            | 3.3  
 75/1     | PIN75_IOT34A        | out   | IOT34[A] | -               | LVCMOS33 | 8     | NONE      | NA        | NA         | OFF        | NA         | NA              | NA            | 3.3  
@@ -357,7 +356,7 @@ p52/2    | IO_sdram_dq[29]     | io    | IOR18[B] | -               | LVTTL33  |
 p49/3    | IO_sdram_dq[30]     | io    | IOR44[A] | -               | LVTTL33  | -     | UP        | -         | -          | -          | -          | -               | -             | -    
 p48/3    | IO_sdram_dq[31]     | io    | IOR44[B] | -               | LVTTL33  | -     | UP        | -         | -          | -          | -          | -               | -             | -    
 51/3     | PIN51_IOR45A        | in    | IOR45[A] | RPLL2_T_in      | LVCMOS33 | NA    | UP        | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3  
-49/3     | PIN49_IOR49A        | in    | IOR49[A] | -               | LVCMOS33 | NA    | UP        | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3  
+49/3     | PIN49_IOR49A        | io    | IOR49[A] | -               | LVCMOS33 | 8     | UP        | NA        | NONE       | ON         | NA         | OFF             | NA            | 3.3  
 48/3     | PIN48_IOR49B        | in    | IOR49[B] | -               | LVCMOS33 | NA    | UP        | ON        | NONE       | NA         | NA         | OFF             | NA            | 3.3  
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ================================================================================================================================================================================================

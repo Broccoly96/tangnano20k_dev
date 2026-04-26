@@ -9,6 +9,7 @@
 ..\02_tb\tb_log_pkg.sv
 ..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv
 
+..\01_src\ssd1306_display\ssd1306_uart_proto_pkg.sv
 ..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv
 ..\01_src\ssd1331_display\ssd1331_spi_master.sv
 ..\01_src\ssd1331_display\ssd1331_display_ctrl.sv
@@ -25,9 +26,12 @@
 ..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv
 ..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv
 ..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv
+..\01_src\ssd1306_display\ssd1306_display_ctrl.sv
 ..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv
 ..\02_tb\eeprom_i2c\eeprom_i2c_model.sv
+..\02_tb\ssd1306_display\ssd1306_i2c_model.sv
 ..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv
+..\01_src\ssd1306_display\ssd1306_uart_bridge_ctrl.sv
 ..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv
 ..\01_src\embedded_sdram\sdram_uart_access_engine.sv
 ..\01_src\embedded_sdram\sdram_status_reg_map.sv

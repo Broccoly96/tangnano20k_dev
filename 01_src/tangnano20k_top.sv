@@ -41,7 +41,7 @@ module tangnano20k_top(
   input   wire      PIN41_IOB43A,
   inout   wire      PIN42_IOB42B,   // EEPROM_SDA
   input   wire      PIN48_IOR49B,
-  input   wire      PIN49_IOR49A,
+  inout   wire      PIN49_IOR49A,   // SSD1306_SDA
   input   wire      PIN51_IOR45A,
   input   wire      PIN52_IOR39A,
   input   wire      PIN53_IOR38B,
@@ -70,7 +70,7 @@ module tangnano20k_top(
   input   wire      PIN83_IOT6B,
   input   wire      PIN84_IOT6A,
   output  wire      PIN85_IOT4B,
-  input   wire      PIN86_IOT4A,
+  inout   wire      PIN86_IOT4A,    // SSD1306_SCL
   input   wire      PIN87_IOT30B,
   input   wire      PIN88_IOT30A,
   // Embedded SDRAM ports
@@ -91,14 +91,12 @@ module tangnano20k_top(
   localparam int unsigned UART_LOG_CLK_HZ           = 24_000_000;
   localparam int unsigned UART_LOG_BAUD             = 115_200;
   localparam int unsigned UART_LOG_NUM_SRC          = 4;
-  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 4'b1111;
+  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 4'b1001;
 
   localparam int unsigned SOFT_RESET_HOLD_CYCLES    = UART_LOG_CLK_HZ;
   localparam int unsigned EEPROM_I2C_BIT_RATE_HZ    = 1_000_000;
-  localparam int unsigned SSD1331_SPI_CLK_DIV        = 12;
-  localparam int unsigned SSD1331_RESET_ASSERT_CYCLES  = 240_000;
-  localparam int unsigned SSD1331_RESET_RELEASE_CYCLES = 2_400_000;
-  localparam int unsigned SSD1331_AUTO_PATTERN_DELAY   = 12_000_000;
+  localparam int unsigned SSD1306_I2C_BIT_RATE_HZ   = 100_000;
+  localparam logic [6:0]  SSD1306_I2C_SLAVE_ADDR    = 7'h3C;
   localparam int unsigned SDRAM_MEMTEST_BURST_WORDS = 1;
   localparam int unsigned SDRAM_MEMTEST_TEST_WORDS  = 256;
   localparam int unsigned SDRAM_MEMTEST_CLEAR_WORDS = 256;
@@ -124,11 +122,10 @@ module tangnano20k_top(
   logic       l_eeprom_i2c_scl_drive_low;
   logic       l_eeprom_i2c_sda_in;
   logic       l_eeprom_i2c_scl_in;
-  logic       l_display_cs_n;
-  logic       l_display_sclk;
-  logic       l_display_sdin;
-  logic       l_display_dc;
-  logic       l_display_res_n;
+  logic       l_ssd1306_i2c_sda_drive_low;
+  logic       l_ssd1306_i2c_scl_drive_low;
+  logic       l_ssd1306_i2c_sda_in;
+  logic       l_ssd1306_i2c_scl_in;
 
   logic         l_sdram_init_done;
   logic         l_sdram_test_active;
@@ -223,14 +220,18 @@ module tangnano20k_top(
   assign PIN19_IOL51A_LED4 = uart_esp_tx;
   assign l_eeprom_i2c_sda_in = PIN42_IOB42B;
   assign l_eeprom_i2c_scl_in = PIN80_IOT27A;
+  assign l_ssd1306_i2c_sda_in = PIN49_IOR49A;
+  assign l_ssd1306_i2c_scl_in = PIN86_IOT4A;
   assign PIN42_IOB42B = l_eeprom_i2c_sda_drive_low ? 1'b0 : 1'bz;
   assign PIN80_IOT27A = l_eeprom_i2c_scl_drive_low ? 1'b0 : 1'bz;
+  assign PIN49_IOR49A = l_ssd1306_i2c_sda_drive_low ? 1'b0 : 1'bz;
+  assign PIN86_IOT4A = l_ssd1306_i2c_scl_drive_low ? 1'b0 : 1'bz;
   assign PIN76_IOT30B = 1'b0;
-  assign PIN73_IOT40A = l_display_cs_n;
-  assign PIN74_IOT34B = l_display_sclk;
-  assign PIN75_IOT34A = l_display_sdin;
-  assign PIN26_IOB06B = l_display_res_n;
-  assign PIN29_IOB14A = l_display_dc;
+  assign PIN73_IOT40A = 1'b1;
+  assign PIN74_IOT34B = 1'b1;
+  assign PIN75_IOT34A = 1'b0;
+  assign PIN26_IOB06B = 1'b1;
+  assign PIN29_IOB14A = 1'b0;
   assign PIN77_IOT30A = 1'b0;
   assign PIN85_IOT4B  = 1'b1;
 
@@ -294,26 +295,21 @@ module tangnano20k_top(
     .HOST_EVT_IF          (l_eeprom_evt_if)
   );
 
-  ssd1331_uart_bridge_ctrl #(
-    .SPI_CLK_DIV              (SSD1331_SPI_CLK_DIV),
-    .RESET_ASSERT_CYCLES      (SSD1331_RESET_ASSERT_CYCLES),
-    .RESET_RELEASE_CYCLES     (SSD1331_RESET_RELEASE_CYCLES),
-    .AUTO_INIT_ON_RESET       (1),
-    .AUTO_ALL_ON_AFTER_INIT   (1),
-    .AUTO_PATTERN_AFTER_INIT  (0),
-    .AUTO_PATTERN_DELAY_CYCLES(SSD1331_AUTO_PATTERN_DELAY)
-  ) u_ssd1331_uart_bridge_ctrl (
+  ssd1306_uart_bridge_ctrl #(
+    .CLK_HZ                (UART_LOG_CLK_HZ),
+    .I2C_BIT_RATE_HZ       (SSD1306_I2C_BIT_RATE_HZ),
+    .I2C_SLAVE_ADDR        (SSD1306_I2C_SLAVE_ADDR)
+  ) u_ssd1306_uart_bridge_ctrl (
     .I_CLK                (clk_24m_sys),
     .I_RST_N              (rst_fpga_24m_n),
     .I_ENABLE             (1'b1),
     .I_CLI_RX_VALID       (l_cli_rx_valid_24m),
     .I_CLI_RX_DATA        (l_cli_rx_data_24m),
+    .I_I2C_SDA_IN         (l_ssd1306_i2c_sda_in),
+    .I_I2C_SCL_IN         (l_ssd1306_i2c_scl_in),
+    .O_I2C_SDA_DRIVE_LOW  (l_ssd1306_i2c_sda_drive_low),
+    .O_I2C_SCL_DRIVE_LOW  (l_ssd1306_i2c_scl_drive_low),
     .O_CMD_BUSY           (),
-    .O_DISP_CS_N          (l_display_cs_n),
-    .O_DISP_SCLK          (l_display_sclk),
-    .O_DISP_SDIN          (l_display_sdin),
-    .O_DISP_DC            (l_display_dc),
-    .O_DISP_RES_N         (l_display_res_n),
     .HOST_EVT_IF          (l_uart_src_if[3])
   );
 

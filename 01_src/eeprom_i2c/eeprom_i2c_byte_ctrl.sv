@@ -141,8 +141,10 @@ module eeprom_i2c_byte_ctrl #(
               end
 
               3'd1: begin
-                r_sda_drive_low <= 1'b0;
-                r_phase <= 3'd2;
+                if (I_SCL_IN) begin
+                  r_sda_drive_low <= 1'b0;
+                  r_phase <= 3'd2;
+                end
               end
 
               default: begin
@@ -160,7 +162,9 @@ module eeprom_i2c_byte_ctrl #(
               end
 
               3'd1: begin
-                r_phase <= 3'd2;
+                if (I_SCL_IN) begin
+                  r_phase <= 3'd2;
+                end
               end
 
               3'd2: begin
@@ -181,8 +185,10 @@ module eeprom_i2c_byte_ctrl #(
               end
 
               3'd4: begin
-                r_ack_ok <= !I_SDA_IN;
-                r_phase <= 3'd5;
+                if (I_SCL_IN) begin
+                  r_ack_ok <= !I_SDA_IN;
+                  r_phase <= 3'd5;
+                end
               end
 
               3'd5: begin
@@ -205,8 +211,10 @@ module eeprom_i2c_byte_ctrl #(
               end
 
               3'd1: begin
-                r_rd_data[r_bit_idx] <= I_SDA_IN;
-                r_phase <= 3'd2;
+                if (I_SCL_IN) begin
+                  r_rd_data[r_bit_idx] <= I_SDA_IN;
+                  r_phase <= 3'd2;
+                end
               end
 
               3'd2: begin
@@ -226,7 +234,9 @@ module eeprom_i2c_byte_ctrl #(
               end
 
               3'd4: begin
-                r_phase <= 3'd5;
+                if (I_SCL_IN) begin
+                  r_phase <= 3'd5;
+                end
               end
 
               3'd5: begin
