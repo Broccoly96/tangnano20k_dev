@@ -91,12 +91,26 @@ module tangnano20k_top(
   localparam int unsigned UART_LOG_CLK_HZ           = 24_000_000;
   localparam int unsigned UART_LOG_BAUD             = 115_200;
   localparam int unsigned UART_LOG_NUM_SRC          = 4;
-  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 4'b1001;
+  // Source index assignment:
+  //   0 -> EEPROM host bridge
+  //   1 -> SDRAM self-test event stream
+  //   2 -> SDRAM host bridge used by uart_log_tool STS/RW/Map
+  //   3 -> SSD1306 control/status bridge
+  //
+  // The GW2AR-18 build does not currently close PnR with every tap enabled.
+  // Keep the functional host-facing bridges enabled:
+  //   - EEPROM host control
+  //   - SDRAM host control
+  //   - SSD1306 control
+  // The standalone SDRAM self-test event stream remains disabled because the
+  // tool features fixed in this change use the status-map on source index 2.
+  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 4'b1101;
 
   localparam int unsigned SOFT_RESET_HOLD_CYCLES    = UART_LOG_CLK_HZ;
   localparam int unsigned EEPROM_I2C_BIT_RATE_HZ    = 1_000_000;
-  localparam int unsigned SSD1306_I2C_BIT_RATE_HZ   = 100_000;
+  localparam int unsigned SSD1306_I2C_BIT_RATE_HZ   = 1_000_000;
   localparam logic [6:0]  SSD1306_I2C_SLAVE_ADDR    = 7'h3C;
+  localparam logic [20:0] SSD1306_FRAMEBUFFER_BASE_ADDR = 21'h10000;
   localparam int unsigned SDRAM_MEMTEST_BURST_WORDS = 1;
   localparam int unsigned SDRAM_MEMTEST_TEST_WORDS  = 256;
   localparam int unsigned SDRAM_MEMTEST_CLEAR_WORDS = 256;
@@ -106,6 +120,7 @@ module tangnano20k_top(
   uart_log_evt_if  l_eeprom_evt_if ();
   uart_log_evt_if  l_sdram_test_evt_if ();
   uart_log_evt_if  l_sdram_host_evt_if ();
+  uart_log_evt_if  l_ssd1306_evt_if ();
 
   // PLL
   wire        clk_24m_sys;
@@ -160,6 +175,15 @@ module tangnano20k_top(
   logic [3:0]   l_hostif_sdrc_dqm;
   logic [31:0]  l_hostif_sdrc_data;
   logic         l_hostif_sdrc_read_sample_valid;
+  logic         l_ssd1306_cmd_busy;
+  logic         l_ssd1306_mem_req_valid;
+  logic         l_ssd1306_mem_req_ready;
+  logic [20:0]  l_ssd1306_mem_req_addr;
+  logic [8:0]   l_ssd1306_mem_req_words;
+  logic         l_ssd1306_mem_raw_done;
+  logic         l_ssd1306_mem_raw_err_valid;
+  logic [31:0]  l_ssd1306_mem_raw_err_code;
+  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] l_ssd1306_mem_raw_rd_data;
 
   //---------------------------------------------------------------------------------------------
   // System Onboard LED
@@ -266,6 +290,15 @@ module tangnano20k_top(
     .DST_IF           (l_uart_src_if[2])
   );
 
+  uart_log_src_async_bridge u_ssd1306_evt_bridge (
+    .I_SRC_CLK        (clk_48m_sdram),
+    .I_SRC_RST_N      (rst_fpga_48m_n),
+    .I_DST_CLK        (clk_24m_sys),
+    .I_DST_RST_N      (rst_fpga_24m_n),
+    .SRC_IF           (l_ssd1306_evt_if),
+    .DST_IF           (l_uart_src_if[3])
+  );
+
   uart_log_cli_byte_async_bridge u_cli_rx_bridge (
     .I_SRC_CLK        (clk_24m_sys),
     .I_SRC_RST_N      (rst_fpga_24m_n),
@@ -295,22 +328,31 @@ module tangnano20k_top(
     .HOST_EVT_IF          (l_eeprom_evt_if)
   );
 
-  ssd1306_uart_bridge_ctrl #(
-    .CLK_HZ                (UART_LOG_CLK_HZ),
+  ssd1306_sdram_uart_bridge_ctrl #(
+    .CLK_HZ                (48_000_000),
     .I2C_BIT_RATE_HZ       (SSD1306_I2C_BIT_RATE_HZ),
-    .I2C_SLAVE_ADDR        (SSD1306_I2C_SLAVE_ADDR)
+    .I2C_SLAVE_ADDR        (SSD1306_I2C_SLAVE_ADDR),
+    .FRAMEBUFFER_BASE_ADDR (SSD1306_FRAMEBUFFER_BASE_ADDR)
   ) u_ssd1306_uart_bridge_ctrl (
-    .I_CLK                (clk_24m_sys),
-    .I_RST_N              (rst_fpga_24m_n),
+    .I_CLK                (clk_48m_sdram),
+    .I_RST_N              (rst_fpga_48m_n),
     .I_ENABLE             (1'b1),
-    .I_CLI_RX_VALID       (l_cli_rx_valid_24m),
-    .I_CLI_RX_DATA        (l_cli_rx_data_24m),
+    .I_CLI_RX_VALID       (l_cli_rx_valid_48m),
+    .I_CLI_RX_DATA        (l_cli_rx_data_48m),
+    .O_MEM_REQ_VALID      (l_ssd1306_mem_req_valid),
+    .I_MEM_REQ_READY      (l_ssd1306_mem_req_ready),
+    .O_MEM_REQ_ADDR       (l_ssd1306_mem_req_addr),
+    .O_MEM_REQ_WORDS      (l_ssd1306_mem_req_words),
+    .I_MEM_RAW_DONE       (l_ssd1306_mem_raw_done),
+    .I_MEM_RAW_ERR_VALID  (l_ssd1306_mem_raw_err_valid),
+    .I_MEM_RAW_ERR_CODE   (l_ssd1306_mem_raw_err_code),
+    .I_MEM_RAW_RD_DATA    (l_ssd1306_mem_raw_rd_data),
     .I_I2C_SDA_IN         (l_ssd1306_i2c_sda_in),
     .I_I2C_SCL_IN         (l_ssd1306_i2c_scl_in),
     .O_I2C_SDA_DRIVE_LOW  (l_ssd1306_i2c_sda_drive_low),
     .O_I2C_SCL_DRIVE_LOW  (l_ssd1306_i2c_scl_drive_low),
-    .O_CMD_BUSY           (),
-    .HOST_EVT_IF          (l_uart_src_if[3])
+    .O_CMD_BUSY           (l_ssd1306_cmd_busy),
+    .HOST_EVT_IF          (l_ssd1306_evt_if)
   );
 
   sdram_emb_hostif_ctrl #(
@@ -323,6 +365,10 @@ module tangnano20k_top(
     .I_RST_N                  (rst_fpga_48m_n),
     .I_CLI_RX_VALID           (l_cli_rx_valid_48m),
     .I_CLI_RX_DATA            (l_cli_rx_data_48m),
+    .I_DISP_BUSY              (l_ssd1306_cmd_busy),
+    .I_DISP_ACCESS_REQ_VALID  (l_ssd1306_mem_req_valid),
+    .I_DISP_ACCESS_REQ_ADDR   (l_ssd1306_mem_req_addr),
+    .I_DISP_ACCESS_REQ_WORDS  (l_ssd1306_mem_req_words),
     .O_INIT_DONE              (l_sdram_init_done),
     .O_TEST_ACTIVE            (l_sdram_test_active),
     .O_TEST_PASS              (l_sdram_test_pass),
@@ -341,6 +387,11 @@ module tangnano20k_top(
     .O_SDRC_DQM               (l_hostif_sdrc_dqm),
     .O_SDRC_WR_DATA           (l_hostif_sdrc_data),
     .O_SDRC_READ_SAMPLE_VALID (l_hostif_sdrc_read_sample_valid),
+    .O_DISP_ACCESS_REQ_READY  (l_ssd1306_mem_req_ready),
+    .O_DISP_ACCESS_RAW_DONE   (l_ssd1306_mem_raw_done),
+    .O_DISP_ACCESS_RAW_ERR_VALID (l_ssd1306_mem_raw_err_valid),
+    .O_DISP_ACCESS_RAW_ERR_CODE  (l_ssd1306_mem_raw_err_code),
+    .O_DISP_ACCESS_RAW_RD_DATA   (l_ssd1306_mem_raw_rd_data),
     //
     .TEST_EVT_IF              (l_sdram_test_evt_if),
     .HOST_EVT_IF              (l_sdram_host_evt_if)

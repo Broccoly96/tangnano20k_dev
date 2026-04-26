@@ -12,27 +12,27 @@
   <Part Number>: GW2AR-LV18QN88C8/I7
   <Device>: GW2AR-18
   <Device Version>: C
-  <Created Time>:Sun Apr 26 14:02:47 2026
+  <Created Time>:Sun Apr 26 22:40:06 2026
 
 
 2. PnR Details
 
   Running placement:
-    Placement Phase 0: CPU time = 0h 0m 4s, Elapsed time = 0h 0m 4s
-    Placement Phase 1: CPU time = 0h 0m 0.299s, Elapsed time = 0h 0m 0.3s
-    Placement Phase 2: CPU time = 0h 0m 5s, Elapsed time = 0h 0m 5s
-    Placement Phase 3: CPU time = 0h 0m 9s, Elapsed time = 0h 0m 9s
-    Total Placement: CPU time = 0h 0m 18s, Elapsed time = 0h 0m 18s
+    Placement Phase 0: CPU time = 0h 0m 6s, Elapsed time = 0h 0m 6s
+    Placement Phase 1: CPU time = 0h 0m 0.949s, Elapsed time = 0h 0m 0.948s
+    Placement Phase 2: CPU time = 0h 0m 13s, Elapsed time = 0h 0m 13s
+    Placement Phase 3: CPU time = 0h 0m 41s, Elapsed time = 0h 0m 41s
+    Total Placement: CPU time = 0h 1m 1s, Elapsed time = 0h 1m 1s
  Running routing:
-    Routing Phase 0: CPU time = 0h 0m 0.007s, Elapsed time = 0h 0m 0.006s
-    Routing Phase 1: CPU time = 0h 0m 0.338s, Elapsed time = 0h 0m 0.339s
-    Routing Phase 2: CPU time = 0h 0m 11s, Elapsed time = 0h 0m 11s
+    Routing Phase 0: CPU time = 0h 0m 0.01s, Elapsed time = 0h 0m 0.009s
+    Routing Phase 1: CPU time = 0h 0m 0.444s, Elapsed time = 0h 0m 0.444s
+    Routing Phase 2: CPU time = 0h 1m 9s, Elapsed time = 0h 1m 9s
     Routing Phase 3: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s
-    Total Routing: CPU time = 0h 0m 12s, Elapsed time = 0h 0m 12s
+    Total Routing: CPU time = 0h 1m 9s, Elapsed time = 0h 1m 9s
  Generate output files:
     CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
 
- Total Time and Memory Usage: CPU time = 0h 0m 32s, Elapsed time = 0h 0m 32s, Peak memory usage = 636MB
+ Total Time and Memory Usage: CPU time = 0h 2m 12s, Elapsed time = 0h 2m 12s, Peak memory usage = 724MB
 
 
 3. Resource Usage Summary
@@ -40,15 +40,15 @@
   --------------------------------------------------------------------------------
   Resources                   | Usage                               | Utilization
   --------------------------------------------------------------------------------
-  Logic                       | 11368/20736                         |  55%
-    --LUT,ALU,ROM16           | 10522(9824 LUT, 698 ALU, 0 ROM16)   | -
-    --SSRAM(RAM16)            | 141                                 | -
-  Register                    | 9391/15915                          |  59%
+  Logic                       | 17237/20736                         |  84%
+    --LUT,ALU,ROM16           | 16475(15888 LUT, 587 ALU, 0 ROM16)  | -
+    --SSRAM(RAM16)            | 127                                 | -
+  Register                    | 13243/15915                         |  84%
     --Logic Register as Latch | 0/15552                             |  0%
-    --Logic Register as FF    | 9320/15552                          |  60%
+    --Logic Register as FF    | 13172/15552                         |  85%
     --I/O Register as Latch   | 0/363                               |  0%
     --I/O Register as FF      | 71/363                              |  20%
-  CLS                         | 9445/10368                          |  92%
+  CLS                         | 9878/10368                          |  96%
   I/O Port                    | 53/66                               |  81%
   I/O Buf                     | 19                                  | -
     --Input Buf               | 2                                   | -
@@ -56,7 +56,8 @@
     --Inout Buf               | 4                                   | -
   IOLOGIC                     | 1/121                               | <1%
     --ODDR                    | 1
-  BSRAM                       | 15/46                               | 33%
+  BSRAM                       | 17/46                               | 37%
+    --SDPB                    | 2
     --SDPX9B                  | 15
   ================================================================================
 
@@ -97,17 +98,17 @@
   -------------------------------------------
   PIN04_IOL07A_LPLL1_d| PRIMARY        |  BL
   clk_48m_sdram  | PRIMARY        |  TR TL BR BL
-  clk_24m_sys    | PRIMARY        |  TR TL BR BL
-  u_eeprom_uart_bridge_ctrl/r_bulk_evt_id_0_9| PRIMARY        |  TR BR
-  u_eeprom_uart_bridge_ctrl/u_eeprom_i2c_access_engine/n8195_7| PRIMARY        |  TR BR
+  clk_24m_sys    | PRIMARY        |  TR BR BL
+  u_uart_log_cli/s_shared_rd_en| PRIMARY        |  TR BR BL
+  u_eeprom_uart_bridge_ctrl/n3401_7| PRIMARY        |  TR
   r_sys_q_mem[0]_ER_init| LW             |  -
   r_evt_fifo_mem[0]_ER_init| LW             |  -
   l_hostif_sdrc_rst_n| LW             |  -
-  u_uart_log_cli/s_shared_rd_en| LW             |  -
   u_uart_log_cli/r_shared_rd_pending| LW             |  -
-  u_eeprom_uart_bridge_ctrl/n3401_4| LW             |  -
-  u_eeprom_uart_bridge_ctrl/n16078_7| LW             |  -
-  u_eeprom_uart_bridge_ctrl/r_access_req_raw_wr_data_7_8| LW             |  -
+  u_uart_log_cli/g_log_tap[0].g_enabled_tap.u_tap/n1330_3| LW             |  -
+  u_uart_log_cli/g_log_tap[0].g_enabled_tap.u_tap/n1457_3| LW             |  -
+  u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/n1330_3| LW             |  -
+  u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/n1457_3| LW             |  -
   ===========================================
 
 

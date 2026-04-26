@@ -91,6 +91,7 @@ export function WorkbenchClient() {
   const [eepromFileAddr, setEepromFileAddr] = useState("0x00000");
   const [eepromFilePath, setEepromFilePath] = useState("");
   const [displayColor, setDisplayColor] = useState("FF6600");
+  const [displayFps, setDisplayFps] = useState("10");
   const deferredFilter = useDeferredValue(filterText.trim().toLowerCase());
 
   useEffect(() => {
@@ -531,22 +532,40 @@ export function WorkbenchClient() {
 
           {/* DISPLAY */}
           {activeScreen === "display" ? (
-            <DkPanel label="SSD1331 Display" subtitle={snapshot.display.summary}>
+            <DkPanel label="SSD1306 Display" subtitle={snapshot.display.summary}>
               <div className="flex flex-wrap gap-2 mb-4">
                 <CtrlButton onClick={() => void runAction("displayInit")} disabled={isLoading} primary>Init</CtrlButton>
                 <CtrlButton onClick={() => void runAction("displayClear")} disabled={isLoading}>Clear</CtrlButton>
-                <CtrlButton onClick={() => void runAction("displayPattern")} disabled={isLoading}>Pattern</CtrlButton>
+                <CtrlButton onClick={() => void runAction("displayPattern")} disabled={isLoading}>Checker</CtrlButton>
+                <CtrlButton onClick={() => void runAction("displayRefresh")} disabled={isLoading}>Refresh</CtrlButton>
                 <CtrlButton onClick={() => void runAction("displayOn")} disabled={isLoading}>ON</CtrlButton>
                 <CtrlButton onClick={() => void runAction("displayOff")} disabled={isLoading}>OFF</CtrlButton>
+                <CtrlButton onClick={() => void runAction("displayAutoOn")} disabled={isLoading}>Auto ON</CtrlButton>
+                <CtrlButton onClick={() => void runAction("displayAutoOff")} disabled={isLoading}>Auto OFF</CtrlButton>
               </div>
-              <DkField label="Fill Color RGB888">
+              <div className="grid gap-3 md:grid-cols-2">
+                <DkField label="Framebuffer Fill (000000=off, non-zero=on)">
+                  <div className="flex items-center gap-2">
+                    <DkInput value={displayColor} onChange={(e) => setDisplayColor(e.target.value)} className="w-36" />
+                    <div
+                      className="size-7 rounded-sm border border-white/10 shrink-0"
+                      style={{ backgroundColor: `#${displayColor}` }}
+                    />
+                    <CtrlButton onClick={() => void runAction("displayFill", { color: displayColor })} disabled={isLoading} primary>Write + Refresh</CtrlButton>
+                  </div>
+                </DkField>
+                <DkField label="Refresh FPS">
+                  <div className="flex items-center gap-2">
+                    <DkInput value={displayFps} onChange={(e) => setDisplayFps(e.target.value)} className="w-24" />
+                    <CtrlButton onClick={() => void runAction("displaySetFps", { fps: displayFps })} disabled={isLoading}>Apply FPS</CtrlButton>
+                  </div>
+                </DkField>
+              </div>
+              <DkField label="Flow">
                 <div className="flex items-center gap-2">
-                  <DkInput value={displayColor} onChange={(e) => setDisplayColor(e.target.value)} className="w-36" />
-                  <div
-                    className="size-7 rounded-sm border border-white/10 shrink-0"
-                    style={{ backgroundColor: `#${displayColor}` }}
-                  />
-                  <CtrlButton onClick={() => void runAction("displayFill", { color: displayColor })} disabled={isLoading} primary>Fill</CtrlButton>
+                  <span className="text-[12px] font-mono text-slate-500">
+                    source2 bulk-write to SDRAM framebuffer @ 0x10000, then source3 refreshes SSD1306 from SDRAM.
+                  </span>
                 </div>
               </DkField>
             </DkPanel>

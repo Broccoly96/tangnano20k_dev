@@ -1,36 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Module name="tangnano20k_top" Lut="12" T_Register="9391(0)" T_Alu="616(0)" T_Lut="9833(12)" T_Bsram="15(0)" T_Ssram="141(0)">
+<Module name="tangnano20k_top" Lut="10" T_Register="13243(0)" T_Alu="517(0)" T_Lut="15898(10)" T_Bsram="17(0)" T_Ssram="127(0)">
  <SubModule name="u0_gowin_pll"/>
- <SubModule name="u0_reset_mng" Register="44" Alu="40" Lut="27" T_Register="44(44)" T_Alu="40(40)" T_Lut="27(27)"/>
- <SubModule name="u_uart_log_cli" Register="229" Alu="24" Lut="847" Ssram="6" T_Register="359(229)" T_Alu="36(24)" T_Lut="1090(847)" T_Bsram="15(0)" T_Ssram="68(6)">
-  <SubModule name="u_uart_rx" Register="39" Lut="63" T_Register="39(39)" T_Lut="63(63)"/>
-  <SubModule name="u_uart_tx" Register="33" Lut="60" T_Register="33(33)" T_Lut="60(60)"/>
-  <SubModule name="g_log_tap[0].g_enabled_tap.u_tap" Register="12" Lut="22" Ssram="31" T_Register="12(12)" T_Lut="22(22)" T_Ssram="31(31)"/>
-  <SubModule name="g_log_tap[3].g_enabled_tap.u_tap" Register="12" Lut="25" Ssram="31" T_Register="12(12)" T_Lut="25(25)" T_Ssram="31(31)"/>
-  <SubModule name="u_evt_fifo" T_Register="34(0)" T_Alu="12(0)" T_Lut="73(0)" T_Bsram="15(0)">
-   <SubModule name="u_sim_fifo" Register="34" Alu="12" Lut="73" Bsram="15" T_Register="34(34)" T_Alu="12(12)" T_Lut="73(73)" T_Bsram="15(15)"/>
+ <SubModule name="u0_reset_mng" Register="44" Alu="14" Lut="50" T_Register="44(44)" T_Alu="14(14)" T_Lut="50(50)"/>
+ <SubModule name="u_uart_log_cli" Register="229" Alu="22" Lut="904" Ssram="6" T_Register="1004(229)" T_Alu="22(22)" T_Lut="1123(904)" T_Bsram="15(0)" T_Ssram="6(6)">
+  <SubModule name="u_uart_rx" Register="39" Lut="64" T_Register="39(39)" T_Lut="64(64)"/>
+  <SubModule name="u_uart_tx" Register="33" Lut="64" T_Register="33(33)" T_Lut="64(64)"/>
+  <SubModule name="g_log_tap[0].g_enabled_tap.u_tap" Register="245" Lut="10" T_Register="245(245)" T_Lut="10(10)"/>
+  <SubModule name="g_log_tap[2].g_enabled_tap.u_tap" Register="241" Lut="9" T_Register="241(241)" T_Lut="9(9)"/>
+  <SubModule name="g_log_tap[3].g_enabled_tap.u_tap" Register="183" Lut="9" T_Register="183(183)" T_Lut="9(9)"/>
+  <SubModule name="u_evt_fifo" T_Register="34(0)" T_Lut="63(0)" T_Bsram="15(0)">
+   <SubModule name="u_sim_fifo" Register="34" Lut="63" Bsram="15" T_Register="34(34)" T_Lut="63(63)" T_Bsram="15(15)"/>
   </SubModule>
  </SubModule>
- <SubModule name="u_eeprom_evt_bridge" Register="24" Alu="3" Lut="15" Ssram="26" T_Register="24(24)" T_Alu="3(3)" T_Lut="15(15)" T_Ssram="26(26)"/>
- <SubModule name="u_cli_rx_bridge" Register="23" Lut="4" T_Register="23(23)" T_Lut="4(4)"/>
- <SubModule name="u_eeprom_uart_bridge_ctrl" Register="1411" Alu="170" Lut="2572" Ssram="26" T_Register="3294(1411)" T_Alu="319(170)" T_Lut="3971(2572)" T_Ssram="26(26)">
-  <SubModule name="u_eeprom_uart_ascii_ctrl" Register="205" Alu="56" Lut="301" T_Register="205(205)" T_Alu="56(56)" T_Lut="301(301)"/>
-  <SubModule name="u_eeprom_i2c_access_engine" Register="693" Alu="36" Lut="683" T_Register="728(693)" T_Alu="41(36)" T_Lut="764(683)">
-   <SubModule name="u_eeprom_i2c_byte_ctrl" Register="35" Alu="5" Lut="81" T_Register="35(35)" T_Alu="5(5)" T_Lut="81(81)"/>
+ <SubModule name="u_eeprom_evt_bridge" Register="24" Alu="3" Lut="13" Ssram="26" T_Register="24(24)" T_Alu="3(3)" T_Lut="13(13)" T_Ssram="26(26)"/>
+ <SubModule name="u_sdram_host_evt_bridge" Register="24" Alu="3" Lut="13" Ssram="26" T_Register="24(24)" T_Alu="3(3)" T_Lut="13(13)" T_Ssram="26(26)"/>
+ <SubModule name="u_ssd1306_evt_bridge" Register="24" Alu="3" Lut="11" Ssram="22" T_Register="24(24)" T_Alu="3(3)" T_Lut="11(11)" T_Ssram="22(22)"/>
+ <SubModule name="u_cli_rx_bridge" Register="23" Lut="3" T_Register="23(23)" T_Lut="3(3)"/>
+ <SubModule name="u_eeprom_uart_bridge_ctrl" Register="1410" Alu="120" Lut="2725" Ssram="26" T_Register="3293(1410)" T_Alu="167(120)" T_Lut="4047(2725)" T_Ssram="26(26)">
+  <SubModule name="u_eeprom_uart_ascii_ctrl" Register="205" Lut="253" T_Register="205(205)" T_Lut="253(253)"/>
+  <SubModule name="u_eeprom_i2c_access_engine" Register="693" Alu="17" Lut="653" T_Register="728(693)" T_Alu="17(17)" T_Lut="731(653)">
+   <SubModule name="u_eeprom_i2c_byte_ctrl" Register="35" Lut="78" T_Register="35(35)" T_Lut="78(78)"/>
   </SubModule>
-  <SubModule name="u_sdram_uart_bulk_rx" Register="950" Alu="52" Lut="334" T_Register="950(950)" T_Alu="52(52)" T_Lut="334(334)"/>
+  <SubModule name="u_sdram_uart_bulk_rx" Register="950" Alu="30" Lut="338" T_Register="950(950)" T_Alu="30(30)" T_Lut="338(338)"/>
  </SubModule>
- <SubModule name="u_ssd1306_uart_bridge_ctrl" Register="4238" Alu="16" Lut="2810" Ssram="21" T_Register="5277(4238)" T_Alu="83(16)" T_Lut="3943(2810)" T_Ssram="21(21)">
-  <SubModule name="u_ssd1306_display_stream_ctrl" Register="53" Alu="8" Lut="148" T_Register="81(53)" T_Alu="15(8)" T_Lut="214(148)">
-   <SubModule name="u_eeprom_i2c_byte_ctrl" Register="28" Alu="7" Lut="66" T_Register="28(28)" T_Alu="7(7)" T_Lut="66(66)"/>
+ <SubModule name="u_ssd1306_uart_bridge_ctrl" Register="1022" Alu="23" Lut="2250" Ssram="21" T_Register="1102(1022)" T_Alu="23(23)" T_Lut="3148(2250)" T_Ssram="21(21)">
+  <SubModule name="u_ssd1306_display_stream_ctrl" Register="54" Lut="837" T_Register="80(54)" T_Lut="898(837)">
+   <SubModule name="u_eeprom_i2c_byte_ctrl" Register="26" Lut="61" T_Register="26(26)" T_Lut="61(61)"/>
   </SubModule>
-  <SubModule name="u_sdram_uart_bulk_rx" Register="958" Alu="52" Lut="919" T_Register="958(958)" T_Alu="52(52)" T_Lut="919(919)"/>
  </SubModule>
- <SubModule name="u_sdram_emb_hostif_ctrl" Register="26" Alu="13" Lut="93" T_Register="212(26)" T_Alu="120(13)" T_Lut="518(93)">
-  <SubModule name="u_sdram_memtest_ctrl" Register="155" Alu="100" Lut="340" T_Register="155(155)" T_Alu="100(100)" T_Lut="340(340)"/>
-  <SubModule name="u_sdram_uart_bridge_ctrl" Register="3" Lut="4" T_Register="31(3)" T_Alu="7(0)" T_Lut="85(4)">
-   <SubModule name="u_sdram_uart_access_engine" Register="28" Alu="7" Lut="81" T_Register="28(28)" T_Alu="7(7)" T_Lut="81(81)"/>
+ <SubModule name="u_sdram_emb_hostif_ctrl" Register="35" Lut="810" T_Register="7547(35)" T_Alu="267(0)" T_Lut="7227(810)" T_Bsram="2(0)">
+  <SubModule name="u_sdram_memtest_ctrl" Register="365" Alu="80" Lut="480" T_Register="365(365)" T_Alu="80(80)" T_Lut="480(480)"/>
+  <SubModule name="u_sdram_uart_bridge_ctrl" Register="3136" Alu="124" Lut="3733" T_Register="6261(3136)" T_Alu="175(124)" T_Lut="5748(3733)" T_Bsram="2(0)">
+   <SubModule name="u_sdram_uart_ascii_ctrl" Register="250" Lut="432" T_Register="250(250)" T_Lut="432(432)"/>
+   <SubModule name="u_sdram_uart_access_engine" Register="1925" Alu="21" Lut="673" Bsram="2" T_Register="1925(1925)" T_Alu="21(21)" T_Lut="673(673)" T_Bsram="2(2)"/>
+   <SubModule name="u_sdram_uart_bulk_rx" Register="950" Alu="30" Lut="910" T_Register="950(950)" T_Alu="30(30)" T_Lut="910(910)"/>
   </SubModule>
+  <SubModule name="u_sdram_disp_access_engine" Register="886" Alu="12" Lut="189" T_Register="886(886)" T_Alu="12(12)" T_Lut="189(189)"/>
  </SubModule>
  <SubModule name="u_embedded_sdram_hs" Register="158" Alu="15" Lut="253" T_Register="158(158)" T_Alu="15(15)" T_Lut="253(253)"/>
 </Module>

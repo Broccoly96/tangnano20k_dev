@@ -350,8 +350,12 @@ BRT 000F8 00010 -> ERR_ADDR_RANGE
   [01_src/uart_log_cli/uart_log_evt_if.sv](./01_src/uart_log_cli/uart_log_evt_if.sv)
 - SSD1306 display control:
   [01_src/ssd1306_display/ssd1306_display_ctrl.sv](./01_src/ssd1306_display/ssd1306_display_ctrl.sv)
+- SSD1306 display stream control:
+  [01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv](./01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv)
 - SSD1306 UART bridge:
   [01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv](./01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv)
+- SSD1306 SDRAM UART bridge:
+  [01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv](./01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv)
 - SDRAM host/control:
   [01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv](./01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv)
 - SDRAM UART bridge:

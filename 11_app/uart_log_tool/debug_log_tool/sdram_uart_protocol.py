@@ -258,14 +258,18 @@ def stuff_cli_literal_bytes(data: bytes) -> bytes:
     return bytes(stuffed)
 
 
-def iter_bulk_write_blocks(blob: bytes) -> list[bytes]:
+def iter_bulk_write_blocks(blob: bytes, *, chunk_bytes: int = MAX_BULK_WRITE_CHUNK_BYTES) -> list[bytes]:
     blocks: list[bytes] = []
     seq = 0
+    if chunk_bytes < 1 or chunk_bytes > MAX_BULK_PAYLOAD_BYTES:
+        raise ValueError(
+            f"chunk_bytes must be in range 1..{MAX_BULK_PAYLOAD_BYTES}, got {chunk_bytes}"
+        )
     # Keep host BW chunks below the protocol maximum so DLE stuffing for
     # reserved CLI bytes does not create overly long on-wire bursts that have
     # shown CRC failures through the TCP/UART bridge on hardware.
-    for offset in range(0, len(blob), MAX_BULK_WRITE_CHUNK_BYTES):
-        payload = blob[offset : offset + MAX_BULK_WRITE_CHUNK_BYTES]
+    for offset in range(0, len(blob), chunk_bytes):
+        payload = blob[offset : offset + chunk_bytes]
         if len(payload) % 4 != 0:
             payload = payload + bytes(4 - (len(payload) % 4))
         blocks.append(stuff_cli_literal_bytes(build_bulk_block(BULK_WR_DATA, seq, payload)))

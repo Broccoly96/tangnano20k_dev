@@ -16,28 +16,55 @@ It does not attempt to cover every feature of the SSD1306 device.
 
 The implementation is split into the following RTL blocks.
 
-| File | Responsibility |
-| --- | --- |
-| `ssd1306_uart_proto_pkg.sv` | Shared constants, operation IDs, and bulk/event helpers. |
-| `ssd1306_display_ctrl.sv` | Request-driven SSD1306 I2C command sequencer. |
-| `ssd1306_uart_bridge_ctrl.sv` | UART ASCII parser, bulk frame receive path, and event FIFO. |
-| `tangnano20k_top.sv` | Tang Nano 20K pin mapping and system integration. |
+| File                                | Responsibility                                                    |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `ssd1306_uart_proto_pkg.sv`         | Shared constants, operation IDs, and bulk/event helpers.          |
+| `ssd1306_display_ctrl.sv`           | Request-driven SSD1306 I2C command sequencer.                     |
+| `ssd1306_display_stream_ctrl.sv`    | Streaming SSD1306 sequencer that fetches frame bytes on demand.   |
+| `ssd1306_uart_bridge_ctrl.sv`       | UART ASCII parser, local frame buffer, and raw frame upload path. |
+| `ssd1306_sdram_uart_bridge_ctrl.sv` | UART control bridge that refreshes the panel from SDRAM.          |
+| `tangnano20k_top.sv`                | Tang Nano 20K pin mapping and system integration.                 |
 
 ## 3. Geometry And Addressing
 
 The implemented target geometry is fixed as follows.
 
-| Property | Value |
-| --- | ---: |
-| Display width | `128` |
-| Display height | `32` |
-| Page count | `4` |
-| Frame size | `512 bytes` |
+| Property       |       Value |
+| -------------- | ----------: |
+| Display width  |       `128` |
+| Display height |        `32` |
+| Page count     |         `4` |
+| Frame size     | `512 bytes` |
 
 The frame buffer byte order used by the RTL is page-major.
 Byte `0` corresponds to page `0`, column `0`.
 Byte `127` corresponds to page `0`, column `127`.
 Byte `128` starts page `1`, column `0`.
+
+The SDRAM-backed refresh path uses a fixed frame-buffer window.
+
+| Property                    | Value       |
+| --------------------------- | ----------- |
+| Base SDRAM word address     | `0x10000`   |
+| Window size in words        | `128 words` |
+| Window size in bytes        | `512 bytes` |
+| Last SDRAM word address     | `0x1007F`   |
+| Byte-offset equivalent      | `0x40000`   |
+| Last byte-offset equivalent | `0x401FF`   |
+
+Important address-unit rule:
+
+- The SDRAM host bridge uses `21-bit` word addresses, not byte addresses.
+- One SDRAM word is `32 bits = 4 bytes`.
+- A full SSD1306 frame therefore occupies `128` consecutive SDRAM words.
+- `FRAMEBUFFER_BASE_ADDR = 0x10000` means the first frame byte is stored in
+  the word at SDRAM address `0x10000`.
+- The refresh path reads the full frame from `0x10000` through `0x1007F`.
+
+Host-side examples:
+
+- `BW 10000 00080` writes one full frame into the SSD1306 SDRAM window.
+- `BR 10000 00080` reads back the same full-frame window.
 
 The full-frame write path uses horizontal addressing mode.
 The controller programs:
@@ -57,10 +84,10 @@ The resulting on-wire write address byte is `0x78`.
 
 The control bytes used by the implementation are:
 
-| Transfer type | Control byte |
-| --- | ---: |
-| Command stream | `00h` |
-| Data stream | `40h` |
+| Transfer type  | Control byte |
+| -------------- | -----------: |
+| Command stream |        `00h` |
+| Data stream    |        `40h` |
 
 For `CLEAR` and `FRAME_WRITE`, the implementation uses two I2C transactions.
 
@@ -85,13 +112,13 @@ added outside the current controller block.
 
 The controller supports the following request operations.
 
-| Operation | Description |
-| --- | --- |
-| `DISP_OP_INIT` | Send the standard 128 x 32 SSD1306 init sequence. |
-| `DISP_OP_CLEAR` | Clear the full 512-byte GDDRAM window with zero data. |
-| `DISP_OP_FRAME_WRITE` | Write one complete 512-byte frame. |
-| `DISP_OP_ON` | Send `AFh`. |
-| `DISP_OP_OFF` | Send `AEh`. |
+| Operation             | Description                                           |
+| --------------------- | ----------------------------------------------------- |
+| `DISP_OP_INIT`        | Send the standard 128 x 32 SSD1306 init sequence.     |
+| `DISP_OP_CLEAR`       | Clear the full 512-byte GDDRAM window with zero data. |
+| `DISP_OP_FRAME_WRITE` | Write one complete 512-byte frame.                    |
+| `DISP_OP_ON`          | Send `AFh`.                                           |
+| `DISP_OP_OFF`         | Send `AEh`.                                           |
 
 The request interface is `valid/ready` based.
 Only one request may be in flight at a time.
@@ -161,13 +188,13 @@ The clear path reuses the same command phase and emits `512` bytes of `00h`.
 
 The UART bridge accepts one ASCII command per line.
 
-| Command | Meaning |
-| --- | --- |
-| `I` | Run initialization |
-| `C` | Clear full frame |
-| `O` | Display on |
-| `X` | Display off |
-| `W` | Start a 512-byte raw bulk frame upload session |
+| Command | Meaning                                        |
+| ------- | ---------------------------------------------- |
+| `I`     | Run initialization                             |
+| `C`     | Clear full frame                               |
+| `O`     | Display on                                     |
+| `X`     | Display off                                    |
+| `W`     | Start a 512-byte raw bulk frame upload session |
 
 `W` does not carry the frame payload inline.
 After the bridge accepts `W`, the host must send raw bulk blocks.
@@ -188,15 +215,15 @@ The display path uses UART source index `3`.
 
 The implemented event IDs are:
 
-| Event | ID |
-| --- | ---: |
+| Event               |    ID |
+| ------------------- | ----: |
 | Command acknowledge | `30h` |
-| Frame accept | `32h` |
-| Frame error | `33h` |
-| Frame progress | `34h` |
-| Frame done | `35h` |
-| Frame abort | `36h` |
-| Command error | `3Eh` |
+| Frame accept        | `32h` |
+| Frame error         | `33h` |
+| Frame progress      | `34h` |
+| Frame done          | `35h` |
+| Frame abort         | `36h` |
+| Command error       | `3Eh` |
 
 `EVT_FRAME_PROG.arg0` packs:
 
@@ -208,9 +235,9 @@ The implemented event IDs are:
 
 The current SSD1306 unit-level simulations are:
 
-| Folder | Purpose |
-| --- | --- |
-| `03_sim/29_ssd1306_display_ctrl` | Controller byte-stream and GDDRAM smoke test |
+| Folder                               | Purpose                                       |
+| ------------------------------------ | --------------------------------------------- |
+| `03_sim/29_ssd1306_display_ctrl`     | Controller byte-stream and GDDRAM smoke test  |
 | `03_sim/30_ssd1306_uart_bridge_ctrl` | ASCII command and raw frame upload smoke test |
 
 Both tests use `02_tb/ssd1306_display/ssd1306_i2c_model.sv`.

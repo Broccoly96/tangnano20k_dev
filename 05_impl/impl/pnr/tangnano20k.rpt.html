@@ -83,7 +83,7 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 </tr>
 <tr>
 <td class="label">Created Time</td>
-<td>Sun Apr 26 14:02:47 2026
+<td>Sun Apr 26 22:40:06 2026
 </td>
 </tr>
 <tr>
@@ -97,24 +97,24 @@ table.detail_table th.label {  min-width: 8%; width: 8%; }
 <tr>
 <td class="label">Place & Route Process</td>
 <td>Running placement:
-   Placement Phase 0: CPU time = 0h 0m 4s, Elapsed time = 0h 0m 4s
-   Placement Phase 1: CPU time = 0h 0m 0.299s, Elapsed time = 0h 0m 0.3s
-   Placement Phase 2: CPU time = 0h 0m 5s, Elapsed time = 0h 0m 5s
-   Placement Phase 3: CPU time = 0h 0m 9s, Elapsed time = 0h 0m 9s
-   Total Placement: CPU time = 0h 0m 18s, Elapsed time = 0h 0m 18s
+   Placement Phase 0: CPU time = 0h 0m 6s, Elapsed time = 0h 0m 6s
+   Placement Phase 1: CPU time = 0h 0m 0.949s, Elapsed time = 0h 0m 0.948s
+   Placement Phase 2: CPU time = 0h 0m 13s, Elapsed time = 0h 0m 13s
+   Placement Phase 3: CPU time = 0h 0m 41s, Elapsed time = 0h 0m 41s
+   Total Placement: CPU time = 0h 1m 1s, Elapsed time = 0h 1m 1s
 Running routing:
-   Routing Phase 0: CPU time = 0h 0m 0.007s, Elapsed time = 0h 0m 0.006s
-   Routing Phase 1: CPU time = 0h 0m 0.338s, Elapsed time = 0h 0m 0.339s
-   Routing Phase 2: CPU time = 0h 0m 11s, Elapsed time = 0h 0m 11s
+   Routing Phase 0: CPU time = 0h 0m 0.01s, Elapsed time = 0h 0m 0.009s
+   Routing Phase 1: CPU time = 0h 0m 0.444s, Elapsed time = 0h 0m 0.444s
+   Routing Phase 2: CPU time = 0h 1m 9s, Elapsed time = 0h 1m 9s
    Routing Phase 3: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s
-   Total Routing: CPU time = 0h 0m 12s, Elapsed time = 0h 0m 12s
+   Total Routing: CPU time = 0h 1m 9s, Elapsed time = 0h 1m 9s
 Generate output files:
    CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
 </td>
 </tr>
 <tr>
 <td class="label">Total Time and Memory Usage</td>
-<td>CPU time = 0h 0m 32s, Elapsed time = 0h 0m 32s, Peak memory usage = 636MB</td>
+<td>CPU time = 0h 2m 12s, Elapsed time = 0h 2m 12s, Peak memory usage = 724MB</td>
 </tr>
 </table>
 <br/>
@@ -129,23 +129,23 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">Logic</td>
-<td>11368/20736</td>
-<td>55%</td>
+<td>17237/20736</td>
+<td>84%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --LUT,ALU,ROM16</td>
-<td>10522(9824 LUT, 698 ALU, 0 ROM16)</td>
+<td>16475(15888 LUT, 587 ALU, 0 ROM16)</td>
 <td>-</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --SSRAM(RAM16)</td>
-<td>141</td>
+<td>127</td>
 <td>-</td>
 </tr>
 <tr>
 <td class="label">Register</td>
-<td>9391/15915</td>
-<td>59%</td>
+<td>13243/15915</td>
+<td>84%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --Logic Register as Latch</td>
@@ -154,8 +154,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --Logic Register as FF</td>
-<td>9320/15552</td>
-<td>60%</td>
+<td>13172/15552</td>
+<td>85%</td>
 </tr>
 <tr>
 <td class="label">&nbsp &nbsp --I/O Register as Latch</td>
@@ -169,8 +169,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">CLS</td>
-<td>9445/10368</td>
-<td>92%</td>
+<td>9878/10368</td>
+<td>96%</td>
 </tr>
 <tr>
 <td class="label">I/O Port</td>
@@ -204,8 +204,8 @@ Generate output files:
 </tr>
 <tr>
 <td class="label">BSRAM</td>
-<td>15 SDPX9B<br/></td>
-<td>33%</td>
+<td>2 SDPB<br/>15 SDPX9B<br/></td>
+<td>37%</td>
 </tr>
 </table>
 <h2><a name="I/O_Bank_Usage_Summary">I/O Bank Usage Summary:</a></h2>
@@ -297,17 +297,17 @@ Generate output files:
 <tr>
 <td class="label">clk_24m_sys</td>
 <td>PRIMARY</td>
-<td> TR TL BR BL</td>
+<td> TR BR BL</td>
 </tr>
 <tr>
-<td class="label">u_eeprom_uart_bridge_ctrl/r_bulk_evt_id_0_9</td>
+<td class="label">u_uart_log_cli/s_shared_rd_en</td>
 <td>PRIMARY</td>
-<td> TR BR</td>
+<td> TR BR BL</td>
 </tr>
 <tr>
-<td class="label">u_eeprom_uart_bridge_ctrl/u_eeprom_i2c_access_engine/n8195_7</td>
+<td class="label">u_eeprom_uart_bridge_ctrl/n3401_7</td>
 <td>PRIMARY</td>
-<td> TR BR</td>
+<td> TR</td>
 </tr>
 <tr>
 <td class="label">r_sys_q_mem[0]_ER_init</td>
@@ -325,27 +325,27 @@ Generate output files:
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_uart_log_cli/s_shared_rd_en</td>
-<td>LW</td>
-<td> -</td>
-</tr>
-<tr>
 <td class="label">u_uart_log_cli/r_shared_rd_pending</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_eeprom_uart_bridge_ctrl/n3401_4</td>
+<td class="label">u_uart_log_cli/g_log_tap[0].g_enabled_tap.u_tap/n1330_3</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_eeprom_uart_bridge_ctrl/n16078_7</td>
+<td class="label">u_uart_log_cli/g_log_tap[0].g_enabled_tap.u_tap/n1457_3</td>
 <td>LW</td>
 <td> -</td>
 </tr>
 <tr>
-<td class="label">u_eeprom_uart_bridge_ctrl/r_access_req_raw_wr_data_7_8</td>
+<td class="label">u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/n1330_3</td>
+<td>LW</td>
+<td> -</td>
+</tr>
+<tr>
+<td class="label">u_uart_log_cli/g_log_tap[2].g_enabled_tap.u_tap/n1457_3</td>
 <td>LW</td>
 <td> -</td>
 </tr>
