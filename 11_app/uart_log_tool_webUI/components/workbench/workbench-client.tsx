@@ -1,22 +1,20 @@
 "use client";
 
-import { startTransition, useDeferredValue, useEffect, useState } from "react";
-import { AlertCircle, Cpu, Database, HardDrive, MonitorSmartphone, RefreshCcw, Router } from "lucide-react";
+import React, { startTransition, useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
+import { AlertCircle, Database, HardDrive, MonitorSmartphone, RefreshCcw, Router } from "lucide-react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PortInfo, TransportMode, WorkbenchSnapshot } from "@/lib/workbench/types";
 
-type ScreenKey = "log" | "sdram-map" | "sdram-rw" | "sdram-status" | "eeprom-map" | "eeprom-rw" | "display";
+type ScreenKey = "log" | "sdram" | "sdram-status" | "eeprom" | "ssd1306";
 
 const navItems: Array<{ key: ScreenKey; label: string; icon: typeof Router }> = [
-  { key: "log", label: "Log", icon: Router },
-  { key: "sdram-map", label: "SDRAM Map", icon: HardDrive },
-  { key: "sdram-rw", label: "SDRAM RW", icon: Cpu },
+  { key: "log",          label: "Log",       icon: Router },
+  { key: "sdram",        label: "SDRAM",     icon: HardDrive },
   { key: "sdram-status", label: "SDRAM STS", icon: RefreshCcw },
-  { key: "eeprom-map", label: "EEPROM Map", icon: Database },
-  { key: "eeprom-rw", label: "EEPROM RW", icon: Database },
-  { key: "display", label: "Display", icon: MonitorSmartphone },
+  { key: "eeprom",       label: "EEPROM",    icon: Database },
+  { key: "ssd1306",      label: "SSD1306",   icon: MonitorSmartphone },
 ];
 
 const emptySnapshot: WorkbenchSnapshot = {
@@ -58,6 +56,7 @@ const emptySnapshot: WorkbenchSnapshot = {
   eepromMap: { baseAddr: 0, summary: "idle", text: "-" },
   eepromRw: { summary: "idle", singleReadResult: "-", singleWriteResult: "-", fileWriteResult: "-" },
   display: { summary: "idle" },
+  ssd1306: { summary: "idle", framebytes: new Array(512).fill(0) as number[] },
 };
 
 export function WorkbenchClient() {
@@ -90,8 +89,145 @@ export function WorkbenchClient() {
   const [eepromWriteData, setEepromWriteData] = useState("0x00");
   const [eepromFileAddr, setEepromFileAddr] = useState("0x00000");
   const [eepromFilePath, setEepromFilePath] = useState("");
-  const [displayColor, setDisplayColor] = useState("FF6600");
+  // displayColor removed (Framebuffer Fill feature deleted)
   const [displayFps, setDisplayFps] = useState("10");
+
+  // ── SSD1306 GDDRAM ────────────────────────────────────────────────────────
+  const editorCanvasRef = useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [localFrame, setLocalFrame] = useState<number[]>(() => new Array(512).fill(0));
+  const [isPainting, setIsPainting] = useState(false);
+  const [paintValue, setPaintValue] = useState(true);
+  const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null);
+
+  const EDITOR_SCALE = 6;
+  const PREVIEW_SCALE = 2;
+
+  const gddramGetPixel = useCallback((frame: number[], x: number, y: number): boolean => {
+    const byteIdx = ((y >> 3) * 128) + x;
+    return byteIdx < frame.length && ((frame[byteIdx] >> (y & 7)) & 1) === 1;
+  }, []);
+
+  const gddramSetPixel = useCallback((frame: number[], x: number, y: number, on: boolean): number[] => {
+    const byteIdx = ((y >> 3) * 128) + x;
+    if (byteIdx >= frame.length) return frame;
+    const next = [...frame];
+    if (on) next[byteIdx] = (frame[byteIdx] | (1 << (y & 7))) & 0xff;
+    else    next[byteIdx] = (frame[byteIdx] & ~(1 << (y & 7))) & 0xff;
+    return next;
+  }, []);
+
+  // Draw editor canvas whenever localFrame, hoveredPixel, or active screen changes
+  useEffect(() => {
+    const canvas = editorCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const W = 128, H = 32, S = EDITOR_SCALE;
+    ctx.fillStyle = "#030608";
+    ctx.fillRect(0, 0, W * S, H * S);
+    ctx.fillStyle = "#b8d8b0";
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (gddramGetPixel(localFrame, x, y)) {
+          ctx.fillRect(x * S, y * S, S - 1, S - 1);
+        }
+      }
+    }
+    // Page boundary lines (every 8 rows)
+    ctx.strokeStyle = "#1a2a3a";
+    ctx.lineWidth = 1;
+    for (let p = 0; p <= 4; p++) {
+      ctx.beginPath();
+      ctx.moveTo(0, p * 8 * S);
+      ctx.lineTo(W * S, p * 8 * S);
+      ctx.stroke();
+    }
+    // Column grid every 8 pixels
+    ctx.strokeStyle = "#111820";
+    for (let c = 0; c <= W; c += 8) {
+      ctx.beginPath();
+      ctx.moveTo(c * S, 0);
+      ctx.lineTo(c * S, H * S);
+      ctx.stroke();
+    }
+    // Hover highlight
+    if (hoveredPixel) {
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(hoveredPixel.x * S + 0.5, hoveredPixel.y * S + 0.5, S - 1, S - 1);
+    }
+  }, [localFrame, hoveredPixel, gddramGetPixel, activeScreen]);
+
+  // Draw preview canvas
+  useEffect(() => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const W = 128, H = 32, S = PREVIEW_SCALE;
+    ctx.fillStyle = "#030608";
+    ctx.fillRect(0, 0, W * S, H * S);
+    ctx.fillStyle = "#b8d8b0";
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (gddramGetPixel(localFrame, x, y)) {
+          ctx.fillRect(x * S, y * S, S, S);
+        }
+      }
+    }
+  }, [localFrame, gddramGetPixel, activeScreen]);
+
+  function canvasPixelFromEvent(e: React.MouseEvent<HTMLCanvasElement>): { x: number; y: number } | null {
+    const canvas = editorCanvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / EDITOR_SCALE);
+    const y = Math.floor((e.clientY - rect.top) / EDITOR_SCALE);
+    if (x < 0 || x >= 128 || y < 0 || y >= 32) return null;
+    return { x, y };
+  }
+
+  function handleEditorMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    e.preventDefault();
+    const pixel = canvasPixelFromEvent(e);
+    if (!pixel) return;
+    const isOn = gddramGetPixel(localFrame, pixel.x, pixel.y);
+    const newValue = e.button === 2 ? false : !isOn;
+    setPaintValue(newValue);
+    setIsPainting(true);
+    setLocalFrame(gddramSetPixel(localFrame, pixel.x, pixel.y, newValue));
+  }
+
+  function handleEditorMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    const pixel = canvasPixelFromEvent(e);
+    setHoveredPixel(pixel);
+    if (isPainting && pixel) {
+      setLocalFrame((prev) => gddramSetPixel(prev, pixel.x, pixel.y, paintValue));
+    }
+  }
+
+  async function readGddram() {
+    setIsLoading(true);
+    setErrorText(null);
+    try {
+      const response = await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ssd1306ReadFrame" }),
+      });
+      const data = await response.json() as WorkbenchSnapshot;
+      if (!response.ok) {
+        throw new Error((data as unknown as { error?: string }).error ?? "read failed");
+      }
+      startTransition(() => setSnapshot(data));
+      setLocalFrame(Array.from(data.ssd1306.framebytes));
+    } catch (error) {
+      setErrorText(error instanceof Error ? error.message : `${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
   const deferredFilter = useDeferredValue(filterText.trim().toLowerCase());
 
   useEffect(() => {
@@ -423,152 +559,237 @@ export function WorkbenchClient() {
             </div>
           ) : null}
 
-          {/* SDRAM MAP */}
-          {activeScreen === "sdram-map" ? (
-            <TerminalScreen
-              label="SDRAM Map" subtitle="16×16 word bulk-read from SDRAM host space"
-              summary={snapshot.sdramMap.summary} text={snapshot.sdramMap.text}
-              actions={
-                <div className="flex gap-2">
-                  <DkInput value={mapBaseAddr} onChange={(e) => setMapBaseAddr(e.target.value)} className="w-36" />
-                  <CtrlButton onClick={() => void runAction("refreshMap", { baseAddr: mapBaseAddr })} disabled={isLoading} primary>Refresh Map</CtrlButton>
-                </div>
-              }
-            />
-          ) : null}
+          {/* ── SDRAM (Map + RW unified) ─────────────────────────────── */}
+          {activeScreen === "sdram" ? (
+            <div className="space-y-4">
+              {/* Single R/W + Bulk/Burst side-by-side */}
+              <div className="grid gap-4 xl:grid-cols-2">
+                <DkPanel label="SDRAM Read / Write" subtitle={snapshot.sdramRw.summary}>
+                  <RwGroup title="Single Read" result={snapshot.sdramRw.singleReadResult}>
+                    <DkInput value={singleReadAddr} onChange={(e) => setSingleReadAddr(e.target.value)} placeholder="addr" />
+                    <CtrlButton onClick={() => void runAction("singleRead", { addr: singleReadAddr })} disabled={isLoading} primary>Read</CtrlButton>
+                  </RwGroup>
+                  <RwGroup title="Single Write" result={snapshot.sdramRw.singleWriteResult}>
+                    <DkInput value={singleWriteAddr} onChange={(e) => setSingleWriteAddr(e.target.value)} placeholder="addr" />
+                    <DkInput value={singleWriteData} onChange={(e) => setSingleWriteData(e.target.value)} placeholder="data" />
+                    <CtrlButton onClick={() => void runAction("singleWrite", { addr: singleWriteAddr, data: singleWriteData })} disabled={isLoading} primary>Write</CtrlButton>
+                  </RwGroup>
+                  <RwGroup title="Bulk File Write" result={snapshot.sdramRw.fileWriteResult}>
+                    <DkInput value={fileWriteAddr} onChange={(e) => setFileWriteAddr(e.target.value)} placeholder="base addr" />
+                    <DkInput value={fileWritePath} onChange={(e) => setFileWritePath(e.target.value)} placeholder=".bin / .hex path" />
+                    <CtrlButton onClick={() => void runAction("fileWrite", { baseAddr: fileWriteAddr, filePath: fileWritePath })} disabled={isLoading} primary>Write File</CtrlButton>
+                  </RwGroup>
+                </DkPanel>
 
-          {/* SDRAM STATUS */}
-          {activeScreen === "sdram-status" ? (
-            <TerminalScreen
-              label="SDRAM Status" subtitle="80-byte status / register block"
-              summary={snapshot.sdramStatus.summary} text={snapshot.sdramStatus.text}
-              actions={
-                <div className="flex flex-wrap gap-2">
-                  <CtrlButton onClick={() => void runAction("refreshStatus")} disabled={isLoading} primary>Refresh</CtrlButton>
-                  <CtrlButton onClick={() => void runAction("toggleStatusMode")} disabled={isLoading}>Mode:{snapshot.session.statusMode}</CtrlButton>
-                  <CtrlButton onClick={() => void runAction("runStatusSelftest")} disabled={isLoading} warn>Selftest</CtrlButton>
-                </div>
-              }
-            />
-          ) : null}
+                <DkPanel label="Bulk / Burst" subtitle={snapshot.sdramBurst.summary}>
+                  <div className="grid gap-2 grid-cols-3 mb-3">
+                    <DkField label="Base Addr"><DkInput value={burstBaseAddr} onChange={(e) => setBurstBaseAddr(e.target.value)} /></DkField>
+                    <DkField label="Words"><DkInput value={burstWords} onChange={(e) => setBurstWords(e.target.value)} /></DkField>
+                    <DkField label="Pattern"><DkInput value={bulkPattern} onChange={(e) => setBulkPattern(e.target.value)} /></DkField>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <CtrlButton onClick={() => void runAction("bulkRangeRead", { baseAddr: burstBaseAddr, words: burstWords })} disabled={isLoading} primary>Bulk Read</CtrlButton>
+                    <CtrlButton onClick={() => void runAction("bulkPatternWrite", { baseAddr: burstBaseAddr, words: burstWords, pattern: bulkPattern })} disabled={isLoading}>Pattern Write</CtrlButton>
+                    <CtrlButton onClick={() => void runAction("burstReadTest", { baseAddr: burstBaseAddr, words: burstWords })} disabled={isLoading}>Burst Read</CtrlButton>
+                    <CtrlButton onClick={() => void runAction("burstWriteTest", { baseAddr: burstBaseAddr, words: burstWords })} disabled={isLoading}>Burst Write</CtrlButton>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <KvCell k="task" v={snapshot.sdramBurst.task} />
+                    <KvCell k="packets" v={`${snapshot.sdramBurst.packetsReceived}/${snapshot.sdramBurst.packetCount}`} />
+                    <KvCell k="base" v={`0x${snapshot.sdramBurst.baseAddr.toString(16).toUpperCase().padStart(5, "0")}`} />
+                    <KvCell k="words" v={`${snapshot.sdramBurst.words}`} />
+                  </div>
+                  <pre className="rounded-sm border border-white/[0.07] bg-[#05080e] px-4 py-3 text-[13px] font-mono leading-6 text-emerald-300 whitespace-pre-wrap overflow-x-auto">{snapshot.sdramBurst.result}{"\n\n"}{snapshot.sdramBurst.preview}</pre>
+                </DkPanel>
+              </div>
 
-          {/* SDRAM RW */}
-          {activeScreen === "sdram-rw" ? (
-            <div className="grid gap-4 xl:grid-cols-2">
-              <DkPanel label="SDRAM Read / Write" subtitle={snapshot.sdramRw.summary}>
-                <RwGroup title="Single Read" result={snapshot.sdramRw.singleReadResult}>
-                  <DkInput value={singleReadAddr} onChange={(e) => setSingleReadAddr(e.target.value)} placeholder="addr" />
-                  <CtrlButton onClick={() => void runAction("singleRead", { addr: singleReadAddr })} disabled={isLoading} primary>Read</CtrlButton>
-                </RwGroup>
-                <RwGroup title="Single Write" result={snapshot.sdramRw.singleWriteResult}>
-                  <DkInput value={singleWriteAddr} onChange={(e) => setSingleWriteAddr(e.target.value)} placeholder="addr" />
-                  <DkInput value={singleWriteData} onChange={(e) => setSingleWriteData(e.target.value)} placeholder="data" />
-                  <CtrlButton onClick={() => void runAction("singleWrite", { addr: singleWriteAddr, data: singleWriteData })} disabled={isLoading} primary>Write</CtrlButton>
-                </RwGroup>
-                <RwGroup title="Bulk File Write" result={snapshot.sdramRw.fileWriteResult}>
-                  <DkInput value={fileWriteAddr} onChange={(e) => setFileWriteAddr(e.target.value)} placeholder="base addr" />
-                  <DkInput value={fileWritePath} onChange={(e) => setFileWritePath(e.target.value)} placeholder=".bin / .hex path" />
-                  <CtrlButton onClick={() => void runAction("fileWrite", { baseAddr: fileWriteAddr, filePath: fileWritePath })} disabled={isLoading} primary>Write File</CtrlButton>
-                </RwGroup>
-              </DkPanel>
-              <DkPanel label="Bulk / Burst" subtitle={snapshot.sdramBurst.summary}>
-                <div className="grid gap-2 grid-cols-3 mb-3">
-                  <DkField label="Base Addr"><DkInput value={burstBaseAddr} onChange={(e) => setBurstBaseAddr(e.target.value)} /></DkField>
-                  <DkField label="Words"><DkInput value={burstWords} onChange={(e) => setBurstWords(e.target.value)} /></DkField>
-                  <DkField label="Pattern"><DkInput value={bulkPattern} onChange={(e) => setBulkPattern(e.target.value)} /></DkField>
+              {/* Map — bottom */}
+              <DkPanel label="SDRAM Map" subtitle="16×16 word window — bulk read from SDRAM host space">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className="text-[13px] font-mono text-sky-500">{snapshot.sdramMap.summary}</span>
+                  <div className="ml-auto flex gap-2">
+                    <DkInput value={mapBaseAddr} onChange={(e) => setMapBaseAddr(e.target.value)} className="w-36" />
+                    <CtrlButton onClick={() => void runAction("refreshMap", { baseAddr: mapBaseAddr })} disabled={isLoading} primary>Refresh Map</CtrlButton>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <CtrlButton onClick={() => void runAction("bulkRangeRead", { baseAddr: burstBaseAddr, words: burstWords })} disabled={isLoading} primary>Bulk Read</CtrlButton>
-                  <CtrlButton onClick={() => void runAction("bulkPatternWrite", { baseAddr: burstBaseAddr, words: burstWords, pattern: bulkPattern })} disabled={isLoading}>Pattern Write</CtrlButton>
-                  <CtrlButton onClick={() => void runAction("burstReadTest", { baseAddr: burstBaseAddr, words: burstWords })} disabled={isLoading}>Burst Read</CtrlButton>
-                  <CtrlButton onClick={() => void runAction("burstWriteTest", { baseAddr: burstBaseAddr, words: burstWords })} disabled={isLoading}>Burst Write</CtrlButton>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <KvCell k="task" v={snapshot.sdramBurst.task} />
-                  <KvCell k="packets" v={`${snapshot.sdramBurst.packetsReceived}/${snapshot.sdramBurst.packetCount}`} />
-                  <KvCell k="base" v={`0x${snapshot.sdramBurst.baseAddr.toString(16).toUpperCase().padStart(5, "0")}`} />
-                  <KvCell k="words" v={`${snapshot.sdramBurst.words}`} />
-                </div>
-                <pre className="rounded-sm border border-white/[0.07] bg-[#05080e] px-4 py-3 text-[13px] font-mono leading-6 text-emerald-400 whitespace-pre-wrap overflow-x-auto">{snapshot.sdramBurst.result}{"\n\n"}{snapshot.sdramBurst.preview}</pre>
+                <ScrollArea className="h-[480px]">
+                  <pre className="min-w-max px-4 py-3 text-[13px] font-mono leading-6 text-emerald-300 bg-[#05080e] rounded-sm border border-white/[0.05] whitespace-pre">{snapshot.sdramMap.text}</pre>
+                </ScrollArea>
               </DkPanel>
             </div>
           ) : null}
 
-          {/* EEPROM MAP */}
-          {activeScreen === "eeprom-map" ? (
-            <TerminalScreen
-              label="EEPROM Map" subtitle="16×16 byte window with ASCII side-by-side"
-              summary={snapshot.eepromMap.summary} text={snapshot.eepromMap.text}
-              actions={
-                <div className="flex gap-2">
-                  <DkInput value={eepromMapBase} onChange={(e) => setEepromMapBase(e.target.value)} className="w-36" />
-                  <CtrlButton onClick={() => void runAction("refreshEepromMap", { baseAddr: eepromMapBase })} disabled={isLoading} primary>Refresh EEPROM Map</CtrlButton>
+          {/* ── SDRAM STATUS ─────────────────────────────────────────── */}
+          {activeScreen === "sdram-status" ? (
+            <DkPanel label="SDRAM Status" subtitle="80-byte register block — status + write-only control">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="text-[13px] font-mono text-sky-500">{snapshot.sdramStatus.summary}</span>
+                <div className="ml-auto flex gap-2">
+                  <CtrlButton onClick={() => void runAction("refreshStatus")} disabled={isLoading} primary>Refresh</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("toggleStatusMode")} disabled={isLoading}>Mode: {snapshot.session.statusMode}</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("runStatusSelftest")} disabled={isLoading} warn>Selftest</CtrlButton>
                 </div>
-              }
-            />
-          ) : null}
-
-          {/* EEPROM RW */}
-          {activeScreen === "eeprom-rw" ? (
-            <DkPanel label="EEPROM Read / Write" subtitle={snapshot.eepromRw.summary}>
-              <div className="grid gap-4 xl:grid-cols-3">
-                <RwGroup title="Single Read" result={snapshot.eepromRw.singleReadResult}>
-                  <DkInput value={eepromReadAddr} onChange={(e) => setEepromReadAddr(e.target.value)} placeholder="addr" />
-                  <CtrlButton onClick={() => void runAction("eepromSingleRead", { addr: eepromReadAddr })} disabled={isLoading} primary>Read</CtrlButton>
-                </RwGroup>
-                <RwGroup title="Single Write" result={snapshot.eepromRw.singleWriteResult}>
-                  <DkInput value={eepromWriteAddr} onChange={(e) => setEepromWriteAddr(e.target.value)} placeholder="addr" />
-                  <DkInput value={eepromWriteData} onChange={(e) => setEepromWriteData(e.target.value)} placeholder="data" />
-                  <CtrlButton onClick={() => void runAction("eepromSingleWrite", { addr: eepromWriteAddr, data: eepromWriteData })} disabled={isLoading} primary>Write</CtrlButton>
-                </RwGroup>
-                <RwGroup title="Bulk File Write" result={snapshot.eepromRw.fileWriteResult}>
-                  <DkInput value={eepromFileAddr} onChange={(e) => setEepromFileAddr(e.target.value)} placeholder="base addr" />
-                  <DkInput value={eepromFilePath} onChange={(e) => setEepromFilePath(e.target.value)} placeholder=".bin / .hex path" />
-                  <CtrlButton onClick={() => void runAction("eepromFileWrite", { baseAddr: eepromFileAddr, filePath: eepromFilePath })} disabled={isLoading} primary>Write File</CtrlButton>
-                </RwGroup>
               </div>
+              <SdramStatusGrid text={snapshot.sdramStatus.text} />
             </DkPanel>
           ) : null}
 
-          {/* DISPLAY */}
-          {activeScreen === "display" ? (
-            <DkPanel label="SSD1306 Display" subtitle={snapshot.display.summary}>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <CtrlButton onClick={() => void runAction("displayInit")} disabled={isLoading} primary>Init</CtrlButton>
-                <CtrlButton onClick={() => void runAction("displayClear")} disabled={isLoading}>Clear</CtrlButton>
-                <CtrlButton onClick={() => void runAction("displayPattern")} disabled={isLoading}>Checker</CtrlButton>
-                <CtrlButton onClick={() => void runAction("displayRefresh")} disabled={isLoading}>Refresh</CtrlButton>
-                <CtrlButton onClick={() => void runAction("displayOn")} disabled={isLoading}>ON</CtrlButton>
-                <CtrlButton onClick={() => void runAction("displayOff")} disabled={isLoading}>OFF</CtrlButton>
-                <CtrlButton onClick={() => void runAction("displayAutoOn")} disabled={isLoading}>Auto ON</CtrlButton>
-                <CtrlButton onClick={() => void runAction("displayAutoOff")} disabled={isLoading}>Auto OFF</CtrlButton>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <DkField label="Framebuffer Fill (000000=off, non-zero=on)">
-                  <div className="flex items-center gap-2">
-                    <DkInput value={displayColor} onChange={(e) => setDisplayColor(e.target.value)} className="w-36" />
-                    <div
-                      className="size-7 rounded-sm border border-white/10 shrink-0"
-                      style={{ backgroundColor: `#${displayColor}` }}
+          {/* ── EEPROM (Map + RW unified) ────────────────────────────── */}
+          {activeScreen === "eeprom" ? (
+            <div className="space-y-4">
+              {/* R/W controls */}
+              <DkPanel label="EEPROM Read / Write" subtitle={snapshot.eepromRw.summary}>
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <RwGroup title="Single Read" result={snapshot.eepromRw.singleReadResult}>
+                    <DkInput value={eepromReadAddr} onChange={(e) => setEepromReadAddr(e.target.value)} placeholder="addr" />
+                    <CtrlButton onClick={() => void runAction("eepromSingleRead", { addr: eepromReadAddr })} disabled={isLoading} primary>Read</CtrlButton>
+                  </RwGroup>
+                  <RwGroup title="Single Write" result={snapshot.eepromRw.singleWriteResult}>
+                    <DkInput value={eepromWriteAddr} onChange={(e) => setEepromWriteAddr(e.target.value)} placeholder="addr" />
+                    <DkInput value={eepromWriteData} onChange={(e) => setEepromWriteData(e.target.value)} placeholder="data" />
+                    <CtrlButton onClick={() => void runAction("eepromSingleWrite", { addr: eepromWriteAddr, data: eepromWriteData })} disabled={isLoading} primary>Write</CtrlButton>
+                  </RwGroup>
+                  <RwGroup title="Bulk File Write" result={snapshot.eepromRw.fileWriteResult}>
+                    <DkInput value={eepromFileAddr} onChange={(e) => setEepromFileAddr(e.target.value)} placeholder="base addr" />
+                    <DkInput value={eepromFilePath} onChange={(e) => setEepromFilePath(e.target.value)} placeholder=".bin / .hex path" />
+                    <CtrlButton onClick={() => void runAction("eepromFileWrite", { baseAddr: eepromFileAddr, filePath: eepromFilePath })} disabled={isLoading} primary>Write File</CtrlButton>
+                  </RwGroup>
+                </div>
+              </DkPanel>
+
+              {/* Map section — bottom */}
+              <DkPanel label="EEPROM Map" subtitle="16×16 byte window with ASCII side-by-side">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className="text-[13px] font-mono text-sky-500">{snapshot.eepromMap.summary}</span>
+                  <div className="ml-auto flex gap-2">
+                    <DkInput value={eepromMapBase} onChange={(e) => setEepromMapBase(e.target.value)} className="w-36" />
+                    <CtrlButton onClick={() => void runAction("refreshEepromMap", { baseAddr: eepromMapBase })} disabled={isLoading} primary>Refresh Map</CtrlButton>
+                  </div>
+                </div>
+                <ScrollArea className="h-[480px]">
+                  <pre className="min-w-max px-4 py-3 text-[13px] font-mono leading-6 text-emerald-300 bg-[#05080e] rounded-sm border border-white/[0.05] whitespace-pre">{snapshot.eepromMap.text}</pre>
+                </ScrollArea>
+              </DkPanel>
+            </div>
+          ) : null}
+
+          {/* ── SSD1306 (Display controls + GDDRAM editor) ───────────── */}
+          {activeScreen === "ssd1306" ? (
+            <div className="space-y-4">
+              {/* Display controls */}
+              <DkPanel label="SSD1306 Display" subtitle={snapshot.display.summary}>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <CtrlButton onClick={() => void runAction("displayInit")} disabled={isLoading} primary>Init</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("displayClear")} disabled={isLoading}>Clear</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("displayPattern")} disabled={isLoading}>Checker</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("displayRefresh")} disabled={isLoading}>Refresh</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("displayOn")} disabled={isLoading}>ON</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("displayOff")} disabled={isLoading}>OFF</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("displayAutoOn")} disabled={isLoading}>Auto ON</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("displayAutoOff")} disabled={isLoading}>Auto OFF</CtrlButton>
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="text-[13px] font-mono text-slate-400">FPS</span>
+                    <DkInput value={displayFps} onChange={(e) => setDisplayFps(e.target.value)} className="w-16" />
+                    <CtrlButton onClick={() => void runAction("displaySetFps", { fps: displayFps })} disabled={isLoading}>Set</CtrlButton>
+                  </div>
+                </div>
+              </DkPanel>
+
+              {/* GDDRAM editor controls */}
+              <DkPanel label="GDDRAM Editor" subtitle={snapshot.ssd1306.summary}>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <CtrlButton onClick={() => void readGddram()} disabled={isLoading} primary>Read Frame</CtrlButton>
+                  <CtrlButton onClick={() => void runAction("ssd1306WriteFrame", { framebytes: localFrame })} disabled={isLoading} primary>Write &amp; Refresh</CtrlButton>
+                  <CtrlButton onClick={() => setLocalFrame(new Array(512).fill(0))} disabled={isLoading}>Clear</CtrlButton>
+                  <CtrlButton onClick={() => setLocalFrame(new Array(512).fill(0xff))} disabled={isLoading}>Fill</CtrlButton>
+                  <CtrlButton onClick={() => setLocalFrame((f) => f.map((b) => (~b) & 0xff))} disabled={isLoading}>Invert</CtrlButton>
+                </div>
+                <div className="h-7 text-[12px] font-mono text-slate-500 leading-7">
+                  {hoveredPixel
+                    ? `x=${hoveredPixel.x} y=${hoveredPixel.y} → page=${hoveredPixel.y >> 3} bit=${hoveredPixel.y & 7} → byte[0x${((hoveredPixel.y >> 3) * 128 + hoveredPixel.x).toString(16).toUpperCase().padStart(3, "0")}]=0x${(localFrame[(hoveredPixel.y >> 3) * 128 + hoveredPixel.x] ?? 0).toString(16).toUpperCase().padStart(2, "0")} → ${gddramGetPixel(localFrame, hoveredPixel.x, hoveredPixel.y) ? "ON" : "OFF"}`
+                    : "hover a pixel to inspect — left-drag: paint ON · right-drag: paint OFF"}
+                </div>
+              </DkPanel>
+
+              {/* Pixel editor + preview side-by-side */}
+              <div className="grid gap-4 xl:grid-cols-[auto_1fr]">
+                <DkPanel label="Pixel Editor" subtitle="128 × 32 — 6 px/cell">
+                  <div className="overflow-x-auto">
+                    <canvas
+                      ref={editorCanvasRef}
+                      width={128 * 6}
+                      height={32 * 6}
+                      className="block border border-white/[0.1] cursor-crosshair select-none"
+                      onMouseDown={handleEditorMouseDown}
+                      onMouseMove={handleEditorMouseMove}
+                      onMouseUp={() => setIsPainting(false)}
+                      onMouseLeave={() => { setIsPainting(false); setHoveredPixel(null); }}
+                      onContextMenu={(e) => e.preventDefault()}
                     />
-                    <CtrlButton onClick={() => void runAction("displayFill", { color: displayColor })} disabled={isLoading} primary>Write + Refresh</CtrlButton>
                   </div>
-                </DkField>
-                <DkField label="Refresh FPS">
-                  <div className="flex items-center gap-2">
-                    <DkInput value={displayFps} onChange={(e) => setDisplayFps(e.target.value)} className="w-24" />
-                    <CtrlButton onClick={() => void runAction("displaySetFps", { fps: displayFps })} disabled={isLoading}>Apply FPS</CtrlButton>
+                  <div className="mt-2 grid grid-cols-4 gap-2 text-[12px] font-mono text-slate-600">
+                    <span>P0: y=0–7</span><span>P1: y=8–15</span><span>P2: y=16–23</span><span>P3: y=24–31</span>
                   </div>
-                </DkField>
+                </DkPanel>
+                <DkPanel label="Display Preview" subtitle="128 × 32 — 2× scale">
+                  <canvas
+                    ref={previewCanvasRef}
+                    width={128 * 2}
+                    height={32 * 2}
+                    className="block border border-white/[0.1] mb-3"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                </DkPanel>
               </div>
-              <DkField label="Flow">
-                <div className="flex items-center gap-2">
-                  <span className="text-[12px] font-mono text-slate-500">
-                    source2 bulk-write to SDRAM framebuffer @ 0x10000, then source3 refreshes SSD1306 from SDRAM.
-                  </span>
+
+              {/* Memory Map */}
+              <DkPanel label="GDDRAM Memory Map" subtitle="4 pages × 128 bytes — SSD1306 page addressing">
+                <div className="overflow-x-auto">
+                  <table className="border-collapse w-full text-[12px] font-mono">
+                    <thead>
+                      <tr>
+                        <th className="text-left text-[11px] text-sky-700 uppercase tracking-[0.2em] pr-4 py-1 w-16">Addr</th>
+                        {Array.from({ length: 16 }, (_, i) => (
+                          <th key={i} className="text-right text-[11px] text-sky-700 px-1 py-1 w-7">
+                            +{i.toString(16).toUpperCase()}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: 32 }, (_, rowIdx) => {
+                        const baseByteIdx = rowIdx * 16;
+                        const page = rowIdx >> 3;
+                        const isPageBoundary = (rowIdx & 7) === 0;
+                        return (
+                          <React.Fragment key={rowIdx}>
+                            {isPageBoundary ? (
+                              <tr>
+                                <td colSpan={17} className="text-[11px] font-mono uppercase tracking-[0.2em] text-sky-700 bg-white/[0.04] px-2 py-1 border-t border-sky-900/40">
+                                  page {page} — y={page * 8}–{page * 8 + 7}
+                                </td>
+                              </tr>
+                            ) : null}
+                            <tr className={`border-b border-white/[0.04] ${rowIdx % 2 === 0 ? "bg-white/[0.01]" : ""}`}>
+                              <td className="text-slate-500 pr-4 py-0.5 text-right">0x{baseByteIdx.toString(16).toUpperCase().padStart(3, "0")}</td>
+                              {Array.from({ length: 16 }, (_, col) => {
+                                const idx = baseByteIdx + col;
+                                const val = localFrame[idx] ?? 0;
+                                return (
+                                  <td key={col} className={`text-right px-1 py-0.5 tabular-nums ${val === 0xff ? "text-emerald-300" : val !== 0 ? "text-emerald-400" : "text-slate-600"}`}>
+                                    {val.toString(16).toUpperCase().padStart(2, "0")}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </DkField>
-            </DkPanel>
+              </DkPanel>
+            </div>
           ) : null}
 
         </div>
@@ -582,8 +803,8 @@ export function WorkbenchClient() {
 function MiniStat({ k, v, warn }: { k: string; v: string; warn?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[12px] font-mono text-slate-700">{k}</span>
-      <span className={`text-[12px] font-mono ${warn ? "text-amber-500" : "text-slate-500"}`}>{v}</span>
+      <span className="text-[13px] font-mono text-slate-500">{k}</span>
+      <span className={`text-[13px] font-mono font-medium ${warn ? "text-amber-400" : "text-slate-300"}`}>{v}</span>
     </div>
   );
 }
@@ -608,10 +829,10 @@ function CtrlButton({
       disabled={disabled}
       className={`h-8 px-3 text-[13px] font-mono font-semibold rounded-sm border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
         primary
-          ? "border-sky-700/60 bg-sky-600/20 text-sky-300 hover:bg-sky-600/30 hover:border-sky-500"
+          ? "border-sky-600/70 bg-sky-600/25 text-sky-200 hover:bg-sky-600/40 hover:border-sky-400"
           : warn
-            ? "border-amber-700/50 bg-amber-950/40 text-amber-400 hover:bg-amber-950/60"
-            : "border-[#1e2d42] bg-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] hover:border-slate-600"
+            ? "border-amber-700/50 bg-amber-950/40 text-amber-300 hover:bg-amber-950/60"
+            : "border-[#2a3a52] bg-transparent text-slate-300 hover:text-white hover:bg-white/[0.06] hover:border-slate-500"
       }`}
     >
       {children}
@@ -635,7 +856,7 @@ function DkInput({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`h-9 w-full rounded-sm border border-[#1e2d42] bg-[#131d2e] px-2.5 text-[13px] font-mono text-sky-100 placeholder-slate-700 outline-none focus:border-sky-700/70 transition-colors ${className ?? ""}`}
+      className={`h-9 w-full rounded-sm border border-[#2a3a52] bg-[#131d2e] px-2.5 text-[13px] font-mono text-sky-50 placeholder-slate-600 outline-none focus:border-sky-600/80 transition-colors ${className ?? ""}`}
     />
   );
 }
@@ -643,7 +864,7 @@ function DkInput({
 function DkField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="grid gap-1">
-      <span className="text-[11px] font-mono uppercase tracking-[0.3em] text-sky-800">{label}</span>
+      <span className="text-[12px] font-mono uppercase tracking-[0.25em] text-sky-600">{label}</span>
       {children}
     </label>
   );
@@ -651,10 +872,10 @@ function DkField({ label, children }: { label: string; children: React.ReactNode
 
 function DkPanel({ label, subtitle, children }: { label: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-sm border border-white/[0.07] bg-[#0e1521] overflow-hidden">
-      <div className="px-4 py-2.5 border-b border-white/[0.06] flex items-baseline gap-3">
-        <span className="text-[11px] font-mono uppercase tracking-[0.35em] text-sky-700 shrink-0">{label}</span>
-        {subtitle ? <span className="text-[12px] font-mono text-slate-600 truncate">{subtitle}</span> : null}
+    <div className="rounded-sm border border-white/[0.08] bg-[#0e1521] overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-white/[0.07] flex items-baseline gap-3">
+        <span className="text-[12px] font-mono uppercase tracking-[0.3em] text-sky-500 shrink-0">{label}</span>
+        {subtitle ? <span className="text-[13px] font-mono text-slate-500 truncate">{subtitle}</span> : null}
       </div>
       <div className="p-4">{children}</div>
     </div>
@@ -664,17 +885,17 @@ function DkPanel({ label, subtitle, children }: { label: string; subtitle?: stri
 function StatRow({ k, v, ok }: { k: string; v: string; ok?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-2 py-0.5">
-      <span className="text-slate-700 shrink-0">{k}</span>
-      <span className={`truncate text-right ${ok === true ? "text-emerald-400" : ok === false ? "text-slate-600" : "text-slate-300"}`}>{v}</span>
+      <span className="text-slate-500 shrink-0">{k}</span>
+      <span className={`truncate text-right font-medium ${ok === true ? "text-emerald-400" : ok === false ? "text-slate-600" : "text-slate-200"}`}>{v}</span>
     </div>
   );
 }
 
 function KvCell({ k, v }: { k: string; v: string }) {
   return (
-    <div className="rounded-sm border border-white/[0.06] bg-[#0c1220] px-3 py-2">
-      <div className="text-[11px] font-mono uppercase tracking-[0.25em] text-sky-800">{k}</div>
-      <div className="mt-0.5 text-[13px] font-mono font-medium text-slate-200 truncate">{v}</div>
+    <div className="rounded-sm border border-white/[0.07] bg-[#0c1220] px-3 py-2">
+      <div className="text-[11px] font-mono uppercase tracking-[0.25em] text-sky-700">{k}</div>
+      <div className="mt-0.5 text-[13px] font-mono font-medium text-slate-100 truncate">{v}</div>
     </div>
   );
 }
@@ -683,36 +904,83 @@ function RwGroup({ title, result, children }: { title: string; result: string; c
   return (
     <div className="rounded-sm border border-white/[0.07] bg-[#0c1220] p-3 mb-3 last:mb-0">
       <div className="flex items-center justify-between gap-2 mb-2.5">
-        <span className="text-[13px] font-semibold text-slate-300">{title}</span>
-        <span className="text-[12px] font-mono text-sky-700 truncate max-w-[55%]">{result}</span>
+        <span className="text-[14px] font-semibold text-slate-200">{title}</span>
+        <span className="text-[13px] font-mono text-sky-400 truncate max-w-[55%]">{result}</span>
       </div>
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
 }
 
-function TerminalScreen({
-  label,
-  subtitle,
-  summary,
-  text,
-  actions,
-}: {
-  label: string;
-  subtitle: string;
-  summary: string;
-  text: string;
-  actions: React.ReactNode;
-}) {
+
+
+// ── SDRAM Status register grid ────────────────────────────────────────────────
+// Parses the plain-text status output into structured register cards.
+function SdramStatusGrid({ text }: { text: string }) {
+  if (!text || text === "-") {
+    return <p className="text-[13px] font-mono text-slate-600">No data — press Refresh.</p>;
+  }
+
+  const lines = text.split("\n");
+  type Block = { regName: string; rawVal: string; fields: string[] };
+  const blocks: Block[] = [];
+  let current: Block | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const isHeader = /^(0x[0-9A-Fa-f]{2}\s+\w|Base:|Control:|Raw\s+words:)/.test(trimmed);
+    if (isHeader) {
+      if (current) blocks.push(current);
+      // parse "0x00 REG_NAME = 0xHHHHHHHH" or plain header
+      const m = trimmed.match(/^(0x[\dA-Fa-f]{2}\s+\S+)\s*=\s*(0x[\dA-Fa-f]+)/);
+      current = { regName: m ? m[1] : trimmed, rawVal: m ? m[2] : "", fields: [] };
+    } else if (current) {
+      current.fields.push(trimmed);
+    }
+  }
+  if (current) blocks.push(current);
+
   return (
-    <DkPanel label={label} subtitle={subtitle}>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <span className="text-[12px] font-mono text-sky-700 truncate">{summary}</span>
-        {actions}
-      </div>
-      <ScrollArea className="h-[calc(100vh-360px)] min-h-[200px]">
-        <pre className="min-w-max px-4 py-3 text-[13px] font-mono leading-6 text-emerald-400 bg-[#05080e] rounded-sm border border-white/[0.05] whitespace-pre">{text}</pre>
-      </ScrollArea>
-    </DkPanel>
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-[12px] font-mono">
+        <thead>
+          <tr className="border-b border-white/[0.1]">
+            <th className="text-left text-[11px] uppercase tracking-[0.2em] text-sky-700 pb-2 pr-4 whitespace-nowrap w-44">Register</th>
+            <th className="text-left text-[11px] uppercase tracking-[0.2em] text-sky-700 pb-2 pr-6 whitespace-nowrap w-28">Value</th>
+            <th className="text-left text-[11px] uppercase tracking-[0.2em] text-sky-700 pb-2">Fields</th>
+          </tr>
+        </thead>
+        <tbody>
+          {blocks.map((block, bi) => (
+            <tr key={bi} className={`border-b border-white/[0.04] align-top ${
+              bi % 2 === 0 ? "" : "bg-white/[0.015]"
+            }`}>
+              <td className="py-1.5 pr-4 text-sky-500 whitespace-nowrap">{block.regName}</td>
+              <td className="py-1.5 pr-6 text-slate-400 whitespace-nowrap tabular-nums">{block.rawVal}</td>
+              <td className="py-1.5">
+                <div className="flex flex-wrap gap-x-5 gap-y-0">
+                  {block.fields.map((field, fi) => {
+                    const ci = field.indexOf(":");
+                    if (ci === -1) return <span key={fi} className="text-slate-500">{field}</span>;
+                    const fk = field.slice(0, ci).trim();
+                    const fv = field.slice(ci + 1).trim();
+                    const isFail = (fk.includes("fail") || fk.includes("error") || fk.includes("exhausted")) && fv !== "0";
+                    const isGood = (fv === "1" || fv === "PASS" || fv === "DONE") && !fk.includes("fail") && !fk.includes("error") && !fk.includes("exhausted");
+                    const isBad = fv === "0" && (fk.includes("pass") || fk.includes("done") || fk.includes("valid") || fk.includes("ok"));
+                    return (
+                      <span key={fi} className="whitespace-nowrap">
+                        <span className="text-slate-600">{fk}=</span>
+                        <span className={isFail ? "text-red-400" : isGood ? "text-emerald-400" : isBad ? "text-red-400" : "text-slate-300"}>{fv}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

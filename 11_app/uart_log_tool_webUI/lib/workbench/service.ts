@@ -84,6 +84,7 @@ import {
   paddedWordCount,
   RuleDecoder,
   SDRAM_HOST_SRC_ID,
+  SSD1306_FRAME_BYTES,
   STATUS_BYTE_COUNT,
   SYS_EVT_MODE_CHANGE,
   SYS_SRC_ID,
@@ -177,6 +178,9 @@ export class WorkbenchService {
   };
 
   private displaySummary = "idle";
+
+  private ssd1306Framebytes = new Uint8Array(SSD1306_FRAME_BYTES);
+  private ssd1306Summary = "idle";
 
   constructor() {
     void this.reloadDecoder(true);
@@ -323,6 +327,10 @@ export class WorkbenchService {
       eepromRw: this.eepromRwState,
       display: {
         summary: this.displaySummary,
+      },
+      ssd1306: {
+        summary: this.ssd1306Summary,
+        framebytes: Array.from(this.ssd1306Framebytes),
       },
     };
   }
@@ -690,6 +698,58 @@ export class WorkbenchService {
     });
   }
 
+  async ssd1306ReadFrame() {
+    return this.runExclusive(async () => {
+      const wordCount = SSD1306_FRAME_BYTES / 4; // 128 words
+      this.ssd1306Summary = "reading GDDRAM...";
+      this.statusLine = this.ssd1306Summary;
+      const words = await this.executeSdramBulkRead(
+        DISPLAY_FRAMEBUFFER_BASE_ADDR,
+        wordCount,
+        (receivedCount) => {
+          this.ssd1306Summary = `reading ${receivedCount}/${wordCount} words`;
+          this.statusLine = this.ssd1306Summary;
+        },
+      );
+      this.ensureBulkWordsComplete(words, DISPLAY_FRAMEBUFFER_BASE_ADDR, wordCount, "SSD1306 GDDRAM read");
+      for (let i = 0; i < wordCount; i++) {
+        const value = words.get(DISPLAY_FRAMEBUFFER_BASE_ADDR + i) ?? 0;
+        this.ssd1306Framebytes[i * 4 + 0] = value & 0xff;
+        this.ssd1306Framebytes[i * 4 + 1] = (value >>> 8) & 0xff;
+        this.ssd1306Framebytes[i * 4 + 2] = (value >>> 16) & 0xff;
+        this.ssd1306Framebytes[i * 4 + 3] = (value >>> 24) & 0xff;
+      }
+      this.ssd1306Summary = `GDDRAM read complete (${wordCount} words)`;
+      this.statusLine = this.ssd1306Summary;
+    });
+  }
+
+  async ssd1306WriteFrame(framebytes: number[]) {
+    return this.runExclusive(async () => {
+      if (framebytes.length !== SSD1306_FRAME_BYTES) {
+        throw new Error(`framebytes length must be ${SSD1306_FRAME_BYTES}, got ${framebytes.length}`);
+      }
+      const blob = Buffer.from(framebytes);
+      this.ssd1306Framebytes = new Uint8Array(blob);
+      const wordCount = paddedWordCount(SSD1306_FRAME_BYTES);
+      await this.executeBulkWrite(
+        DISPLAY_FRAMEBUFFER_BASE_ADDR,
+        wordCount,
+        blob,
+        "ssd1306_gddram_write",
+      );
+      await this.selectSource(DISPLAY_SRC_INDEX);
+      this.dropPendingFrames(
+        (frame) => frame.event.srcId === DISPLAY_HOST_SRC_ID &&
+          [EVT_CMD_ACK, EVT_CMD_ERR].includes(frame.event.eventId),
+      );
+      await this.sendBytes(buildDisplayRefreshCommand());
+      await this.waitForDisplayAck(DISP_OP_REFRESH);
+      this.ssd1306Summary = "GDDRAM written & display refreshed";
+      this.statusLine = this.ssd1306Summary;
+    });
+  }
+
   async displaySetFps(fps: number) {
     return this.runExclusive(async () => {
       await this.selectSource(DISPLAY_SRC_INDEX);
@@ -764,6 +824,10 @@ export class WorkbenchService {
         return this.displayCommand("auto-off");
       case "displaySetFps":
         return this.displaySetFps(Number.parseInt(`${payload.fps}`, 10));
+      case "ssd1306ReadFrame":
+        return this.ssd1306ReadFrame();
+      case "ssd1306WriteFrame":
+        return this.ssd1306WriteFrame(payload.framebytes as number[]);
       default:
         throw new Error(`unsupported action: ${action}`);
     }
