@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // File         : uart_log_tap.sv
-// Description  : Per-source log adapter with a fixed 4-entry FIFO.
+// Description  : Per-source log adapter with a fixed 2-entry FIFO.
 //                Each accepted event is one 128-bit beat. The tap exports a
 //                minimal AXI-Stream-like interface (TVALID/TREADY/TDATA).
 //                If FIFO is full, incoming events are dropped (no drop event).
@@ -27,7 +27,7 @@ module uart_log_tap (
   output logic [127:0] O_TDATA
 );
 
-  localparam int unsigned FIFO_DEPTH = 4;
+  localparam int unsigned FIFO_DEPTH = 2;
   localparam int unsigned PTR_W = $clog2(FIFO_DEPTH);
   localparam int unsigned CNT_W = $clog2(FIFO_DEPTH + 1);
 

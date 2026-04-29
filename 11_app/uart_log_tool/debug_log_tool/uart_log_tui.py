@@ -1,4 +1,4 @@
-"""Textual TUI for UART log viewing plus SDRAM, EEPROM, and SSD1331 control."""
+"""Textual TUI for UART log viewing plus SDRAM, EEPROM, and SSD1306 control."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Button, DataTable, Footer, Header, Input, Select, Static
 
 import eeprom_uart_protocol as eeprom_proto
-import ssd1331_uart_protocol as display_proto
+import ssd1306_uart_protocol as display_proto
 from sdram_uart_protocol import (
     HOST_EVT_BURST_DATA,
     HOST_EVT_BURST_DONE,
@@ -863,11 +863,11 @@ class UARTLogApp(App[None]):
                     with Vertical(id="display_screen", classes="screen hidden"):
                         yield Static("", id="display_summary", classes="panel")
                         with Vertical(classes="panel rw_panel"):
-                            yield Static("SSD1331 Display Control")
+                            yield Static("SSD1306 Display Control")
                             with Horizontal(classes="toolbar"):
                                 yield Button("Init", id="btn_display_init")
                                 yield Button("Clear", id="btn_display_clear")
-                                yield Button("Pattern", id="btn_display_pattern")
+                                yield Button("Checker", id="btn_display_pattern")
                             with Horizontal(classes="toolbar"):
                                 yield Button("ON", id="btn_display_on")
                                 yield Button("OFF", id="btn_display_off")
@@ -1353,13 +1353,16 @@ class UARTLogApp(App[None]):
         )
 
     def _refresh_display_view(self) -> None:
+        display_busy = self._display_task_active or (
+            self._burst_task_active and self._burst_task_kind in {"display_checker_write", "display_fill_write"}
+        )
         if self._display_summary is not None:
             self._display_summary.update(
                 "\n".join(
                     [
-                        "[SSD1331 Display]",
+                        "[SSD1306 Display]",
                         f"source     : idx={display_proto.HOST_SRC_INDEX} id=0x{display_proto.HOST_SRC_ID:02X}",
-                        f"state      : {'running' if self._display_task_active else 'idle'}",
+                        f"state      : {'running' if display_busy else 'idle'}",
                         f"detail     : {self._display_summary_text}",
                     ]
                 )
@@ -1393,6 +1396,26 @@ class UARTLogApp(App[None]):
         self._refresh_display_view()
         self._set_status(self._display_summary_text)
 
+    def _start_display_frame_upload(
+        self,
+        frame_blob: bytes,
+        *,
+        kind: str,
+        label: str,
+    ) -> None:
+        frame_words = padded_word_count(len(frame_blob))
+        if self._start_bulk_task(
+            kind=kind,
+            base_addr=display_proto.DISPLAY_FRAMEBUFFER_BASE_ADDR,
+            words=frame_words,
+            result_text=f"waiting for {label} framebuffer write ack...",
+            write_blob=frame_blob,
+            output_len=len(frame_blob),
+        ):
+            self._display_summary_text = f"queued {label}"
+            self._refresh_display_view()
+            self._set_status(self._display_summary_text)
+
     def _start_display_init(self) -> None:
         self._start_display_task(
             display_proto.build_init_command(),
@@ -1408,10 +1431,10 @@ class UARTLogApp(App[None]):
         )
 
     def _start_display_pattern(self) -> None:
-        self._start_display_task(
-            display_proto.build_pattern_command(),
-            "display pattern",
-            display_proto.DISP_OP_PATTERN,
+        self._start_display_frame_upload(
+            display_proto.build_checker_frame(),
+            kind="display_checker_write",
+            label="display checker upload",
         )
 
     def _start_display_on(self) -> None:
@@ -1439,10 +1462,10 @@ class UARTLogApp(App[None]):
             self._set_status(self._display_summary_text)
             return
 
-        self._start_display_task(
-            display_proto.build_fill_command(color),
-            f"display fill 0x{color:06X}",
-            display_proto.DISP_OP_FILL,
+        self._start_display_frame_upload(
+            display_proto.build_mono_fill_frame(color != 0),
+            kind="display_fill_write",
+            label=f"display fill upload 0x{color:06X}",
         )
 
     def _finish_display_task(self, message: str) -> None:
@@ -1527,6 +1550,8 @@ class UARTLogApp(App[None]):
             self._set_status(self._status_summary_text)
             return
 
+        drain_frames(self._read_bytes, self._parser, 0.1)
+
         self._status_refresh_active = True
         self._status_select_deadline = 0.0
         self._status_rsp_deadline = 0.0
@@ -1567,6 +1592,8 @@ class UARTLogApp(App[None]):
             self._refresh_status_view()
             self._set_status(self._status_summary_text)
             return
+
+        drain_frames(self._read_bytes, self._parser, 0.1)
 
         self._status_selftest_active = True
         self._status_selftest_inflight = False
@@ -1957,6 +1984,7 @@ class UARTLogApp(App[None]):
         if self._host_task_busy():
             self._set_status("host task busy")
             return False
+        drain_frames(self._read_bytes, self._parser, 0.1)
         self._rw_task_active = True
         self._rw_task_kind = kind
         self._rw_task_pending = list(commands)
@@ -2169,7 +2197,12 @@ class UARTLogApp(App[None]):
         self._set_status(detail)
 
     def _bulk_task_is_write(self) -> bool:
-        return self._burst_task_kind in {"bulk_file_write", "bulk_pattern_write"}
+        return self._burst_task_kind in {
+            "bulk_file_write",
+            "bulk_pattern_write",
+            "display_checker_write",
+            "display_fill_write",
+        }
 
     def _send_bulk_abort(self) -> bool:
         payload = build_bulk_abort_block(self._burst_next_block_index & 0xFF)
@@ -2352,7 +2385,10 @@ class UARTLogApp(App[None]):
         if not self._burst_task_active:
             return
         now = time.monotonic()
-        is_bulk_task = self._burst_task_kind.startswith("bulk_")
+        is_bulk_task = self._burst_task_kind.startswith("bulk_") or self._burst_task_kind in {
+            "display_checker_write",
+            "display_fill_write",
+        }
         if self._selected_src_idx != HOST_SRC_INDEX:
             if now >= self._burst_select_deadline:
                 if self._send_bytes(bytes([CMD_NEXT_SRC])) != 1:
@@ -2518,10 +2554,6 @@ class UARTLogApp(App[None]):
                 if ack_op != self._display_task_expected_op:
                     self._finish_display_task(
                         f"display ack mismatch op=0x{ack_op:02X} expected=0x{self._display_task_expected_op:02X}"
-                    )
-                elif ack_op == display_proto.DISP_OP_FILL:
-                    self._finish_display_task(
-                        f"{self._display_task_label} ok color=0x{event.arg1 & 0xFFFFFF:06X}"
                     )
                 else:
                     self._finish_display_task(f"{self._display_task_label} ok")
@@ -2783,6 +2815,7 @@ class UARTLogApp(App[None]):
             elif event.event_id == HOST_EVT_BULK_DONE:
                 done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
                 done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                completed_words = event.arg2 & SDRAM_MAX_WORD_ADDR
                 missing = [
                     idx
                     for idx in range(MAP_WORD_COUNT)
@@ -2791,6 +2824,10 @@ class UARTLogApp(App[None]):
                 if done_base != self._map_base_addr or done_words != MAP_WORD_COUNT:
                     self._finish_map_refresh(
                         f"DONE mismatch base=0x{done_base:05X} words={done_words}"
+                    )
+                elif completed_words != MAP_WORD_COUNT:
+                    self._finish_map_refresh(
+                        f"DONE completed mismatch words={completed_words}"
                     )
                 elif missing:
                     self._finish_map_refresh(
@@ -2812,6 +2849,11 @@ class UARTLogApp(App[None]):
             pass
         else:
             if event.event_id == HOST_EVT_READ_RSP and self._status_inflight_addr is not None and event.arg0 == self._status_inflight_addr:
+                if event.arg2 != 0:
+                    self._finish_status_refresh(
+                        f"status refresh failed at 0x{self._status_inflight_addr:05X}: status 0x{event.arg2:08X}"
+                    )
+                    return
                 offset = event.arg0 - STATUS_BASE_ADDR
                 if 0 <= offset < STATUS_BYTE_COUNT:
                     self._status_bytes[offset : offset + 4] = event.arg1.to_bytes(4, "little")
@@ -2833,6 +2875,11 @@ class UARTLogApp(App[None]):
                 and self._status_selftest_inflight
                 and event.arg0 == STATUS_SELFTEST_ADDR
             ):
+                if event.arg2 != 0:
+                    self._finish_status_selftest(
+                        f"selftest trigger failed: status 0x{event.arg2:08X}"
+                    )
+                    return
                 self._finish_status_selftest(
                     "selftest trigger acknowledged; refreshing status",
                     refresh_after_ack=True,
@@ -2843,7 +2890,10 @@ class UARTLogApp(App[None]):
                 )
 
         if self._burst_task_active and event.src_id == HOST_SRC_ID:
-            if self._burst_task_kind.startswith("bulk_"):
+            if self._burst_task_kind.startswith("bulk_") or self._burst_task_kind in {
+                "display_checker_write",
+                "display_fill_write",
+            }:
                 if self._burst_phase == "abort_wait":
                     if event.event_id in {HOST_EVT_BULK_ABORT, HOST_EVT_BULK_ERR, HOST_EVT_CMD_ERR}:
                         if self._restart_bulk_after_abort("bulk session aborted"):
@@ -2926,8 +2976,17 @@ class UARTLogApp(App[None]):
                 if event.event_id == HOST_EVT_BULK_DONE:
                     done_base = event.arg0 & SDRAM_MAX_WORD_ADDR
                     done_words = event.arg1 & SDRAM_MAX_WORD_ADDR
+                    completed_words = event.arg2 & SDRAM_MAX_WORD_ADDR
                     if done_base != self._burst_base_addr or done_words != self._burst_words:
                         mismatch_text = f"DONE mismatch base=0x{done_base:05X} words={done_words}"
+                        if self._retry_bulk_task(mismatch_text):
+                            return
+                        self._burst_result_text = mismatch_text
+                        self._finish_burst_task("bulk done mismatch")
+                    elif completed_words != self._burst_words:
+                        mismatch_text = (
+                            f"DONE completed mismatch {completed_words}/{self._burst_words}"
+                        )
                         if self._retry_bulk_task(mismatch_text):
                             return
                         self._burst_result_text = mismatch_text
@@ -2960,6 +3019,20 @@ class UARTLogApp(App[None]):
                                 f"read words={self._burst_words} bytes={len(blob)}"
                             )
                             self._finish_burst_task("bulk range read complete")
+                    elif self._burst_task_kind == "display_checker_write":
+                        self._finish_burst_task("display checker framebuffer uploaded")
+                        self._start_display_task(
+                            display_proto.build_refresh_command(),
+                            "display checker refresh",
+                            display_proto.DISP_OP_REFRESH,
+                        )
+                    elif self._burst_task_kind == "display_fill_write":
+                        self._finish_burst_task("display fill framebuffer uploaded")
+                        self._start_display_task(
+                            display_proto.build_refresh_command(),
+                            "display fill refresh",
+                            display_proto.DISP_OP_REFRESH,
+                        )
                     else:
                         if self._burst_task_kind == "bulk_file_write":
                             self._rw_file_write_result = (
@@ -2983,6 +3056,9 @@ class UARTLogApp(App[None]):
                         self._rw_file_write_result = error_text
                     elif self._burst_task_kind == "bulk_file_read":
                         self._rw_file_read_result = error_text
+                    elif self._burst_task_kind in {"display_checker_write", "display_fill_write"}:
+                        self._display_summary_text = error_text
+                        self._refresh_display_view()
                     else:
                         self._burst_result_text = error_text
                     self._finish_burst_task("bulk transfer failed")
@@ -3027,6 +3103,16 @@ class UARTLogApp(App[None]):
             return
         op_kind, inflight_addr, inflight_data = self._rw_task_inflight
         if event.event_id == HOST_EVT_READ_RSP and op_kind == "read" and event.arg0 == inflight_addr:
+            if event.arg2 != 0:
+                self._rw_task_inflight = None
+                self._rw_task_inflight_retries = 0
+                self._rw_task_rsp_deadline = 0.0
+                if self._rw_task_kind == "single_read":
+                    self._rw_single_read_result = f"status=0x{event.arg2:08X}"
+                self._finish_rw_task(
+                    f"rw task failed: read status 0x{event.arg2:08X}"
+                )
+                return
             self._rw_task_read_results[inflight_addr] = event.arg1
             self._rw_task_inflight = None
             self._rw_task_inflight_retries = 0
@@ -3035,6 +3121,16 @@ class UARTLogApp(App[None]):
                 self._rw_single_read_result = f"0x{inflight_addr:05X} -> 0x{event.arg1:08X}"
             self._refresh_rw_view()
         elif event.event_id == HOST_EVT_WRITE_ACK and op_kind == "write" and event.arg0 == inflight_addr:
+            if event.arg2 != 0:
+                self._rw_task_inflight = None
+                self._rw_task_inflight_retries = 0
+                self._rw_task_rsp_deadline = 0.0
+                if self._rw_task_kind == "single_write":
+                    self._rw_single_write_result = f"status=0x{event.arg2:08X}"
+                self._finish_rw_task(
+                    f"rw task failed: write status 0x{event.arg2:08X}"
+                )
+                return
             self._rw_task_inflight = None
             self._rw_task_inflight_retries = 0
             self._rw_task_rsp_deadline = 0.0
@@ -3185,6 +3281,8 @@ class UARTLogApp(App[None]):
             self._refresh_map_view()
             self._set_status(self._map_summary_text)
             return
+
+        drain_frames(self._read_bytes, self._parser, 0.1)
 
         self._map_refresh_active = True
         self._map_restore_src_idx = None

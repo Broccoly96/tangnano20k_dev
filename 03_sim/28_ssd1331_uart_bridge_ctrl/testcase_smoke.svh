@@ -28,7 +28,7 @@ initial begin
   if (evt_ids[1] != EVT_CMD_ACK || evt_arg0[1][2:0] != DISP_OP_INIT) begin
     log_fatal(1, "SSD1331 BRIDGE TB", "init ack mismatch");
   end
-  if (cap_byte_count != 37) begin
+  if (cap_byte_count != 39) begin
     log_fatal(1, "SSD1331 BRIDGE TB", $sformatf("unexpected init byte count: %0d", cap_byte_count));
   end
 
@@ -47,6 +47,17 @@ initial begin
   end
   if (cap_bytes[0] != 8'h26 || cap_bytes[1] != 8'h01 || cap_bytes[2] != 8'h22 || cap_bytes[7] != 8'h3E) begin
     log_fatal(1, "SSD1331 BRIDGE TB", "fill byte prefix mismatch");
+  end
+
+  reset_spi_capture();
+  reset_evt_capture();
+  send_text("A\n");
+  wait_evt_count(1);
+  if (evt_ids[0] != EVT_CMD_ACK || evt_arg0[0][2:0] != DISP_OP_ALL_ON) begin
+    log_fatal(1, "SSD1331 BRIDGE TB", "all-on ack mismatch");
+  end
+  if (cap_byte_count != 1 || cap_bytes[0] != 8'hA5) begin
+    log_fatal(1, "SSD1331 BRIDGE TB", "all-on byte mismatch");
   end
 
   $display("ssd1331_uart_bridge_ctrl smoke test passed");

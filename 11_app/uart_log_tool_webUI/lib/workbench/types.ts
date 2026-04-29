@@ -132,6 +132,13 @@ export interface DisplayState {
   summary: string;
 }
 
+export interface Ssd1306State {
+  summary: string;
+  /** Flat 512-byte GDDRAM array in page-address order.
+   *  byte[page * 128 + col] — bit(y & 7) = pixel at (col, page*8 + (y & 7)) */
+  framebytes: number[];
+}
+
 export interface WorkbenchSnapshot {
   session: SessionSnapshot;
   stats: StatsSnapshot;
@@ -143,6 +150,7 @@ export interface WorkbenchSnapshot {
   eepromMap: TextPaneState & { baseAddr: number };
   eepromRw: EepromRwState;
   display: DisplayState;
+  ssd1306: Ssd1306State;
 }
 
 export interface ConnectPayload {

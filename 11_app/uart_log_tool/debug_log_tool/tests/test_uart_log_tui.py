@@ -12,6 +12,7 @@ if str(TOOL_DIR) not in sys.path:
 from textual.containers import VerticalScroll  # noqa: E402
 from textual.widgets import Button, Input, Static  # noqa: E402
 from sdram_uart_protocol import BULK_ABORT, CMD_LITERAL_NEXT  # noqa: E402
+import ssd1306_uart_protocol as display_proto  # noqa: E402
 from uart_log_protocol import Event  # noqa: E402
 
 from uart_log_tui import (  # noqa: E402
@@ -56,7 +57,7 @@ def _unstuff_cli_literal_bytes(data: bytes) -> bytes:
 class UARTLogTuiTests(unittest.TestCase):
     def test_next_src_steps_wraps_forward(self) -> None:
         self.assertEqual(next_src_steps(0, 2), 2)
-        self.assertEqual(next_src_steps(2, 0), 1)
+        self.assertEqual(next_src_steps(2, 0), 2)
         self.assertEqual(next_src_steps(1, 1), 0)
 
     def test_format_sdram_map_text_word_mode(self) -> None:
@@ -76,7 +77,7 @@ class UARTLogTuiTests(unittest.TestCase):
         blob = bytes(range(32))
         text = format_eeprom_map_text(0x00120, blob)
         self.assertIn("Base: 0x00120  Mode: byte hex + ASCII", text)
-        self.assertIn("Addr  | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  | ASCII", text)
+        self.assertIn("Addr  | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F | ASCII", text)
         self.assertIn("00120 | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F | ................", text)
         self.assertIn("00130 | 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F | ................", text)
 
@@ -350,7 +351,7 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
                     Event(0x03, 0x34, 0, arg0, 0xA5000000 | word_index, 0)
                 )
 
-            app._handle_special_event(Event(0x03, 0x35, 0, 0x00000000, 0x00000100, 0))
+            app._handle_special_event(Event(0x03, 0x35, 0, 0x00000000, 0x00000100, 0x00000100))
 
             self.assertFalse(app._map_refresh_active)
             self.assertEqual(app._map_summary_text, "refresh complete")
@@ -411,6 +412,59 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             app._start_single_write()
             self.assertTrue(app._rw_task_active)
             self.assertEqual(app._rw_task_pending, [("write", 0x00005, 0x12345678)])
+
+    async def test_single_read_rejects_nonzero_access_status(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._tcp._sock = DummySock()
+            app._selected_src_idx = 2
+            app.query_one("#single_read_addr_input", Input).value = "0x00003"
+            app._start_single_read()
+            app._poll_rw_task()
+
+            app._handle_special_event(Event(0x03, 0x31, 0, 0x00000003, 0x12345678, 0x00000002))
+
+            self.assertFalse(app._rw_task_active)
+            self.assertEqual(app._rw_single_read_result, "status=0x00000002")
+            self.assertIn("rw task failed: read status 0x00000002", app._rw_summary_text)
+
+    async def test_status_refresh_rejects_nonzero_access_status(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            app._tcp._sock = DummySock()
+            app._selected_src_idx = 2
+            app._start_status_refresh()
+            app._poll_status_refresh()
+
+            app._handle_special_event(Event(0x03, 0x31, 0, 0x00000000, 0x00000000, 0x00000001))
+
+            self.assertFalse(app._status_refresh_active)
+            self.assertEqual(
+                app._status_summary_text,
+                "status refresh failed at 0x00000: status 0x00000001",
+            )
 
     async def test_single_read_timeout_retries_three_times(self) -> None:
         app = UARTLogApp(
@@ -602,6 +656,53 @@ class UARTLogTuiLayoutTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.query_one("#btn_status_mode", Button).label.plain, "Mode: Raw")
             app.action_toggle_status_mode()
             self.assertEqual(app._status_mode, "decode")
+
+    async def test_display_checker_writes_framebuffer_then_refreshes(self) -> None:
+        app = UARTLogApp(
+            transport="tcp",
+            initial_port=None,
+            baud=115200,
+            tcp_host="127.0.0.1",
+            tcp_port=2323,
+            mode="decode",
+            decoder_path=str(TOOL_DIR / "decode_rules.default.yaml"),
+            log_file=None,
+            replay_file=None,
+        )
+
+        async with app.run_test():
+            sock = DummySock()
+            app._tcp._sock = sock
+            app._selected_src_idx = 2
+            with mock.patch("uart_log_tui.select_source_index", return_value=2):
+                app._start_display_pattern()
+            app._poll_burst_task()
+
+            self.assertEqual(
+                sock.sent[-1],
+                b"BW 10000 00080\n",
+            )
+            self.assertEqual(app._burst_task_kind, "display_checker_write")
+
+            app._handle_special_event(Event(0x03, 0x32, 0, 0x00010000, 0x00000080, 0))
+            app._poll_burst_task()
+            self.assertTrue(len(sock.sent[-1]) > 8)
+
+            app._handle_special_event(Event(0x03, 0x35, 0, 0x00010000, 0x00000080, 0x00000080))
+            self.assertTrue(app._display_task_active)
+            self.assertEqual(app._display_task_expected_op, display_proto.DISP_OP_REFRESH)
+
+            app._selected_src_idx = display_proto.HOST_SRC_INDEX
+            app._poll_display_task()
+
+            self.assertEqual(sock.sent[-1], display_proto.build_refresh_command())
+
+            app._handle_special_event(
+                Event(display_proto.HOST_SRC_ID, display_proto.EVT_CMD_ACK, 0, display_proto.DISP_OP_REFRESH, 0, 0)
+            )
+
+            self.assertFalse(app._display_task_active)
+            self.assertEqual(app._display_summary_text, "display checker refresh ok")
 
     async def test_status_screen_renders_decode_and_raw_views(self) -> None:
         app = UARTLogApp(

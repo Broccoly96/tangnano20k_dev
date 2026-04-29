@@ -14,6 +14,11 @@
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1306_display\ssd1306_uart_proto_pkg.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1306_display\ssd1306_display_ctrl.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1306_display\ssd1306_display_stream_ctrl.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1306_display\ssd1306_uart_bridge_ctrl.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\ssd1306_display\ssd1306_sdram_uart_bridge_ctrl.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_memtest_ctrl.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bulk_rx.sv" type="verilog"/>

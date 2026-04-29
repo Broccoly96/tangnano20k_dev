@@ -7,6 +7,7 @@
 //                  - clear full window
 //                  - fill full screen with one color
 //                  - RGB bar test pattern
+//                  - all pixels on diagnostic mode
 //                  - display on / display off
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -33,11 +34,14 @@ module ssd1331_display_ctrl #(
 
   import ssd1331_uart_proto_pkg::*;
 
-  localparam int unsigned INIT_SEQ_LEN    = 37;
-  localparam int unsigned CLEAR_SEQ_LEN   = 5;
-  localparam int unsigned FILL_SEQ_LEN    = 13;
-  localparam int unsigned PATTERN_SEQ_LEN = 35;
-  localparam int unsigned MAX_SEQ_LEN     = INIT_SEQ_LEN;
+  localparam int unsigned INIT_SEQ_LEN         = 39;
+  localparam int unsigned CLEAR_SEQ_LEN        = 5;
+  localparam int unsigned FILL_SEQ_LEN         = 13;
+  localparam int unsigned RAM_PATTERN_PREFIX_LEN = 7;
+  localparam int unsigned RAM_PATTERN_PIXELS   = 96 * 64;
+  localparam int unsigned RAM_PATTERN_BYTES    = RAM_PATTERN_PIXELS * 2;
+  localparam int unsigned PATTERN_SEQ_LEN      = RAM_PATTERN_PREFIX_LEN + RAM_PATTERN_BYTES;
+  localparam int unsigned MAX_SEQ_LEN          = PATTERN_SEQ_LEN;
   localparam int unsigned MAX_WAIT_CYCLES =
     (RESET_ASSERT_CYCLES > RESET_RELEASE_CYCLES) ? RESET_ASSERT_CYCLES : RESET_RELEASE_CYCLES;
   localparam int unsigned WAIT_W = (MAX_WAIT_CYCLES <= 1) ? 1 : $clog2(MAX_WAIT_CYCLES + 1);
@@ -84,6 +88,7 @@ module ssd1331_display_ctrl #(
         DISP_OP_PATTERN: seq_len = PATTERN_SEQ_LEN;
         DISP_OP_ON:      seq_len = 1;
         DISP_OP_OFF:     seq_len = 1;
+        DISP_OP_ALL_ON:  seq_len = 1;
         default:         seq_len = 1;
       endcase
     end
@@ -135,7 +140,29 @@ module ssd1331_display_ctrl #(
 
   function automatic logic rect_seq_dc(input logic [3:0] rect_step);
     begin
-      rect_seq_dc = (rect_step == 4'd0) ? 1'b0 : 1'b1;
+      rect_seq_dc = 1'b0;
+    end
+  endfunction
+
+  function automatic logic [7:0] rgb565_bar_byte(input int unsigned data_idx);
+    int unsigned pixel_idx;
+    logic [15:0] rgb565_value;
+    begin
+      pixel_idx = data_idx >> 1;
+
+      if (pixel_idx < (32 * 64)) begin
+        rgb565_value = 16'hF800;
+      end else if (pixel_idx < (64 * 64)) begin
+        rgb565_value = 16'h07E0;
+      end else begin
+        rgb565_value = 16'h001F;
+      end
+
+      if (data_idx[0] == 1'b0) begin
+        rgb565_bar_byte = rgb565_value[15:8];
+      end else begin
+        rgb565_bar_byte = rgb565_value[7:0];
+      end
     end
   endfunction
 
@@ -146,43 +173,45 @@ module ssd1331_display_ctrl #(
     case (r_active_op)
       DISP_OP_INIT: begin
         case (r_step_idx)
-          6'd0:  begin s_seq_byte = 8'hAE; s_seq_dc = 1'b0; end
-          6'd1:  begin s_seq_byte = 8'hA0; s_seq_dc = 1'b0; end
-          6'd2:  begin s_seq_byte = 8'h72; s_seq_dc = 1'b1; end
-          6'd3:  begin s_seq_byte = 8'hA1; s_seq_dc = 1'b0; end
-          6'd4:  begin s_seq_byte = 8'h00; s_seq_dc = 1'b1; end
-          6'd5:  begin s_seq_byte = 8'hA2; s_seq_dc = 1'b0; end
-          6'd6:  begin s_seq_byte = 8'h00; s_seq_dc = 1'b1; end
-          6'd7:  begin s_seq_byte = 8'hA4; s_seq_dc = 1'b0; end
-          6'd8:  begin s_seq_byte = 8'hA8; s_seq_dc = 1'b0; end
-          6'd9:  begin s_seq_byte = 8'h3F; s_seq_dc = 1'b1; end
-          6'd10: begin s_seq_byte = 8'hAD; s_seq_dc = 1'b0; end
-          6'd11: begin s_seq_byte = 8'h8E; s_seq_dc = 1'b1; end
-          6'd12: begin s_seq_byte = 8'hB0; s_seq_dc = 1'b0; end
-          6'd13: begin s_seq_byte = 8'h0B; s_seq_dc = 1'b1; end
-          6'd14: begin s_seq_byte = 8'hB1; s_seq_dc = 1'b0; end
-          6'd15: begin s_seq_byte = 8'h31; s_seq_dc = 1'b1; end
-          6'd16: begin s_seq_byte = 8'hB3; s_seq_dc = 1'b0; end
-          6'd17: begin s_seq_byte = 8'hF0; s_seq_dc = 1'b1; end
-          6'd18: begin s_seq_byte = 8'h8A; s_seq_dc = 1'b0; end
-          6'd19: begin s_seq_byte = 8'h64; s_seq_dc = 1'b1; end
-          6'd20: begin s_seq_byte = 8'h8B; s_seq_dc = 1'b0; end
-          6'd21: begin s_seq_byte = 8'h78; s_seq_dc = 1'b1; end
-          6'd22: begin s_seq_byte = 8'h8C; s_seq_dc = 1'b0; end
-          6'd23: begin s_seq_byte = 8'h64; s_seq_dc = 1'b1; end
-          6'd24: begin s_seq_byte = 8'hBB; s_seq_dc = 1'b0; end
-          6'd25: begin s_seq_byte = 8'h3A; s_seq_dc = 1'b1; end
-          6'd26: begin s_seq_byte = 8'hBE; s_seq_dc = 1'b0; end
-          6'd27: begin s_seq_byte = 8'h3E; s_seq_dc = 1'b1; end
-          6'd28: begin s_seq_byte = 8'h87; s_seq_dc = 1'b0; end
-          6'd29: begin s_seq_byte = 8'h06; s_seq_dc = 1'b1; end
-          6'd30: begin s_seq_byte = 8'h81; s_seq_dc = 1'b0; end
-          6'd31: begin s_seq_byte = 8'h91; s_seq_dc = 1'b1; end
-          6'd32: begin s_seq_byte = 8'h82; s_seq_dc = 1'b0; end
-          6'd33: begin s_seq_byte = 8'h50; s_seq_dc = 1'b1; end
-          6'd34: begin s_seq_byte = 8'h83; s_seq_dc = 1'b0; end
-          6'd35: begin s_seq_byte = 8'h7D; s_seq_dc = 1'b1; end
-          6'd36: begin s_seq_byte = 8'hAF; s_seq_dc = 1'b0; end
+          6'd0:  begin s_seq_byte = 8'hFD; s_seq_dc = 1'b0; end
+          6'd1:  begin s_seq_byte = 8'h12; s_seq_dc = 1'b0; end
+          6'd2:  begin s_seq_byte = 8'hAE; s_seq_dc = 1'b0; end
+          6'd3:  begin s_seq_byte = 8'hA0; s_seq_dc = 1'b0; end
+          6'd4:  begin s_seq_byte = 8'h72; s_seq_dc = 1'b0; end
+          6'd5:  begin s_seq_byte = 8'hA1; s_seq_dc = 1'b0; end
+          6'd6:  begin s_seq_byte = 8'h00; s_seq_dc = 1'b0; end
+          6'd7:  begin s_seq_byte = 8'hA2; s_seq_dc = 1'b0; end
+          6'd8:  begin s_seq_byte = 8'h00; s_seq_dc = 1'b0; end
+          6'd9:  begin s_seq_byte = 8'hA4; s_seq_dc = 1'b0; end
+          6'd10: begin s_seq_byte = 8'hA8; s_seq_dc = 1'b0; end
+          6'd11: begin s_seq_byte = 8'h3F; s_seq_dc = 1'b0; end
+          6'd12: begin s_seq_byte = 8'hAD; s_seq_dc = 1'b0; end
+          6'd13: begin s_seq_byte = 8'h8E; s_seq_dc = 1'b0; end
+          6'd14: begin s_seq_byte = 8'hB0; s_seq_dc = 1'b0; end
+          6'd15: begin s_seq_byte = 8'h0B; s_seq_dc = 1'b0; end
+          6'd16: begin s_seq_byte = 8'hB1; s_seq_dc = 1'b0; end
+          6'd17: begin s_seq_byte = 8'h31; s_seq_dc = 1'b0; end
+          6'd18: begin s_seq_byte = 8'hB3; s_seq_dc = 1'b0; end
+          6'd19: begin s_seq_byte = 8'hF0; s_seq_dc = 1'b0; end
+          6'd20: begin s_seq_byte = 8'h8A; s_seq_dc = 1'b0; end
+          6'd21: begin s_seq_byte = 8'h64; s_seq_dc = 1'b0; end
+          6'd22: begin s_seq_byte = 8'h8B; s_seq_dc = 1'b0; end
+          6'd23: begin s_seq_byte = 8'h78; s_seq_dc = 1'b0; end
+          6'd24: begin s_seq_byte = 8'h8C; s_seq_dc = 1'b0; end
+          6'd25: begin s_seq_byte = 8'h64; s_seq_dc = 1'b0; end
+          6'd26: begin s_seq_byte = 8'hBB; s_seq_dc = 1'b0; end
+          6'd27: begin s_seq_byte = 8'h3A; s_seq_dc = 1'b0; end
+          6'd28: begin s_seq_byte = 8'hBE; s_seq_dc = 1'b0; end
+          6'd29: begin s_seq_byte = 8'h3E; s_seq_dc = 1'b0; end
+          6'd30: begin s_seq_byte = 8'h87; s_seq_dc = 1'b0; end
+          6'd31: begin s_seq_byte = 8'h06; s_seq_dc = 1'b0; end
+          6'd32: begin s_seq_byte = 8'h81; s_seq_dc = 1'b0; end
+          6'd33: begin s_seq_byte = 8'h91; s_seq_dc = 1'b0; end
+          6'd34: begin s_seq_byte = 8'h82; s_seq_dc = 1'b0; end
+          6'd35: begin s_seq_byte = 8'h50; s_seq_dc = 1'b0; end
+          6'd36: begin s_seq_byte = 8'h83; s_seq_dc = 1'b0; end
+          6'd37: begin s_seq_byte = 8'h7D; s_seq_dc = 1'b0; end
+          6'd38: begin s_seq_byte = 8'hAF; s_seq_dc = 1'b0; end
           default: begin s_seq_byte = 8'h00; s_seq_dc = 1'b0; end
         endcase
       end
@@ -190,10 +219,10 @@ module ssd1331_display_ctrl #(
       DISP_OP_CLEAR: begin
         case (r_step_idx)
           6'd0:    begin s_seq_byte = 8'h25; s_seq_dc = 1'b0; end
-          6'd1:    begin s_seq_byte = 8'h00; s_seq_dc = 1'b1; end
-          6'd2:    begin s_seq_byte = 8'h00; s_seq_dc = 1'b1; end
-          6'd3:    begin s_seq_byte = 8'h5F; s_seq_dc = 1'b1; end
-          6'd4:    begin s_seq_byte = 8'h3F; s_seq_dc = 1'b1; end
+          6'd1:    begin s_seq_byte = 8'h00; s_seq_dc = 1'b0; end
+          6'd2:    begin s_seq_byte = 8'h00; s_seq_dc = 1'b0; end
+          6'd3:    begin s_seq_byte = 8'h5F; s_seq_dc = 1'b0; end
+          6'd4:    begin s_seq_byte = 8'h3F; s_seq_dc = 1'b0; end
           default: begin s_seq_byte = 8'h00; s_seq_dc = 1'b0; end
         endcase
       end
@@ -201,7 +230,7 @@ module ssd1331_display_ctrl #(
       DISP_OP_FILL: begin
         case (r_step_idx)
           6'd0:    begin s_seq_byte = 8'h26; s_seq_dc = 1'b0; end
-          6'd1:    begin s_seq_byte = 8'h01; s_seq_dc = 1'b1; end
+          6'd1:    begin s_seq_byte = 8'h01; s_seq_dc = 1'b0; end
           default: begin
             s_seq_byte = rect_seq_byte(r_step_idx - 6'd2, r_active_color, 8'd0, 8'd0, 8'd95, 8'd63);
             s_seq_dc   = rect_seq_dc(r_step_idx - 6'd2);
@@ -210,21 +239,30 @@ module ssd1331_display_ctrl #(
       end
 
       DISP_OP_PATTERN: begin
-        if (r_step_idx == 6'd0) begin
-          s_seq_byte = 8'h26;
+        if (r_step_idx == 14'd0) begin
+          s_seq_byte = 8'h15;
           s_seq_dc   = 1'b0;
-        end else if (r_step_idx == 6'd1) begin
-          s_seq_byte = 8'h01;
-          s_seq_dc   = 1'b1;
-        end else if (r_step_idx >= 6'd2 && r_step_idx <= 6'd12) begin
-          s_seq_byte = rect_seq_byte(r_step_idx - 6'd2, 24'hFF0000, 8'd0, 8'd0, 8'd31, 8'd63);
-          s_seq_dc   = rect_seq_dc(r_step_idx - 6'd2);
-        end else if (r_step_idx >= 6'd13 && r_step_idx <= 6'd23) begin
-          s_seq_byte = rect_seq_byte(r_step_idx - 6'd13, 24'h00FF00, 8'd32, 8'd0, 8'd63, 8'd63);
-          s_seq_dc   = rect_seq_dc(r_step_idx - 6'd13);
+        end else if (r_step_idx == 14'd1) begin
+          s_seq_byte = 8'h00;
+          s_seq_dc   = 1'b0;
+        end else if (r_step_idx == 14'd2) begin
+          s_seq_byte = 8'h5F;
+          s_seq_dc   = 1'b0;
+        end else if (r_step_idx == 14'd3) begin
+          s_seq_byte = 8'h75;
+          s_seq_dc   = 1'b0;
+        end else if (r_step_idx == 14'd4) begin
+          s_seq_byte = 8'h00;
+          s_seq_dc   = 1'b0;
+        end else if (r_step_idx == 14'd5) begin
+          s_seq_byte = 8'h3F;
+          s_seq_dc   = 1'b0;
+        end else if (r_step_idx == 14'd6) begin
+          s_seq_byte = 8'h5C;
+          s_seq_dc   = 1'b0;
         end else begin
-          s_seq_byte = rect_seq_byte(r_step_idx - 6'd24, 24'h0000FF, 8'd64, 8'd0, 8'd95, 8'd63);
-          s_seq_dc   = rect_seq_dc(r_step_idx - 6'd24);
+          s_seq_byte = rgb565_bar_byte(r_step_idx - RAM_PATTERN_PREFIX_LEN);
+          s_seq_dc   = 1'b1;
         end
       end
 
@@ -235,6 +273,11 @@ module ssd1331_display_ctrl #(
 
       DISP_OP_OFF: begin
         s_seq_byte = 8'hAE;
+        s_seq_dc   = 1'b0;
+      end
+
+      DISP_OP_ALL_ON: begin
+        s_seq_byte = 8'hA5;
         s_seq_dc   = 1'b0;
       end
 

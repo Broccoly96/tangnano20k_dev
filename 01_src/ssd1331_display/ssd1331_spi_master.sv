@@ -2,8 +2,8 @@
 //////////////////////////////////////////////////////////////////////////////////
 // File         : ssd1331_spi_master.sv
 // Description  : Byte-oriented 4-wire SPI sender for SSD1331-style serial write.
-//                - Drives SCLK idle low and changes SDIN while SCLK is low.
-//                - SSD1331 samples SDIN on each rising edge of SCLK.
+//                - Drives SCLK idle high to match the SSD1331 serial timing.
+//                - Updates SDIN before the rising sampling edge of SCLK.
 //                - Supports multi-byte frames by holding CS# low between bytes.
 //////////////////////////////////////////////////////////////////////////////////
 
@@ -28,8 +28,9 @@ module ssd1331_spi_master #(
 
   localparam int unsigned DIV_W = (CLK_DIV <= 1) ? 1 : $clog2(CLK_DIV);
 
-  typedef enum logic [1:0] {
+  typedef enum logic [2:0] {
     ST_IDLE,
+    ST_SETUP,
     ST_CLK_LOW,
     ST_CLK_HIGH,
     ST_WAIT_NEXT
@@ -74,19 +75,21 @@ module ssd1331_spi_master #(
       r_shift     <= tx_data;
       r_bit_idx   <= 3'd7;
       r_byte_last <= tx_last;
-      r_spi_sclk  <= 1'b0;
+      r_spi_sclk  <= 1'b1;
       r_spi_sdin  <= tx_data[7];
       r_spi_dc    <= tx_dc;
       if (tx_first || r_spi_cs_n) begin
         r_spi_cs_n <= 1'b0;
       end
       r_div_cnt   <= div_reload_value();
-      st_state    <= ST_CLK_LOW;
+      st_state    <= ST_SETUP;
     end
   endtask
 
-  // Serial sender state. Data is only updated while SCLK is low so each rising
-  // edge presents a stable SDIN bit to the SSD1331 input shift register.
+  // Serial sender state. SCLK idles high. Each byte first asserts CS# and
+  // waits one divider interval so CS#/DC/SDIN satisfy setup time before the
+  // first high-to-low clock transition. SDIN is then held stable across each
+  // rising sampling edge and changed only after the following high phase.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
       st_state    <= ST_IDLE;
@@ -95,7 +98,7 @@ module ssd1331_spi_master #(
       r_bit_idx   <= 3'd0;
       r_byte_last <= 1'b1;
       r_spi_cs_n  <= 1'b1;
-      r_spi_sclk  <= 1'b0;
+      r_spi_sclk  <= 1'b1;
       r_spi_sdin  <= 1'b0;
       r_spi_dc    <= 1'b0;
       r_tx_done   <= 1'b0;
@@ -105,9 +108,19 @@ module ssd1331_spi_master #(
       case (st_state)
         ST_IDLE: begin
           r_spi_cs_n <= 1'b1;
-          r_spi_sclk <= 1'b0;
+          r_spi_sclk <= 1'b1;
           if (I_TX_VALID) begin
             start_byte(I_TX_DATA, I_TX_DC, 1'b1, I_TX_LAST);
+          end
+        end
+
+        ST_SETUP: begin
+          if (r_div_cnt != '0) begin
+            r_div_cnt <= r_div_cnt - 1'b1;
+          end else begin
+            r_spi_sclk <= 1'b0;
+            r_div_cnt  <= div_reload_value();
+            st_state   <= ST_CLK_LOW;
           end
         end
 
@@ -129,9 +142,11 @@ module ssd1331_spi_master #(
             if (r_bit_idx == 3'd0) begin
               r_tx_done <= 1'b1;
               if (r_byte_last) begin
+                r_spi_sclk <= 1'b1;
                 r_spi_cs_n <= 1'b1;
                 st_state   <= ST_IDLE;
               end else begin
+                r_spi_sclk <= 1'b1;
                 st_state <= ST_WAIT_NEXT;
               end
             end else begin

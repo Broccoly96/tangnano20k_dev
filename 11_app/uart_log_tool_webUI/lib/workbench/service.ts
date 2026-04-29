@@ -11,12 +11,16 @@ import {
   buildBulkWriteCommand,
   buildBurstTestReadCommand,
   buildBurstTestWriteCommand,
+  buildDisplayAutoOffCommand,
+  buildDisplayAutoOnCommand,
+  buildDisplayCheckerFrame,
   buildDisplayClearCommand,
-  buildDisplayFillCommand,
   buildDisplayInitCommand,
   buildDisplayOffCommand,
   buildDisplayOnCommand,
-  buildDisplayPatternCommand,
+  buildDisplayMonoFillFrame,
+  buildDisplayRefreshCommand,
+  buildDisplaySetFpsCommand,
   buildEepromBulkReadCommand,
   buildEepromBulkWriteCommand,
   buildEepromReadCommand,
@@ -33,7 +37,17 @@ import {
   decodeBulkReadProgress,
   decodeBurstDataPacket,
   decodeEepromBulkReadProgress,
+  DISPLAY_FRAMEBUFFER_BASE_ADDR,
   DISPLAY_HOST_SRC_ID,
+  DISPLAY_SRC_INDEX,
+  DISP_OP_AUTO_OFF,
+  DISP_OP_AUTO_ON,
+  DISP_OP_CLEAR,
+  DISP_OP_INIT,
+  DISP_OP_OFF,
+  DISP_OP_ON,
+  DISP_OP_REFRESH,
+  DISP_OP_SET_FPS,
   EEPROM_HOST_SRC_ID,
   EEPROM_MAP_BYTE_COUNT,
   EVT_CMD_ACK,
@@ -70,6 +84,7 @@ import {
   paddedWordCount,
   RuleDecoder,
   SDRAM_HOST_SRC_ID,
+  SSD1306_FRAME_BYTES,
   STATUS_BYTE_COUNT,
   SYS_EVT_MODE_CHANGE,
   SYS_SRC_ID,
@@ -163,6 +178,9 @@ export class WorkbenchService {
   };
 
   private displaySummary = "idle";
+
+  private ssd1306Framebytes = new Uint8Array(SSD1306_FRAME_BYTES);
+  private ssd1306Summary = "idle";
 
   constructor() {
     void this.reloadDecoder(true);
@@ -310,6 +328,10 @@ export class WorkbenchService {
       display: {
         summary: this.displaySummary,
       },
+      ssd1306: {
+        summary: this.ssd1306Summary,
+        framebytes: Array.from(this.ssd1306Framebytes),
+      },
     };
   }
 
@@ -369,22 +391,9 @@ export class WorkbenchService {
       this.mapSummary = `refreshing 0x${baseAddr.toString(16).toUpperCase().padStart(5, "0")}`;
       this.statusLine = this.mapSummary;
       this.mapBytes.fill(0);
-
-      await this.selectSource(HOST_SRC_INDEX);
-      await this.sendBytes(buildBulkReadCommand(baseAddr, MAP_WORD_COUNT));
-
-      const words = new Map<number, number>();
-      await this.collectHostFrames(SDRAM_HOST_SRC_ID, [HOST_EVT_BULK_OK, HOST_EVT_BULK_PROGRESS, HOST_EVT_BULK_DONE, HOST_EVT_BULK_ERR, HOST_EVT_CMD_ERR], 5000, (frame) => {
-        if (frame.event.eventId === HOST_EVT_BULK_PROGRESS) {
-          const progress = decodeBulkReadProgress(frame.event.arg0, frame.event.arg1, frame.event.arg2);
-          progress.words.forEach((value, index) => {
-            words.set(progress.baseAddr + index, value);
-          });
-        }
-        if (frame.event.eventId === HOST_EVT_BULK_ERR || frame.event.eventId === HOST_EVT_CMD_ERR) {
-          throw new Error(`bulk read failed: 0x${frame.event.eventId.toString(16).toUpperCase()}`);
-        }
-        return frame.event.eventId === HOST_EVT_BULK_DONE;
+      const words = await this.executeSdramBulkRead(baseAddr, MAP_WORD_COUNT, (receivedCount) => {
+        this.mapSummary = `bulk read words ${receivedCount}/${MAP_WORD_COUNT}`;
+        this.statusLine = this.mapSummary;
       });
 
       for (let offset = 0; offset < MAP_WORD_COUNT; offset += 1) {
@@ -395,6 +404,7 @@ export class WorkbenchService {
         this.mapBytes[wordOffset + 2] = (value >>> 16) & 0xff;
         this.mapBytes[wordOffset + 3] = (value >>> 24) & 0xff;
       }
+      this.ensureBulkWordsComplete(words, baseAddr, MAP_WORD_COUNT, "SDRAM map refresh");
 
       this.mapSummary = `loaded 256 words from 0x${baseAddr.toString(16).toUpperCase().padStart(5, "0")}`;
       this.statusLine = this.mapSummary;
@@ -403,37 +413,53 @@ export class WorkbenchService {
 
   async refreshStatus() {
     return this.runExclusive(async () => {
-      this.statusSummary = "refreshing status registers";
-      await this.selectSource(HOST_SRC_INDEX);
-      for (let offset = 0; offset < STATUS_BYTE_COUNT; offset += 4) {
-        await this.sendBytes(buildStatusReadCommand(offset));
-        const frame = await this.waitForFrame((candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID && candidate.event.eventId === HOST_EVT_READ_RSP && candidate.event.arg0 === offset, 1000);
-        const value = frame.event.arg1 >>> 0;
-        this.statusBytes[offset + 0] = value & 0xff;
-        this.statusBytes[offset + 1] = (value >>> 8) & 0xff;
-        this.statusBytes[offset + 2] = (value >>> 16) & 0xff;
-        this.statusBytes[offset + 3] = (value >>> 24) & 0xff;
-      }
-      this.statusSummary = "status registers refreshed";
-      this.statusLine = this.statusSummary;
+      await this.refreshStatusUnlocked();
     });
   }
 
   async runStatusSelftest() {
     return this.runExclusive(async () => {
       await this.selectSource(HOST_SRC_INDEX);
+      this.dropPendingFrames(
+        (frame) => frame.event.srcId === SDRAM_HOST_SRC_ID &&
+          [HOST_EVT_WRITE_ACK, HOST_EVT_CMD_ERR, HOST_EVT_READ_RSP].includes(frame.event.eventId),
+      );
       await this.sendBytes(buildStatusWriteCommand(0x0003c, 0x0000_0001));
-      await this.waitForFrame((frame) => frame.event.srcId === SDRAM_HOST_SRC_ID && frame.event.eventId === HOST_EVT_WRITE_ACK && frame.event.arg0 === 0x0003c, 1000);
+      const frame = await this.waitForFrame(
+        (candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID &&
+          [HOST_EVT_WRITE_ACK, HOST_EVT_CMD_ERR].includes(candidate.event.eventId) &&
+          (candidate.event.eventId !== HOST_EVT_WRITE_ACK || candidate.event.arg0 === 0x0003c),
+        1000,
+      );
+      if (frame.event.eventId === HOST_EVT_CMD_ERR) {
+        throw new Error(`selftest trigger failed: cmd_err 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+      }
+      this.assertAccessStatusOk(frame, "selftest trigger");
       this.statusLine = "selftest trigger acknowledged";
-      await this.refreshStatus();
+      await this.refreshStatusUnlocked();
     });
   }
 
   async singleRead(addr: number) {
     return this.runExclusive(async () => {
       await this.selectSource(HOST_SRC_INDEX);
+      this.dropPendingFrames(
+        (frame) => frame.event.srcId === SDRAM_HOST_SRC_ID &&
+          [HOST_EVT_READ_RSP, HOST_EVT_CMD_ERR].includes(frame.event.eventId),
+      );
       await this.sendBytes(buildReadCommand(addr));
-      const frame = await this.waitForFrame((candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID && candidate.event.eventId === HOST_EVT_READ_RSP && candidate.event.arg0 === addr, 1000);
+      const frame = await this.waitForFrame(
+        (candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID &&
+          (
+            (candidate.event.eventId === HOST_EVT_READ_RSP && candidate.event.arg0 === addr) ||
+            candidate.event.eventId === HOST_EVT_CMD_ERR
+          ),
+        1000,
+      );
+      if (frame.event.eventId === HOST_EVT_CMD_ERR) {
+        throw new Error(`single read failed: cmd_err 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+      }
+      this.assertAccessStatusOk(frame, `single read 0x${addr.toString(16).toUpperCase().padStart(5, "0")}`);
       this.rwState.singleReadResult = `0x${(frame.event.arg1 >>> 0).toString(16).toUpperCase().padStart(8, "0")}`;
       this.rwState.summary = `read 0x${addr.toString(16).toUpperCase().padStart(5, "0")}`;
       this.statusLine = this.rwState.summary;
@@ -443,8 +469,23 @@ export class WorkbenchService {
   async singleWrite(addr: number, data: number) {
     return this.runExclusive(async () => {
       await this.selectSource(HOST_SRC_INDEX);
+      this.dropPendingFrames(
+        (frame) => frame.event.srcId === SDRAM_HOST_SRC_ID &&
+          [HOST_EVT_WRITE_ACK, HOST_EVT_CMD_ERR].includes(frame.event.eventId),
+      );
       await this.sendBytes(buildWriteCommand(addr, data));
-      await this.waitForFrame((candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID && candidate.event.eventId === HOST_EVT_WRITE_ACK && candidate.event.arg0 === addr, 1000);
+      const frame = await this.waitForFrame(
+        (candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID &&
+          (
+            (candidate.event.eventId === HOST_EVT_WRITE_ACK && candidate.event.arg0 === addr) ||
+            candidate.event.eventId === HOST_EVT_CMD_ERR
+          ),
+        1000,
+      );
+      if (frame.event.eventId === HOST_EVT_CMD_ERR) {
+        throw new Error(`single write failed: cmd_err 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+      }
+      this.assertAccessStatusOk(frame, `single write 0x${addr.toString(16).toUpperCase().padStart(5, "0")}`);
       this.rwState.singleWriteResult = `wrote 0x${(data >>> 0).toString(16).toUpperCase().padStart(8, "0")}`;
       this.rwState.summary = `write ack 0x${addr.toString(16).toUpperCase().padStart(5, "0")}`;
       this.statusLine = this.rwState.summary;
@@ -473,25 +514,16 @@ export class WorkbenchService {
       this.burstBaseAddr = baseAddr;
       this.burstWords = words;
       this.burstPackets = Math.ceil(words / 2);
-      await this.selectSource(HOST_SRC_INDEX);
-      await this.sendBytes(buildBulkReadCommand(baseAddr, words));
-      const values = new Map<number, number>();
-      let packetCount = 0;
-      await this.collectHostFrames(SDRAM_HOST_SRC_ID, [HOST_EVT_BULK_OK, HOST_EVT_BULK_PROGRESS, HOST_EVT_BULK_DONE, HOST_EVT_BULK_ERR], 5000, (frame) => {
-        if (frame.event.eventId === HOST_EVT_BULK_PROGRESS) {
-          const progress = decodeBulkReadProgress(frame.event.arg0, frame.event.arg1, frame.event.arg2);
-          progress.words.forEach((value, index) => values.set(progress.baseAddr + index, value));
-          packetCount += 1;
-          this.burstPacketsReceived = packetCount;
-        }
-        if (frame.event.eventId === HOST_EVT_BULK_ERR) {
-          throw new Error("bulk range read failed");
-        }
-        return frame.event.eventId === HOST_EVT_BULK_DONE;
+      this.burstPacketsReceived = 0;
+      const values = await this.executeSdramBulkRead(baseAddr, words, (_receivedCount, packetCount) => {
+        this.burstPacketsReceived = packetCount;
+        this.burstSummary = `bulk read words ${_receivedCount}/${words}`;
+        this.statusLine = this.burstSummary;
       });
+      this.ensureBulkWordsComplete(values, baseAddr, words, "bulk range read");
       this.burstSummary = `bulk read complete: ${values.size}/${words} words`;
-      this.burstResult = "waiting for result...";
-      this.burstPreview = this.buildBurstPreview(values, words);
+      this.burstResult = `received ${values.size}/${words} words`;
+      this.burstPreview = this.buildBurstPreview(values, words, baseAddr);
       this.statusLine = this.burstSummary;
     });
   }
@@ -609,36 +641,121 @@ export class WorkbenchService {
     });
   }
 
-  async displayCommand(kind: "init" | "clear" | "pattern" | "on" | "off" | "fill", colorText?: string) {
+  async displayCommand(kind: "init" | "clear" | "pattern" | "on" | "off" | "fill" | "refresh" | "auto-on" | "auto-off", colorText?: string) {
     return this.runExclusive(async () => {
-      await this.selectSource(3);
+      if (kind === "pattern" || kind === "fill") {
+        const blob = kind === "pattern"
+          ? buildDisplayCheckerFrame()
+          : buildDisplayMonoFillFrame((parseRgb888(colorText ?? "000000") & 0x00ff_ffff) !== 0);
+        await this.executeBulkWrite(
+          DISPLAY_FRAMEBUFFER_BASE_ADDR,
+          paddedWordCount(blob.length),
+          blob,
+          kind === "pattern" ? "ssd1306_checker" : "ssd1306_fill",
+        );
+        await this.selectSource(DISPLAY_SRC_INDEX);
+        this.dropPendingFrames(
+          (frame) => frame.event.srcId === DISPLAY_HOST_SRC_ID &&
+            [EVT_CMD_ACK, EVT_CMD_ERR].includes(frame.event.eventId),
+        );
+        await this.sendBytes(buildDisplayRefreshCommand());
+        await this.waitForDisplayAck(DISP_OP_REFRESH);
+        this.displaySummary = `${kind} framebuffer refreshed`;
+        this.statusLine = this.displaySummary;
+        return;
+      }
+
+      await this.selectSource(DISPLAY_SRC_INDEX);
       let payload = buildDisplayInitCommand();
-      let expected = 0;
+      let expected = DISP_OP_INIT;
       if (kind === "clear") {
         payload = buildDisplayClearCommand();
-        expected = 1;
-      } else if (kind === "pattern") {
-        payload = buildDisplayPatternCommand();
-        expected = 3;
+        expected = DISP_OP_CLEAR;
       } else if (kind === "on") {
         payload = buildDisplayOnCommand();
-        expected = 4;
+        expected = DISP_OP_ON;
       } else if (kind === "off") {
         payload = buildDisplayOffCommand();
-        expected = 5;
-      } else if (kind === "fill") {
-        payload = buildDisplayFillCommand(parseRgb888(colorText ?? "000000"));
-        expected = 2;
+        expected = DISP_OP_OFF;
+      } else if (kind === "refresh") {
+        payload = buildDisplayRefreshCommand();
+        expected = DISP_OP_REFRESH;
+      } else if (kind === "auto-on") {
+        payload = buildDisplayAutoOnCommand();
+        expected = DISP_OP_AUTO_ON;
+      } else if (kind === "auto-off") {
+        payload = buildDisplayAutoOffCommand();
+        expected = DISP_OP_AUTO_OFF;
       }
+      this.dropPendingFrames(
+        (frame) => frame.event.srcId === DISPLAY_HOST_SRC_ID &&
+          [EVT_CMD_ACK, EVT_CMD_ERR].includes(frame.event.eventId),
+      );
       await this.sendBytes(payload);
-      const frame = await this.waitForFrame((candidate) => candidate.event.srcId === DISPLAY_HOST_SRC_ID && [EVT_CMD_ACK, EVT_CMD_ERR].includes(candidate.event.eventId), 3000);
-      if (frame.event.eventId === EVT_CMD_ERR) {
-        throw new Error("display command error");
-      }
-      if ((frame.event.arg0 & 0xff) !== expected) {
-        throw new Error(`unexpected display ack op ${(frame.event.arg0 & 0xff).toString(16).toUpperCase()}`);
-      }
+      await this.waitForDisplayAck(expected);
       this.displaySummary = `${kind} acknowledged`;
+      this.statusLine = this.displaySummary;
+    });
+  }
+
+  async ssd1306ReadFrame() {
+    return this.runExclusive(async () => {
+      const wordCount = SSD1306_FRAME_BYTES / 4; // 128 words
+      this.ssd1306Summary = "reading GDDRAM...";
+      this.statusLine = this.ssd1306Summary;
+      const words = await this.executeSdramBulkRead(
+        DISPLAY_FRAMEBUFFER_BASE_ADDR,
+        wordCount,
+        (receivedCount) => {
+          this.ssd1306Summary = `reading ${receivedCount}/${wordCount} words`;
+          this.statusLine = this.ssd1306Summary;
+        },
+      );
+      this.ensureBulkWordsComplete(words, DISPLAY_FRAMEBUFFER_BASE_ADDR, wordCount, "SSD1306 GDDRAM read");
+      for (let i = 0; i < wordCount; i++) {
+        const value = words.get(DISPLAY_FRAMEBUFFER_BASE_ADDR + i) ?? 0;
+        this.ssd1306Framebytes[i * 4 + 0] = value & 0xff;
+        this.ssd1306Framebytes[i * 4 + 1] = (value >>> 8) & 0xff;
+        this.ssd1306Framebytes[i * 4 + 2] = (value >>> 16) & 0xff;
+        this.ssd1306Framebytes[i * 4 + 3] = (value >>> 24) & 0xff;
+      }
+      this.ssd1306Summary = `GDDRAM read complete (${wordCount} words)`;
+      this.statusLine = this.ssd1306Summary;
+    });
+  }
+
+  async ssd1306WriteFrame(framebytes: number[]) {
+    return this.runExclusive(async () => {
+      if (framebytes.length !== SSD1306_FRAME_BYTES) {
+        throw new Error(`framebytes length must be ${SSD1306_FRAME_BYTES}, got ${framebytes.length}`);
+      }
+      const blob = Buffer.from(framebytes);
+      this.ssd1306Framebytes = new Uint8Array(blob);
+      const wordCount = paddedWordCount(SSD1306_FRAME_BYTES);
+      await this.executeBulkWrite(
+        DISPLAY_FRAMEBUFFER_BASE_ADDR,
+        wordCount,
+        blob,
+        "ssd1306_gddram_write",
+      );
+      await this.selectSource(DISPLAY_SRC_INDEX);
+      this.dropPendingFrames(
+        (frame) => frame.event.srcId === DISPLAY_HOST_SRC_ID &&
+          [EVT_CMD_ACK, EVT_CMD_ERR].includes(frame.event.eventId),
+      );
+      await this.sendBytes(buildDisplayRefreshCommand());
+      await this.waitForDisplayAck(DISP_OP_REFRESH);
+      this.ssd1306Summary = "GDDRAM written & display refreshed";
+      this.statusLine = this.ssd1306Summary;
+    });
+  }
+
+  async displaySetFps(fps: number) {
+    return this.runExclusive(async () => {
+      await this.selectSource(DISPLAY_SRC_INDEX);
+      await this.sendBytes(buildDisplaySetFpsCommand(fps));
+      await this.waitForDisplayAck(DISP_OP_SET_FPS);
+      this.displaySummary = `fps set to ${fps}`;
       this.statusLine = this.displaySummary;
     });
   }
@@ -699,6 +816,18 @@ export class WorkbenchService {
         return this.displayCommand("off");
       case "displayFill":
         return this.displayCommand("fill", `${payload.color}`);
+      case "displayRefresh":
+        return this.displayCommand("refresh");
+      case "displayAutoOn":
+        return this.displayCommand("auto-on");
+      case "displayAutoOff":
+        return this.displayCommand("auto-off");
+      case "displaySetFps":
+        return this.displaySetFps(Number.parseInt(`${payload.fps}`, 10));
+      case "ssd1306ReadFrame":
+        return this.ssd1306ReadFrame();
+      case "ssd1306WriteFrame":
+        return this.ssd1306WriteFrame(payload.framebytes as number[]);
       default:
         throw new Error(`unsupported action: ${action}`);
     }
@@ -922,6 +1051,94 @@ export class WorkbenchService {
     throw new Error(`timed out selecting source index ${targetIdx}`);
   }
 
+  private async refreshStatusUnlocked() {
+    this.statusSummary = "refreshing status registers";
+    this.statusLine = this.statusSummary;
+    await this.selectSource(HOST_SRC_INDEX);
+    this.dropPendingFrames(
+      (frame) => frame.event.srcId === SDRAM_HOST_SRC_ID &&
+        [HOST_EVT_READ_RSP, HOST_EVT_CMD_ERR].includes(frame.event.eventId),
+    );
+    for (let offset = 0; offset < STATUS_BYTE_COUNT; offset += 4) {
+      await this.sendBytes(buildStatusReadCommand(offset));
+      const frame = await this.waitForFrame(
+        (candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID &&
+          (
+            (candidate.event.eventId === HOST_EVT_READ_RSP && candidate.event.arg0 === offset) ||
+            candidate.event.eventId === HOST_EVT_CMD_ERR
+          ),
+        1000,
+      );
+      if (frame.event.eventId === HOST_EVT_CMD_ERR) {
+        throw new Error(`status refresh failed at 0x${offset.toString(16).toUpperCase().padStart(5, "0")}: cmd_err 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+      }
+      this.assertAccessStatusOk(frame, `status read 0x${offset.toString(16).toUpperCase().padStart(5, "0")}`);
+      const value = frame.event.arg1 >>> 0;
+      this.statusBytes[offset + 0] = value & 0xff;
+      this.statusBytes[offset + 1] = (value >>> 8) & 0xff;
+      this.statusBytes[offset + 2] = (value >>> 16) & 0xff;
+      this.statusBytes[offset + 3] = (value >>> 24) & 0xff;
+    }
+    this.statusSummary = "status registers refreshed";
+    this.statusLine = this.statusSummary;
+  }
+
+  private async executeSdramBulkRead(
+    baseAddr: number,
+    words: number,
+    onProgress?: (receivedCount: number, packetCount: number) => void,
+  ) {
+    await this.selectSource(HOST_SRC_INDEX);
+    this.dropPendingFrames(
+      (frame) => frame.event.srcId === SDRAM_HOST_SRC_ID &&
+        [
+          HOST_EVT_BULK_OK,
+          HOST_EVT_BULK_PROGRESS,
+          HOST_EVT_BULK_DONE,
+          HOST_EVT_BULK_ERR,
+          HOST_EVT_BULK_ABORT,
+          HOST_EVT_CMD_ERR,
+        ].includes(frame.event.eventId),
+    );
+    await this.sendBytes(buildBulkReadCommand(baseAddr, words));
+    const ackFrame = await this.waitForFrame(
+      (candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID &&
+        [
+          HOST_EVT_BULK_OK,
+          HOST_EVT_BULK_ERR,
+          HOST_EVT_BULK_ABORT,
+          HOST_EVT_CMD_ERR,
+        ].includes(candidate.event.eventId),
+      3000,
+    );
+    this.assertBulkAccepted(ackFrame, baseAddr, words, "SDRAM bulk read");
+
+    const values = new Map<number, number>();
+    let packetCount = 0;
+    while (true) {
+      const frame = await this.waitForFrame(
+        (candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID &&
+          [
+            HOST_EVT_BULK_PROGRESS,
+            HOST_EVT_BULK_DONE,
+            HOST_EVT_BULK_ERR,
+            HOST_EVT_BULK_ABORT,
+            HOST_EVT_CMD_ERR,
+          ].includes(candidate.event.eventId),
+        5000,
+      );
+      if (frame.event.eventId === HOST_EVT_BULK_PROGRESS) {
+        const progress = decodeBulkReadProgress(frame.event.arg0, frame.event.arg1, frame.event.arg2);
+        progress.words.forEach((value, index) => values.set(progress.baseAddr + index, value));
+        packetCount += 1;
+        onProgress?.(values.size, packetCount);
+        continue;
+      }
+      this.assertBulkDone(frame, baseAddr, words, "SDRAM bulk read");
+      return values;
+    }
+  }
+
   private async executeBulkWrite(baseAddr: number, words: number, blob: Uint8Array, task: string) {
     await this.selectSource(HOST_SRC_INDEX);
     this.burstTask = task;
@@ -929,20 +1146,73 @@ export class WorkbenchService {
     this.burstWords = words;
     this.burstPackets = Math.ceil(words / 2);
     this.burstPacketsReceived = 0;
+    this.dropPendingFrames(
+      (frame) => frame.event.srcId === SDRAM_HOST_SRC_ID &&
+        [
+          HOST_EVT_BULK_OK,
+          HOST_EVT_BULK_PROGRESS,
+          HOST_EVT_BULK_DONE,
+          HOST_EVT_BULK_ABORT,
+          HOST_EVT_BULK_ERR,
+          HOST_EVT_CMD_ERR,
+        ].includes(frame.event.eventId),
+    );
     await this.sendBytes(buildBulkWriteCommand(baseAddr, words));
-    await this.waitForFrame((frame) => frame.event.srcId === SDRAM_HOST_SRC_ID && frame.event.eventId === HOST_EVT_BULK_OK, 3000);
+    const ackFrame = await this.waitForFrame(
+      (frame) => frame.event.srcId === SDRAM_HOST_SRC_ID &&
+        [
+          HOST_EVT_BULK_OK,
+          HOST_EVT_BULK_ABORT,
+          HOST_EVT_BULK_ERR,
+          HOST_EVT_CMD_ERR,
+        ].includes(frame.event.eventId),
+      3000,
+    );
+    this.assertBulkAccepted(ackFrame, baseAddr, words, task);
     const blocks = iterBulkWriteBlocks(blob);
     for (let index = 0; index < blocks.length; index += 1) {
       await this.sendBytes(blocks[index]);
-      const frame = await this.waitForFrame((candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID && [HOST_EVT_BULK_PROGRESS, HOST_EVT_BULK_DONE, HOST_EVT_BULK_ABORT, HOST_EVT_BULK_ERR].includes(candidate.event.eventId), 5000);
-      if (frame.event.eventId === HOST_EVT_BULK_ABORT || frame.event.eventId === HOST_EVT_BULK_ERR) {
+      const frame = await this.waitForFrame(
+        (candidate) => candidate.event.srcId === SDRAM_HOST_SRC_ID &&
+          [
+            HOST_EVT_BULK_PROGRESS,
+            HOST_EVT_BULK_DONE,
+            HOST_EVT_BULK_ABORT,
+            HOST_EVT_BULK_ERR,
+            HOST_EVT_CMD_ERR,
+          ].includes(candidate.event.eventId),
+        5000,
+      );
+      if ([HOST_EVT_BULK_ABORT, HOST_EVT_BULK_ERR, HOST_EVT_CMD_ERR].includes(frame.event.eventId)) {
         await this.sendBytes(buildBulkAbortBlock(index & 0xff));
+        if (frame.event.eventId === HOST_EVT_CMD_ERR) {
+          throw new Error(`bulk write command error 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+        }
         throw new Error("bulk write aborted by target");
       }
       if (index === blocks.length - 1 && frame.event.eventId !== HOST_EVT_BULK_DONE) {
         throw new Error("missing bulk done after final block");
       }
+      if (frame.event.eventId === HOST_EVT_BULK_DONE) {
+        this.assertBulkDone(frame, baseAddr, words, task);
+      }
     }
+  }
+
+  private async waitForDisplayAck(expectedOp: number) {
+    const frame = await this.waitForFrame(
+      (candidate) => candidate.event.srcId === DISPLAY_HOST_SRC_ID && [EVT_CMD_ACK, EVT_CMD_ERR].includes(candidate.event.eventId),
+      3000,
+    );
+    if (frame.event.eventId === EVT_CMD_ERR) {
+      throw new Error(
+        `display command error reason=0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()} detail=0x${(frame.event.arg1 >>> 0).toString(16).toUpperCase()}`,
+      );
+    }
+    if ((frame.event.arg0 & 0x0f) !== expectedOp) {
+      throw new Error(`unexpected display ack op ${(frame.event.arg0 & 0xff).toString(16).toUpperCase()}`);
+    }
+    return frame;
   }
 
   private async executeEepromBulkWrite(baseAddr: number, blob: Uint8Array) {
@@ -963,7 +1233,7 @@ export class WorkbenchService {
     }
   }
 
-  private buildBurstPreview(values: Map<number, number>, words: number) {
+  private buildBurstPreview(values: Map<number, number>, words: number, baseAddr = 0) {
     if (!values.size) {
       return "-";
     }
@@ -972,7 +1242,7 @@ export class WorkbenchService {
     for (let idx = 0; idx < maxWords; idx += 4) {
       const chunk: string[] = [];
       for (let inner = idx; inner < Math.min(idx + 4, maxWords); inner += 1) {
-        const value = values.get(inner);
+        const value = values.get(baseAddr + inner);
         chunk.push(value === undefined ? "--------" : (value >>> 0).toString(16).toUpperCase().padStart(8, "0"));
       }
       lines.push(`${idx.toString(16).toUpperCase().padStart(3, "0")} | ${chunk.join("  ")}`);
@@ -981,6 +1251,63 @@ export class WorkbenchService {
       lines.push(`... ${words - maxWords} more words`);
     }
     return lines.join("\n");
+  }
+
+  private dropPendingFrames(match: (frame: UartFrame) => boolean) {
+    this.pendingFrames = this.pendingFrames.filter((frame) => !match(frame));
+  }
+
+  private assertAccessStatusOk(frame: UartFrame, label: string) {
+    const status = frame.event.arg2 >>> 0;
+    if (status !== 0) {
+      throw new Error(`${label} failed with status 0x${status.toString(16).toUpperCase().padStart(8, "0")}`);
+    }
+  }
+
+  private assertBulkAccepted(frame: UartFrame, baseAddr: number, words: number, label: string) {
+    if (frame.event.eventId === HOST_EVT_CMD_ERR) {
+      throw new Error(`${label} failed: cmd_err 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+    }
+    if (frame.event.eventId === HOST_EVT_BULK_ABORT) {
+      throw new Error(`${label} failed: bulk abort 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+    }
+    if (frame.event.eventId === HOST_EVT_BULK_ERR) {
+      throw new Error(`${label} failed: bulk error 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+    }
+    const ackBase = frame.event.arg0 & 0x1f_ffff;
+    const ackWords = frame.event.arg1 & 0x1f_ffff;
+    if (ackBase !== baseAddr || ackWords !== words) {
+      throw new Error(`${label} ack mismatch base=0x${ackBase.toString(16).toUpperCase().padStart(5, "0")} words=${ackWords}`);
+    }
+  }
+
+  private assertBulkDone(frame: UartFrame, baseAddr: number, words: number, label: string) {
+    if (frame.event.eventId === HOST_EVT_CMD_ERR) {
+      throw new Error(`${label} failed: cmd_err 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+    }
+    if (frame.event.eventId === HOST_EVT_BULK_ABORT) {
+      throw new Error(`${label} failed: bulk abort 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+    }
+    if (frame.event.eventId === HOST_EVT_BULK_ERR) {
+      throw new Error(`${label} failed: bulk error 0x${(frame.event.arg0 >>> 0).toString(16).toUpperCase()}`);
+    }
+    const doneBase = frame.event.arg0 & 0x1f_ffff;
+    const doneWords = frame.event.arg1 & 0x1f_ffff;
+    const completedWords = frame.event.arg2 & 0x1f_ffff;
+    if (doneBase !== baseAddr || doneWords !== words) {
+      throw new Error(`${label} done mismatch base=0x${doneBase.toString(16).toUpperCase().padStart(5, "0")} words=${doneWords}`);
+    }
+    if (completedWords !== words) {
+      throw new Error(`${label} completed mismatch ${completedWords}/${words}`);
+    }
+  }
+
+  private ensureBulkWordsComplete(values: Map<number, number>, baseAddr: number, words: number, label: string) {
+    for (let offset = 0; offset < words; offset += 1) {
+      if (!values.has(baseAddr + offset)) {
+        throw new Error(`${label} incomplete: missing word 0x${(baseAddr + offset).toString(16).toUpperCase().padStart(5, "0")}`);
+      }
+    }
   }
 }
 

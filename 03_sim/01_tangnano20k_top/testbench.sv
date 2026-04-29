@@ -41,6 +41,11 @@ module testbench;
   logic [3:0]  tb_sdrc_dqm;
   logic [31:0] tb_sdrc_wr_data;
   logic        tb_sdrc_read_sample_valid;
+  logic        tb_disp_req_ready;
+  logic        tb_disp_raw_done;
+  logic        tb_disp_raw_err_valid;
+  logic [31:0] tb_disp_raw_err_code;
+  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] tb_disp_raw_rd_data;
 
   logic [31:0] s_mem [0:CLEAR_WORDS-1];
   logic [20:0] s_active_addr;
@@ -180,6 +185,10 @@ module testbench;
     .I_RST_N(tb_rst_n),
     .I_CLI_RX_VALID(tb_cli_rx_valid),
     .I_CLI_RX_DATA(tb_cli_rx_data),
+    .I_DISP_BUSY(1'b0),
+    .I_DISP_ACCESS_REQ_VALID(1'b0),
+    .I_DISP_ACCESS_REQ_ADDR(21'h00000),
+    .I_DISP_ACCESS_REQ_WORDS(9'h000),
     .TEST_EVT_IF(tb_test_evt_if),
     .HOST_EVT_IF(tb_host_evt_if),
     .I_SDRC_RD_DATA(tb_sdrc_rd_data),
@@ -198,7 +207,12 @@ module testbench;
     .O_SDRC_DATA_LEN(tb_sdrc_data_len),
     .O_SDRC_DQM(tb_sdrc_dqm),
     .O_SDRC_WR_DATA(tb_sdrc_wr_data),
-    .O_SDRC_READ_SAMPLE_VALID(tb_sdrc_read_sample_valid)
+    .O_SDRC_READ_SAMPLE_VALID(tb_sdrc_read_sample_valid),
+    .O_DISP_ACCESS_REQ_READY(tb_disp_req_ready),
+    .O_DISP_ACCESS_RAW_DONE(tb_disp_raw_done),
+    .O_DISP_ACCESS_RAW_ERR_VALID(tb_disp_raw_err_valid),
+    .O_DISP_ACCESS_RAW_ERR_CODE(tb_disp_raw_err_code),
+    .O_DISP_ACCESS_RAW_RD_DATA(tb_disp_raw_rd_data)
   );
 
   `include "testcase_hs_smoke.svh"

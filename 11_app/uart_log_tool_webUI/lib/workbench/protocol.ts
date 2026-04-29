@@ -22,6 +22,7 @@ export const SYS_EVT_MODE_CHANGE = 0x01;
 export const SDRAM_HOST_SRC_ID = 0x03;
 export const EEPROM_HOST_SRC_ID = 0x01;
 export const DISPLAY_HOST_SRC_ID = 0x04;
+export const DISPLAY_SRC_INDEX = 3;
 
 export const HOST_EVT_WRITE_ACK = 0x30;
 export const HOST_EVT_READ_RSP = 0x31;
@@ -40,10 +41,15 @@ export const EVT_CMD_ERR = 0x3e;
 
 export const DISP_OP_INIT = 0;
 export const DISP_OP_CLEAR = 1;
-export const DISP_OP_FILL = 2;
-export const DISP_OP_PATTERN = 3;
-export const DISP_OP_ON = 4;
-export const DISP_OP_OFF = 5;
+export const DISP_OP_FRAME_WRITE = 2;
+export const DISP_OP_ON = 3;
+export const DISP_OP_OFF = 4;
+export const DISP_OP_REFRESH = 5;
+export const DISP_OP_AUTO_ON = 6;
+export const DISP_OP_AUTO_OFF = 7;
+export const DISP_OP_SET_FPS = 8;
+export const SSD1306_FRAME_BYTES = 512;
+export const DISPLAY_FRAMEBUFFER_BASE_ADDR = 0x10000;
 
 export const CMD_NEXT_SRC = 0x06;
 export const CMD_LITERAL_NEXT = 0x10;
@@ -660,7 +666,7 @@ export function buildDisplayClearCommand() {
 }
 
 export function buildDisplayPatternCommand() {
-  return Buffer.from("P\n", "ascii");
+  return Buffer.from("R\n", "ascii");
 }
 
 export function buildDisplayOnCommand() {
@@ -672,7 +678,40 @@ export function buildDisplayOffCommand() {
 }
 
 export function buildDisplayFillCommand(rgb888: number) {
-  return Buffer.from(`F ${u32(rgb888).toString(16).toUpperCase().padStart(6, "0")}\n`, "ascii");
+  return Buffer.from(`F${Math.min(60, Math.max(1, rgb888 | 0))}\n`, "ascii");
+}
+
+export function buildDisplayRefreshCommand() {
+  return Buffer.from("R\n", "ascii");
+}
+
+export function buildDisplayAutoOnCommand() {
+  return Buffer.from("E\n", "ascii");
+}
+
+export function buildDisplayAutoOffCommand() {
+  return Buffer.from("D\n", "ascii");
+}
+
+export function buildDisplaySetFpsCommand(fps: number) {
+  if (fps < 1 || fps > 60) {
+    throw new Error(`fps must be in range 1..60, got ${fps}`);
+  }
+  return Buffer.from(`F${fps}\n`, "ascii");
+}
+
+export function buildDisplayCheckerFrame() {
+  const frame = Buffer.alloc(SSD1306_FRAME_BYTES, 0x00);
+  for (let page = 0; page < 4; page += 1) {
+    for (let column = 0; column < 128; column += 1) {
+      frame[(page * 128) + column] = ((page + column) & 1) === 0 ? 0xaa : 0x55;
+    }
+  }
+  return frame;
+}
+
+export function buildDisplayMonoFillFrame(on: boolean) {
+  return Buffer.alloc(SSD1306_FRAME_BYTES, on ? 0xff : 0x00);
 }
 
 export function buildPatternBlob(pattern: number, words: number) {
