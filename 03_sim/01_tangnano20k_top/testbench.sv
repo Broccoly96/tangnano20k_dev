@@ -45,7 +45,10 @@ module testbench;
   logic        tb_disp_raw_done;
   logic        tb_disp_raw_err_valid;
   logic [31:0] tb_disp_raw_err_code;
-  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] tb_disp_raw_rd_data;
+  logic        tb_disp_raw_rd_valid;
+  logic [8:0]  tb_disp_raw_rd_index;
+  logic [31:0] tb_disp_raw_rd_data;
+  logic        tb_disp_raw_rd_last;
 
   logic [31:0] s_mem [0:CLEAR_WORDS-1];
   logic [20:0] s_active_addr;
@@ -212,7 +215,11 @@ module testbench;
     .O_DISP_ACCESS_RAW_DONE(tb_disp_raw_done),
     .O_DISP_ACCESS_RAW_ERR_VALID(tb_disp_raw_err_valid),
     .O_DISP_ACCESS_RAW_ERR_CODE(tb_disp_raw_err_code),
-    .O_DISP_ACCESS_RAW_RD_DATA(tb_disp_raw_rd_data)
+    .O_DISP_ACCESS_RAW_RD_VALID(tb_disp_raw_rd_valid),
+    .I_DISP_ACCESS_RAW_RD_READY(1'b1),
+    .O_DISP_ACCESS_RAW_RD_INDEX(tb_disp_raw_rd_index),
+    .O_DISP_ACCESS_RAW_RD_DATA(tb_disp_raw_rd_data),
+    .O_DISP_ACCESS_RAW_RD_LAST(tb_disp_raw_rd_last)
   );
 
   `include "testcase_hs_smoke.svh"

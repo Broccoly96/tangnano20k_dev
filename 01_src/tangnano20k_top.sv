@@ -183,7 +183,11 @@ module tangnano20k_top(
   logic         l_ssd1306_mem_raw_done;
   logic         l_ssd1306_mem_raw_err_valid;
   logic [31:0]  l_ssd1306_mem_raw_err_code;
-  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] l_ssd1306_mem_raw_rd_data;
+  logic         l_ssd1306_mem_raw_rd_valid;
+  logic         l_ssd1306_mem_raw_rd_ready;
+  logic [8:0]   l_ssd1306_mem_raw_rd_index;
+  logic [31:0]  l_ssd1306_mem_raw_rd_data;
+  logic         l_ssd1306_mem_raw_rd_last;
 
   //---------------------------------------------------------------------------------------------
   // System Onboard LED
@@ -346,7 +350,11 @@ module tangnano20k_top(
     .I_MEM_RAW_DONE       (l_ssd1306_mem_raw_done),
     .I_MEM_RAW_ERR_VALID  (l_ssd1306_mem_raw_err_valid),
     .I_MEM_RAW_ERR_CODE   (l_ssd1306_mem_raw_err_code),
+    .I_MEM_RAW_RD_VALID   (l_ssd1306_mem_raw_rd_valid),
+    .O_MEM_RAW_RD_READY   (l_ssd1306_mem_raw_rd_ready),
+    .I_MEM_RAW_RD_INDEX   (l_ssd1306_mem_raw_rd_index),
     .I_MEM_RAW_RD_DATA    (l_ssd1306_mem_raw_rd_data),
+    .I_MEM_RAW_RD_LAST    (l_ssd1306_mem_raw_rd_last),
     .I_I2C_SDA_IN         (l_ssd1306_i2c_sda_in),
     .I_I2C_SCL_IN         (l_ssd1306_i2c_scl_in),
     .O_I2C_SDA_DRIVE_LOW  (l_ssd1306_i2c_sda_drive_low),
@@ -391,7 +399,11 @@ module tangnano20k_top(
     .O_DISP_ACCESS_RAW_DONE   (l_ssd1306_mem_raw_done),
     .O_DISP_ACCESS_RAW_ERR_VALID (l_ssd1306_mem_raw_err_valid),
     .O_DISP_ACCESS_RAW_ERR_CODE  (l_ssd1306_mem_raw_err_code),
+    .O_DISP_ACCESS_RAW_RD_VALID  (l_ssd1306_mem_raw_rd_valid),
+    .I_DISP_ACCESS_RAW_RD_READY  (l_ssd1306_mem_raw_rd_ready),
+    .O_DISP_ACCESS_RAW_RD_INDEX  (l_ssd1306_mem_raw_rd_index),
     .O_DISP_ACCESS_RAW_RD_DATA   (l_ssd1306_mem_raw_rd_data),
+    .O_DISP_ACCESS_RAW_RD_LAST   (l_ssd1306_mem_raw_rd_last),
     //
     .TEST_EVT_IF              (l_sdram_test_evt_if),
     .HOST_EVT_IF              (l_sdram_host_evt_if)

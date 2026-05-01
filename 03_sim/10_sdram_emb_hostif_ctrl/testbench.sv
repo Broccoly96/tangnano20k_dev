@@ -91,6 +91,10 @@ module testbench;
     .I_RST_N         (tb_rst_n),
     .I_CLI_RX_VALID  (tb_cli_rx_valid),
     .I_CLI_RX_DATA   (tb_cli_rx_data),
+    .I_DISP_BUSY     (1'b0),
+    .I_DISP_ACCESS_REQ_VALID(1'b0),
+    .I_DISP_ACCESS_REQ_ADDR(21'h00000),
+    .I_DISP_ACCESS_REQ_WORDS(9'h000),
     .TEST_EVT_IF     (tb_test_evt_if),
     .HOST_EVT_IF     (tb_host_evt_if),
     .I_SDRC_RD_DATA  (tb_sdrc_rd_data),
@@ -109,7 +113,16 @@ module testbench;
     .O_SDRC_DATA_LEN (tb_sdrc_data_len),
     .O_SDRC_DQM      (tb_sdrc_dqm),
     .O_SDRC_WR_DATA  (tb_sdrc_wr_data),
-    .O_SDRC_READ_SAMPLE_VALID(tb_sdrc_read_sample_valid)
+    .O_SDRC_READ_SAMPLE_VALID(tb_sdrc_read_sample_valid),
+    .O_DISP_ACCESS_REQ_READY(),
+    .O_DISP_ACCESS_RAW_DONE(),
+    .O_DISP_ACCESS_RAW_ERR_VALID(),
+    .O_DISP_ACCESS_RAW_ERR_CODE(),
+    .O_DISP_ACCESS_RAW_RD_VALID(),
+    .I_DISP_ACCESS_RAW_RD_READY(1'b1),
+    .O_DISP_ACCESS_RAW_RD_INDEX(),
+    .O_DISP_ACCESS_RAW_RD_DATA(),
+    .O_DISP_ACCESS_RAW_RD_LAST()
   );
 
   // Behavioral HS responder for hostif unit tests.

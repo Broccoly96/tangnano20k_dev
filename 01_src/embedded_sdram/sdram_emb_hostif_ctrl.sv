@@ -46,7 +46,11 @@ module sdram_emb_hostif_ctrl #(
   output logic              O_DISP_ACCESS_RAW_DONE,
   output logic              O_DISP_ACCESS_RAW_ERR_VALID,
   output logic [31:0]       O_DISP_ACCESS_RAW_ERR_CODE,
-  output logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] O_DISP_ACCESS_RAW_RD_DATA,
+  output logic              O_DISP_ACCESS_RAW_RD_VALID,
+  input  logic              I_DISP_ACCESS_RAW_RD_READY,
+  output logic [8:0]        O_DISP_ACCESS_RAW_RD_INDEX,
+  output logic [31:0]       O_DISP_ACCESS_RAW_RD_DATA,
+  output logic              O_DISP_ACCESS_RAW_RD_LAST,
   uart_log_evt_if.producer  TEST_EVT_IF,
   uart_log_evt_if.producer  HOST_EVT_IF
 );
@@ -97,7 +101,10 @@ module sdram_emb_hostif_ctrl #(
   logic        l_disp_raw_done;
   logic        l_disp_raw_err_valid;
   logic [31:0] l_disp_raw_err_code;
-  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] l_disp_raw_rd_data;
+  logic        l_disp_raw_rd_valid;
+  logic [8:0]  l_disp_raw_rd_index;
+  logic [31:0] l_disp_raw_rd_data;
+  logic        l_disp_raw_rd_last;
 
   logic [15:0] l_status_addr;
   logic [31:0] l_status_rd_data;
@@ -169,7 +176,10 @@ module sdram_emb_hostif_ctrl #(
   assign O_DISP_ACCESS_RAW_DONE       = l_disp_raw_done;
   assign O_DISP_ACCESS_RAW_ERR_VALID  = l_disp_raw_err_valid;
   assign O_DISP_ACCESS_RAW_ERR_CODE   = l_disp_raw_err_code;
+  assign O_DISP_ACCESS_RAW_RD_VALID   = l_disp_raw_rd_valid;
+  assign O_DISP_ACCESS_RAW_RD_INDEX   = l_disp_raw_rd_index;
   assign O_DISP_ACCESS_RAW_RD_DATA    = l_disp_raw_rd_data;
+  assign O_DISP_ACCESS_RAW_RD_LAST    = l_disp_raw_rd_last;
 
 
   // Self-test owns SDRC until PASS. Refresh can preempt only between
@@ -411,7 +421,14 @@ module sdram_emb_hostif_ctrl #(
     .I_REQ_ADDR               (I_DISP_ACCESS_REQ_ADDR),
     .I_REQ_DATA               (32'h0000_0000),
     .I_REQ_WORDS              (I_DISP_ACCESS_REQ_WORDS),
-    .I_REQ_RAW_WR_DATA        ('0),
+    .I_RAW_WR_VALID           (1'b0),
+    .O_RAW_WR_READY           (),
+    .I_RAW_WR_DATA            (32'h0000_0000),
+    .O_RAW_RD_VALID           (l_disp_raw_rd_valid),
+    .I_RAW_RD_READY           (I_DISP_ACCESS_RAW_RD_READY),
+    .O_RAW_RD_INDEX           (l_disp_raw_rd_index),
+    .O_RAW_RD_DATA            (l_disp_raw_rd_data),
+    .O_RAW_RD_LAST            (l_disp_raw_rd_last),
     .I_SDRC_INIT_DONE         (l_sdrc_init_done_safe),
     .I_SDRC_READY             (l_sdrc_ready_for_client),
     .I_SDRC_CMD_ACK           (l_disp_cmd_ack),
@@ -434,7 +451,6 @@ module sdram_emb_hostif_ctrl #(
     .O_RAW_DONE               (l_disp_raw_done),
     .O_RAW_ERR_VALID          (l_disp_raw_err_valid),
     .O_RAW_ERR_CODE           (l_disp_raw_err_code),
-    .O_RAW_RD_DATA            (l_disp_raw_rd_data),
     .O_BUSY                   (l_disp_sdrc_active),
     .O_DBG_HOST_SUMMARY       (),
     .O_DBG_HOST_DETAIL        (),

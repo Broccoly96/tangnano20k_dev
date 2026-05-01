@@ -57,11 +57,9 @@ module sdram_uart_bridge_ctrl #(
   typedef enum logic [2:0] {
     BULK_IDLE,
     BULK_WRITE_RECV,
-    BULK_WRITE_ISSUE,
     BULK_WRITE_WAIT_ACCESS,
     BULK_READ_ISSUE,
-    BULK_READ_WAIT_ACCESS,
-    BULK_READ_SEND
+    BULK_READ_WAIT_ACCESS
   } st_bulk_e;
 
   st_bulk_e st_bulk;
@@ -88,8 +86,15 @@ module sdram_uart_bridge_ctrl #(
   logic [20:0]  r_access_req_addr;
   logic [31:0]  r_access_req_data;
   logic [8:0]   r_access_req_words;
-  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_access_req_raw_wr_data;
   logic         l_access_req_ready;
+  logic         l_access_raw_wr_valid;
+  logic         l_access_raw_wr_ready;
+  logic [31:0]  l_access_raw_wr_data;
+  logic         l_access_raw_rd_valid;
+  logic         l_access_raw_rd_ready;
+  logic [8:0]   l_access_raw_rd_index;
+  logic [31:0]  l_access_raw_rd_data;
+  logic         l_access_raw_rd_last;
   logic         l_access_evt_valid;
   logic         l_access_evt_ready;
   logic [7:0]   l_access_evt_id;
@@ -99,98 +104,94 @@ module sdram_uart_bridge_ctrl #(
   logic         l_access_raw_done;
   logic         l_access_raw_err_valid;
   logic [31:0]  l_access_raw_err_code;
-  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] l_access_raw_rd_data;
   logic         l_access_busy;
   logic [31:0]  l_access_dbg_rd_beats;
   logic         s_access_evt_can_push;
 
   logic [103:0] r_evt_fifo_mem [0:EVT_FIFO_DEPTH-1];
-  logic [EVT_FIFO_PTR_W-1:0]  r_evt_wr_ptr;
-  logic [EVT_FIFO_PTR_W-1:0]  r_evt_rd_ptr;
-  logic [EVT_FIFO_CNT_W-1:0]  r_evt_count;
-  logic                       s_evt_fifo_full;
-  logic                       s_evt_fifo_empty;
-  logic                       r_evt_push_valid;
-  logic [7:0]                 r_evt_push_id;
-  logic [31:0]                r_evt_push_arg0;
-  logic [31:0]                r_evt_push_arg1;
-  logic [31:0]                r_evt_push_arg2;
-  logic                       s_evt_push;
-  logic                       s_evt_pop;
-  logic                       s_evt_push_req;
-  logic [7:0]                 s_evt_push_id;
-  logic [31:0]                s_evt_push_arg0;
-  logic [31:0]                s_evt_push_arg1;
-  logic [31:0]                s_evt_push_arg2;
+  logic [EVT_FIFO_PTR_W-1:0]    r_evt_wr_ptr;
+  logic [EVT_FIFO_PTR_W-1:0]    r_evt_rd_ptr;
+  logic [EVT_FIFO_CNT_W-1:0]    r_evt_count;
+  logic                         s_evt_fifo_full;
+  logic                         s_evt_fifo_empty;
+  logic                         r_evt_push_valid;
+  logic [7:0]                   r_evt_push_id;
+  logic [31:0]                  r_evt_push_arg0;
+  logic [31:0]                  r_evt_push_arg1;
+  logic [31:0]                  r_evt_push_arg2;
+  logic                         s_evt_push;
+  logic                         s_evt_pop;
+  logic                         s_evt_push_req;
+  logic [7:0]                   s_evt_push_id;
+  logic [31:0]                  s_evt_push_arg0;
+  logic [31:0]                  s_evt_push_arg1;
+  logic [31:0]                  s_evt_push_arg2;
 
-  logic                       s_ascii_decode_window;
-  logic                       s_cmd_accept;
-  logic                       s_cmd_blocked;
-  logic                       s_status_read_req;
-  logic                       s_status_write_req;
-  logic                       s_sdram_read_req;
-  logic                       s_sdram_write_req;
-  logic                       s_burst_test_req;
-  logic                       s_burst_word_count_bad;
-  logic                       s_bulk_range_bad;
-  logic                       s_bulk_raw_read_req;
-  logic                       s_bulk_raw_write_req;
-  logic                       s_bulk_start_read;
-  logic                       s_bulk_start_write;
-  logic                       s_status_read_addr_bad;
-  logic                       s_status_ctrl_write;
-  logic                       s_access_req_blocked;
-  logic                       s_emit_access_event;
-  logic                       s_emit_status_read_rsp;
-  logic                       s_emit_ascii_err;
-  logic                       s_status_read_start;
-  logic                       s_access_read_fire;
-  logic                       s_access_write_fire;
-  logic                       s_access_burst_fire;
-  logic                       s_access_bulk_write_fire;
-  logic                       s_access_bulk_read_fire;
-  logic                       s_selftest_restart_pulse;
+  logic                         s_ascii_decode_window;
+  logic                         s_cmd_accept;
+  logic                         s_cmd_blocked;
+  logic                         s_status_read_req;
+  logic                         s_status_write_req;
+  logic                         s_sdram_read_req;
+  logic                         s_sdram_write_req;
+  logic                         s_burst_test_req;
+  logic                         s_burst_word_count_bad;
+  logic                         s_bulk_range_bad;
+  logic                         s_bulk_raw_read_req;
+  logic                         s_bulk_raw_write_req;
+  logic                         s_bulk_start_read;
+  logic                         s_bulk_start_write;
+  logic                         s_status_read_addr_bad;
+  logic                         s_status_ctrl_write;
+  logic                         s_access_req_blocked;
+  logic                         s_emit_access_event;
+  logic                         s_emit_status_read_rsp;
+  logic                         s_emit_ascii_err;
+  logic                         s_status_read_start;
+  logic                         s_access_read_fire;
+  logic                         s_access_write_fire;
+  logic                         s_access_burst_fire;
+  logic                         s_access_bulk_write_fire;
+  logic                         s_access_bulk_read_fire;
+  logic                         s_selftest_restart_pulse;
 
-  logic                       l_bulk_rx_word_valid;
-  logic [31:0]                l_bulk_rx_word_data;
-  logic                       l_bulk_rx_word_last;
-  logic                       l_bulk_rx_word_ready;
-  logic                       l_bulk_rx_block_done;
-  logic [15:0]                l_bulk_rx_block_bytes;
-  logic [7:0]                 l_bulk_rx_block_seq;
-  logic                       l_bulk_rx_abort_valid;
-  logic [31:0]                l_bulk_rx_abort_code;
+  logic                         l_bulk_rx_word_valid;
+  logic [31:0]                  l_bulk_rx_word_data;
+  logic                         l_bulk_rx_word_last;
+  logic                         l_bulk_rx_word_ready;
+  logic                         l_bulk_rx_block_done;
+  logic [15:0]                  l_bulk_rx_block_bytes;
+  logic [7:0]                   l_bulk_rx_block_seq;
+  logic                         l_bulk_rx_abort_valid;
+  logic [31:0]                  l_bulk_rx_abort_code;
 
-  logic                       r_bulk_evt_pending;
-  logic [7:0]                 r_bulk_evt_id;
-  logic [31:0]                r_bulk_evt_arg0;
-  logic [31:0]                r_bulk_evt_arg1;
-  logic [31:0]                r_bulk_evt_arg2;
-  logic                       s_bulk_evt_accept;
-  logic                       s_bulk_active;
-  logic                       r_bulk_is_read;
-  logic [20:0]                r_bulk_start_addr;
-  logic [20:0]                r_bulk_next_addr;
-  logic [20:0]                r_bulk_total_words;
-  logic [20:0]                r_bulk_remaining_words;
-  logic [20:0]                r_bulk_completed_words;
-  logic [8:0]                 r_bulk_chunk_words;
-  logic [5:0]                 r_bulk_wr_capture_count;
-  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_bulk_wr_data;
-  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_bulk_rd_chunk_data;
-  logic [7:0]                 r_bulk_rd_packet_id;
+  logic                         r_bulk_evt_pending;
+  logic [7:0]                   r_bulk_evt_id;
+  logic [31:0]                  r_bulk_evt_arg0;
+  logic [31:0]                  r_bulk_evt_arg1;
+  logic [31:0]                  r_bulk_evt_arg2;
+  logic                         s_bulk_evt_accept;
+  logic                         s_bulk_active;
+  logic                         r_bulk_is_read;
+  logic [20:0]                  r_bulk_start_addr;
+  logic [20:0]                  r_bulk_next_addr;
+  logic [20:0]                  r_bulk_total_words;
+  logic [20:0]                  r_bulk_remaining_words;
+  logic [20:0]                  r_bulk_completed_words;
+  logic [8:0]                   r_bulk_chunk_words;
+  logic                         r_bulk_wr_req_started;
+  logic [5:0]                   r_bulk_wr_capture_count;
+  logic                         r_bulk_rd_have_first;
+  logic                         r_bulk_rd_done_pending;
+  logic [20:0]                  r_bulk_rd_first_addr;
+  logic [31:0]                  r_bulk_rd_first_data;
   logic [BULK_RX_TIMEOUT_W-1:0] r_bulk_rx_timeout_cnt;
-  logic [8:0]                 s_bulk_issue_words;
-  logic [7:0]                 s_bulk_rd_packet_count;
-  logic [8:0]                 s_bulk_send_word_idx;
-  logic                       s_bulk_send_one_word;
-  logic [20:0]                s_bulk_send_addr;
-  logic [31:0]                s_bulk_send_data0;
-  logic [31:0]                s_bulk_send_data1;
-  logic                       s_bulk_rx_timeout;
+  logic [8:0]                   s_bulk_issue_words;
+  logic                         s_bulk_rx_timeout;
+  logic                         s_raw_wr_fire;
+  logic                         s_raw_rd_fire;
 
   assign O_STATUS_ADDR          = r_read_addr;
-
   assign s_bulk_active          = (st_bulk != BULK_IDLE);
   assign O_CMD_BUSY             = r_read_rsp_pending || l_access_busy || s_bulk_active;
   assign O_SDRC_ACTIVE          = l_access_busy;
@@ -202,14 +203,12 @@ module sdram_uart_bridge_ctrl #(
   assign s_evt_push             = r_evt_push_valid && !s_evt_fifo_full;
   assign s_evt_pop              = HOST_EVT_IF.evt_valid && HOST_EVT_IF.evt_ready;
   assign s_bulk_evt_accept      = r_bulk_evt_pending && !s_evt_fifo_full;
-  assign s_bulk_rd_packet_count = r_bulk_chunk_words[8:1] + {7'h0, r_bulk_chunk_words[0]};
-  assign s_bulk_send_word_idx   = {1'b0, r_bulk_rd_packet_id} << 1;
-  assign s_bulk_send_one_word   = (s_bulk_send_word_idx + 9'd1) >= r_bulk_chunk_words;
-  assign s_bulk_send_addr       = r_bulk_next_addr + s_bulk_send_word_idx;
-  assign s_bulk_send_data0      = r_bulk_rd_chunk_data[s_bulk_send_word_idx*32 +: 32];
-  assign s_bulk_send_data1      = r_bulk_rd_chunk_data[(s_bulk_send_word_idx + 9'd1)*32 +: 32];
-  assign s_bulk_rx_timeout      = (BULK_RX_TIMEOUT_CYCLES > 0) &&
-                                  (r_bulk_rx_timeout_cnt >= BULK_RX_TIMEOUT_CYCLES);
+  assign s_bulk_rx_timeout      = (BULK_RX_TIMEOUT_CYCLES > 0) && (r_bulk_rx_timeout_cnt >= BULK_RX_TIMEOUT_CYCLES);
+  assign s_raw_wr_fire          = l_access_raw_wr_valid && l_access_raw_wr_ready;
+  assign s_raw_rd_fire          = l_access_raw_rd_valid && l_access_raw_rd_ready;
+  assign l_access_raw_wr_valid  = (st_bulk == BULK_WRITE_WAIT_ACCESS) && r_bulk_wr_req_started && l_bulk_rx_word_valid;
+  assign l_access_raw_wr_data   = l_bulk_rx_word_data;
+  assign l_access_raw_rd_ready  = (st_bulk == BULK_READ_WAIT_ACCESS) && !r_bulk_evt_pending;
 
   assign HOST_EVT_IF.evt_valid  = !s_evt_fifo_empty;
   assign HOST_EVT_IF.evt_id     = s_evt_fifo_empty ? 8'h00 : r_evt_fifo_mem[r_evt_rd_ptr][103:96];
@@ -265,7 +264,14 @@ module sdram_uart_bridge_ctrl #(
     .I_REQ_ADDR             (r_access_req_addr),
     .I_REQ_DATA             (r_access_req_data),
     .I_REQ_WORDS            (r_access_req_words),
-    .I_REQ_RAW_WR_DATA      (r_access_req_raw_wr_data),
+    .I_RAW_WR_VALID         (l_access_raw_wr_valid),
+    .O_RAW_WR_READY         (l_access_raw_wr_ready),
+    .I_RAW_WR_DATA          (l_access_raw_wr_data),
+    .O_RAW_RD_VALID         (l_access_raw_rd_valid),
+    .I_RAW_RD_READY         (l_access_raw_rd_ready),
+    .O_RAW_RD_INDEX         (l_access_raw_rd_index),
+    .O_RAW_RD_DATA          (l_access_raw_rd_data),
+    .O_RAW_RD_LAST          (l_access_raw_rd_last),
     .I_SDRC_INIT_DONE       (I_SDRC_INIT_DONE),
     .I_SDRC_READY           (I_SDRC_READY),
     .I_SDRC_CMD_ACK         (I_SDRC_CMD_ACK),
@@ -288,14 +294,15 @@ module sdram_uart_bridge_ctrl #(
     .O_RAW_DONE             (l_access_raw_done),
     .O_RAW_ERR_VALID        (l_access_raw_err_valid),
     .O_RAW_ERR_CODE         (l_access_raw_err_code),
-    .O_RAW_RD_DATA          (l_access_raw_rd_data),
     .O_BUSY                 (l_access_busy),
     .O_DBG_HOST_SUMMARY     (O_HOST_DBG_SUMMARY),
     .O_DBG_HOST_DETAIL      (O_HOST_DBG_DETAIL),
     .O_DBG_HOST_RD_BEATS    (l_access_dbg_rd_beats)
   );
 
-  sdram_uart_bulk_rx u_sdram_uart_bulk_rx (
+  sdram_uart_bulk_rx #(
+    .USE_BSRAM_BUFFER      (1'b1)
+  ) u_sdram_uart_bulk_rx (
     .I_CLK                  (I_CLK),
     .I_RST_N                (I_RST_N),
     .I_ENABLE               (I_ENABLE && !r_bulk_is_read && (st_bulk != BULK_IDLE)),
@@ -312,8 +319,7 @@ module sdram_uart_bridge_ctrl #(
     .O_ABORT_CODE           (l_bulk_rx_abort_code)
   );
 
-  assign l_bulk_rx_word_ready = (st_bulk == BULK_WRITE_RECV) &&
-                                (r_bulk_wr_capture_count < MAX_BULK_PAYLOAD_WORDS);
+  assign l_bulk_rx_word_ready = l_access_raw_wr_valid && l_access_raw_wr_ready;
 
   assign s_emit_access_event      = s_access_evt_can_push;
   assign s_emit_status_read_rsp   = !s_emit_access_event && r_read_rsp_pending;
@@ -331,8 +337,7 @@ module sdram_uart_bridge_ctrl #(
   assign s_bulk_raw_write_req     = s_cmd_accept && !s_cmd_blocked && (s_ascii_cmd_op == ASCII_OP_BULK) && !s_ascii_cmd_bulk_is_test && !s_ascii_cmd_bulk_is_read;
 
   assign s_burst_word_count_bad   = (s_ascii_cmd_words == 21'h0) || (s_ascii_cmd_words > 21'h00100);
-  assign s_bulk_range_bad         = (s_ascii_cmd_words == 21'h0) ||
-                                    (({1'b0, s_ascii_cmd_addr} + {1'b0, s_ascii_cmd_words} - 22'd1) > {1'b0, SDRAM_ADDR_MAX});
+  assign s_bulk_range_bad         = (s_ascii_cmd_words == 21'h0) || (({1'b0, s_ascii_cmd_addr} + {1'b0, s_ascii_cmd_words} - 22'd1) > {1'b0, SDRAM_ADDR_MAX});
   assign s_status_read_addr_bad   = (s_ascii_cmd_addr > STATUS_ADDR_MAX) || (s_ascii_cmd_addr[1:0] != 2'b00);
   assign s_status_ctrl_write      = s_status_write_req && (s_ascii_cmd_addr == STATUS_CTRL_ADDR);
   assign s_access_req_blocked     = !I_HOST_ACCESS_ENABLE || !l_access_req_ready;
@@ -342,7 +347,13 @@ module sdram_uart_bridge_ctrl #(
   assign s_access_burst_fire      = s_burst_test_req && !s_access_req_blocked && !s_burst_word_count_bad;
   assign s_bulk_start_read        = s_bulk_raw_read_req && !s_access_req_blocked && !s_bulk_range_bad;
   assign s_bulk_start_write       = s_bulk_raw_write_req && !s_access_req_blocked && !s_bulk_range_bad;
-  assign s_access_bulk_write_fire = (st_bulk == BULK_WRITE_ISSUE) && l_access_req_ready;
+  assign s_access_bulk_write_fire = (st_bulk == BULK_WRITE_RECV) &&
+                                    l_bulk_rx_word_valid &&
+                                    !r_bulk_wr_req_started &&
+                                    !r_bulk_evt_pending &&
+                                    l_access_req_ready &&
+                                    (l_bulk_rx_block_bytes != 16'h0) &&
+                                    (({12'h000, l_bulk_rx_block_bytes[15:2]}) <= r_bulk_remaining_words);
   assign s_access_bulk_read_fire  = (st_bulk == BULK_READ_ISSUE) && l_access_req_ready;
   assign s_selftest_restart_pulse = s_status_ctrl_write && !l_access_busy && s_ascii_cmd_data[0];
 
@@ -565,7 +576,6 @@ module sdram_uart_bridge_ctrl #(
       r_access_req_addr           <= '0;
       r_access_req_data           <= '0;
       r_access_req_words          <= 9'd1;
-      r_access_req_raw_wr_data    <= '0;
     end else begin
       r_access_req_valid          <= 1'b0;
 
@@ -576,8 +586,7 @@ module sdram_uart_bridge_ctrl #(
         r_access_req_is_raw_bulk   <= 1'b1;
         r_access_req_addr          <= r_bulk_next_addr;
         r_access_req_data          <= 32'h0000_0000;
-        r_access_req_words         <= r_bulk_chunk_words;
-        r_access_req_raw_wr_data   <= r_bulk_wr_data;
+        r_access_req_words         <= l_bulk_rx_block_bytes[10:2];
       end else if (s_access_bulk_read_fire) begin
         r_access_req_valid         <= 1'b1;
         r_access_req_is_write      <= 1'b0;
@@ -586,7 +595,6 @@ module sdram_uart_bridge_ctrl #(
         r_access_req_addr          <= r_bulk_next_addr;
         r_access_req_data          <= 32'h0000_0000;
         r_access_req_words         <= s_bulk_issue_words;
-        r_access_req_raw_wr_data   <= '0;
       end else if (s_access_read_fire) begin
         r_access_req_valid         <= 1'b1;
         r_access_req_is_write      <= 1'b0;
@@ -595,7 +603,6 @@ module sdram_uart_bridge_ctrl #(
         r_access_req_addr          <= s_ascii_cmd_addr;
         r_access_req_data          <= 32'h0000_0000;
         r_access_req_words         <= 9'd1;
-        r_access_req_raw_wr_data   <= '0;
       end else if (s_access_write_fire) begin
         r_access_req_valid         <= 1'b1;
         r_access_req_is_write      <= 1'b1;
@@ -604,7 +611,6 @@ module sdram_uart_bridge_ctrl #(
         r_access_req_addr          <= s_ascii_cmd_addr;
         r_access_req_data          <= s_ascii_cmd_data;
         r_access_req_words         <= 9'd1;
-        r_access_req_raw_wr_data   <= '0;
       end else if (s_access_burst_fire) begin
         r_access_req_valid         <= 1'b1;
         r_access_req_is_write      <= !s_ascii_cmd_bulk_is_read;
@@ -613,7 +619,6 @@ module sdram_uart_bridge_ctrl #(
         r_access_req_addr          <= s_ascii_cmd_addr;
         r_access_req_data          <= 32'h0000_0000;
         r_access_req_words         <= s_ascii_cmd_words[8:0];
-        r_access_req_raw_wr_data   <= '0;
       end
     end
   end
@@ -644,10 +649,12 @@ module sdram_uart_bridge_ctrl #(
       r_bulk_remaining_words<= '0;
       r_bulk_completed_words<= '0;
       r_bulk_chunk_words    <= '0;
+      r_bulk_wr_req_started <= 1'b0;
       r_bulk_wr_capture_count <= '0;
-      r_bulk_wr_data        <= '0;
-      r_bulk_rd_chunk_data  <= '0;
-      r_bulk_rd_packet_id   <= '0;
+      r_bulk_rd_have_first  <= 1'b0;
+      r_bulk_rd_done_pending<= 1'b0;
+      r_bulk_rd_first_addr  <= '0;
+      r_bulk_rd_first_data  <= '0;
       r_bulk_rx_timeout_cnt <= '0;
     end else begin
       if (s_bulk_evt_accept) begin
@@ -663,14 +670,16 @@ module sdram_uart_bridge_ctrl #(
         r_bulk_rx_timeout_cnt <= r_bulk_rx_timeout_cnt + 1'b1;
       end
 
-      if (l_bulk_rx_word_valid && l_bulk_rx_word_ready) begin
-        r_bulk_wr_data[r_bulk_wr_capture_count*32 +: 32] <= l_bulk_rx_word_data;
+      if (s_raw_wr_fire) begin
         r_bulk_wr_capture_count <= r_bulk_wr_capture_count + 1'b1;
       end
 
       case (st_bulk)
         BULK_IDLE: begin
           r_bulk_wr_capture_count <= '0;
+          r_bulk_wr_req_started   <= 1'b0;
+          r_bulk_rd_have_first    <= 1'b0;
+          r_bulk_rd_done_pending  <= 1'b0;
           r_bulk_rx_timeout_cnt   <= '0;
 
           if (s_bulk_start_read || s_bulk_start_write) begin
@@ -682,8 +691,9 @@ module sdram_uart_bridge_ctrl #(
             r_bulk_remaining_words <= s_ascii_cmd_words;
             r_bulk_completed_words <= '0;
             r_bulk_chunk_words     <= '0;
-            r_bulk_rd_chunk_data   <= '0;
-            r_bulk_rd_packet_id    <= '0;
+            r_bulk_wr_req_started  <= 1'b0;
+            r_bulk_rd_have_first   <= 1'b0;
+            r_bulk_rd_done_pending <= 1'b0;
 
             if (!r_bulk_evt_pending) begin
               r_bulk_evt_pending <= 1'b1;
@@ -728,6 +738,7 @@ module sdram_uart_bridge_ctrl #(
                 r_bulk_evt_arg2  <= r_bulk_completed_words;
               end
               r_bulk_wr_capture_count <= '0;
+              r_bulk_wr_req_started   <= 1'b0;
             end else if (({12'h000, l_bulk_rx_block_bytes[15:2]}) > r_bulk_remaining_words) begin
               st_bulk                <= BULK_IDLE;
               r_bulk_evt_pending     <= 1'b1;
@@ -736,16 +747,12 @@ module sdram_uart_bridge_ctrl #(
               r_bulk_evt_arg1        <= {11'h000, r_bulk_next_addr};
               r_bulk_evt_arg2        <= r_bulk_completed_words;
               r_bulk_wr_capture_count<= '0;
-            end else begin
-              r_bulk_chunk_words <= l_bulk_rx_block_bytes[10:2];
-              st_bulk            <= BULK_WRITE_ISSUE;
             end
-          end
-        end
-
-        BULK_WRITE_ISSUE: begin
-          if (s_access_bulk_write_fire) begin
-            st_bulk <= BULK_WRITE_WAIT_ACCESS;
+          end else if (s_access_bulk_write_fire) begin
+            r_bulk_chunk_words       <= l_bulk_rx_block_bytes[10:2];
+            r_bulk_wr_req_started    <= 1'b1;
+            r_bulk_wr_capture_count  <= '0;
+            st_bulk                  <= BULK_WRITE_WAIT_ACCESS;
           end
         end
 
@@ -758,6 +765,7 @@ module sdram_uart_bridge_ctrl #(
             r_bulk_evt_arg1    <= {11'h000, r_bulk_next_addr};
             r_bulk_evt_arg2    <= r_bulk_completed_words;
             r_bulk_wr_capture_count <= '0;
+            r_bulk_wr_req_started   <= 1'b0;
           end else if (!r_bulk_evt_pending && l_access_raw_done) begin
             next_completed_words = r_bulk_completed_words + r_bulk_chunk_words;
             next_remaining_words = r_bulk_remaining_words - r_bulk_chunk_words;
@@ -766,6 +774,7 @@ module sdram_uart_bridge_ctrl #(
             r_bulk_remaining_words  <= next_remaining_words;
             r_bulk_completed_words  <= next_completed_words;
             r_bulk_wr_capture_count <= '0;
+            r_bulk_wr_req_started   <= 1'b0;
             st_bulk                 <= BULK_WRITE_RECV;
 
             r_bulk_evt_pending <= 1'b1;
@@ -779,6 +788,8 @@ module sdram_uart_bridge_ctrl #(
         BULK_READ_ISSUE: begin
           if (s_access_bulk_read_fire) begin
             r_bulk_chunk_words <= s_bulk_issue_words;
+            r_bulk_rd_have_first <= 1'b0;
+            r_bulk_rd_done_pending <= 1'b0;
             st_bulk            <= BULK_READ_WAIT_ACCESS;
           end
         end
@@ -791,32 +802,50 @@ module sdram_uart_bridge_ctrl #(
             r_bulk_evt_arg0    <= l_access_raw_err_code;
             r_bulk_evt_arg1    <= {11'h000, r_bulk_next_addr};
             r_bulk_evt_arg2    <= r_bulk_completed_words;
-          end else if (l_access_raw_done) begin
-            r_bulk_rd_chunk_data   <= l_access_raw_rd_data;
-            r_bulk_rd_packet_id    <= '0;
-            st_bulk                <= BULK_READ_SEND;
-          end
-        end
+          end else begin
+            if (s_raw_rd_fire) begin
+              if (!r_bulk_rd_have_first && !l_access_raw_rd_last) begin
+                r_bulk_rd_have_first <= 1'b1;
+                r_bulk_rd_first_addr <= r_bulk_next_addr + {12'h000, l_access_raw_rd_index};
+                r_bulk_rd_first_data <= l_access_raw_rd_data;
+              end else begin
+                data_evt_arg0 = {
+                  9'h000,
+                  (!r_bulk_rd_have_first && l_access_raw_rd_last) ? 2'd1 : 2'd2,
+                  r_bulk_rd_have_first ?
+                    r_bulk_rd_first_addr :
+                    (r_bulk_next_addr + {12'h000, l_access_raw_rd_index})
+                };
+                data_evt_arg1 = r_bulk_rd_have_first ?
+                                r_bulk_rd_first_data :
+                                l_access_raw_rd_data;
+                data_evt_arg2 = r_bulk_rd_have_first ?
+                                l_access_raw_rd_data :
+                                32'h0000_0000;
 
-        BULK_READ_SEND: begin
-          if (!r_bulk_evt_pending) begin
-            if (r_bulk_rd_packet_id < s_bulk_rd_packet_count) begin
-              data_evt_arg0 = {9'h000, s_bulk_send_one_word ? 2'd1 : 2'd2, s_bulk_send_addr};
-              data_evt_arg1 = s_bulk_send_data0;
-              data_evt_arg2 = s_bulk_send_one_word ? 32'h0000_0000 : s_bulk_send_data1;
+                r_bulk_evt_pending  <= 1'b1;
+                r_bulk_evt_id       <= EVT_BULK_PROG;
+                r_bulk_evt_arg0     <= data_evt_arg0;
+                r_bulk_evt_arg1     <= data_evt_arg1;
+                r_bulk_evt_arg2     <= data_evt_arg2;
+                r_bulk_rd_have_first<= 1'b0;
+              end
+            end
 
-              r_bulk_evt_pending <= 1'b1;
-              r_bulk_evt_id      <= EVT_BULK_PROG;
-              r_bulk_evt_arg0    <= data_evt_arg0;
-              r_bulk_evt_arg1    <= data_evt_arg1;
-              r_bulk_evt_arg2    <= data_evt_arg2;
-            end else begin
+            if (l_access_raw_done) begin
+              r_bulk_rd_done_pending <= 1'b1;
+            end
+
+            if (r_bulk_rd_done_pending &&
+                !r_bulk_rd_have_first &&
+                !r_bulk_evt_pending) begin
               next_completed_words = r_bulk_completed_words + r_bulk_chunk_words;
               next_remaining_words = r_bulk_remaining_words - r_bulk_chunk_words;
 
               r_bulk_next_addr       <= r_bulk_next_addr + r_bulk_chunk_words;
               r_bulk_remaining_words <= next_remaining_words;
               r_bulk_completed_words <= next_completed_words;
+              r_bulk_rd_done_pending <= 1'b0;
 
               if (next_remaining_words != 0) begin
                 st_bulk <= BULK_READ_ISSUE;
@@ -829,8 +858,6 @@ module sdram_uart_bridge_ctrl #(
                 r_bulk_evt_arg2    <= next_completed_words;
               end
             end
-          end else if (s_bulk_evt_accept && (r_bulk_evt_id == EVT_BULK_PROG)) begin
-            r_bulk_rd_packet_id <= r_bulk_rd_packet_id + 1'b1;
           end
         end
 

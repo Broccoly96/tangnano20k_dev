@@ -31,6 +31,7 @@
 ..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv
 ..\02_tb\eeprom_i2c\eeprom_i2c_model.sv
 ..\02_tb\ssd1306_display\ssd1306_i2c_model.sv
+..\01_src\sdram_raw_word_bram.sv
 ..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv
 ..\01_src\ssd1306_display\ssd1306_uart_bridge_ctrl.sv
 ..\01_src\ssd1306_display\ssd1306_sdram_uart_bridge_ctrl.sv
