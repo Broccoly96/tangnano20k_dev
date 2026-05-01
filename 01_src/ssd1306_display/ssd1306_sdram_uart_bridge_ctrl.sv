@@ -32,8 +32,11 @@ module ssd1306_sdram_uart_bridge_ctrl #(
   input  logic I_MEM_RAW_DONE,
   input  logic I_MEM_RAW_ERR_VALID,
   input  logic [31:0] I_MEM_RAW_ERR_CODE,
-  input  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0]
-    I_MEM_RAW_RD_DATA,
+  input  logic I_MEM_RAW_RD_VALID,
+  output logic O_MEM_RAW_RD_READY,
+  input  logic [8:0] I_MEM_RAW_RD_INDEX,
+  input  logic [31:0] I_MEM_RAW_RD_DATA,
+  input  logic I_MEM_RAW_RD_LAST,
   input  logic I_I2C_SDA_IN,
   input  logic I_I2C_SCL_IN,
   output logic O_I2C_SDA_DRIVE_LOW,
@@ -98,8 +101,12 @@ module ssd1306_sdram_uart_bridge_ctrl #(
   logic [8:0] r_mem_req_words;
   logic [6:0] r_chunk_start_word;
   logic [8:0] r_chunk_word_count;
-  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_chunk_data;
   logic r_chunk_valid;
+  logic r_chunk_error_fill;
+  logic r_frame_byte_valid;
+  logic [7:0] r_frame_byte_data;
+  logic r_frame_byte_pending;
+  logic [1:0] r_frame_byte_lane;
   logic r_refresh_active;
   logic r_refresh_report_on_done;
   logic r_refresh_error_seen;
@@ -114,6 +121,13 @@ module ssd1306_sdram_uart_bridge_ctrl #(
   logic [6:0] s_frame_word_idx;
   logic [6:0] s_req_chunk_start_word;
   logic [8:0] s_req_chunk_word_count;
+  logic s_frame_byte_cache_hit;
+  logic s_chunk_wr_en;
+  logic [6:0] s_chunk_wr_addr;
+  logic [31:0] s_chunk_wr_data;
+  logic s_chunk_rd_en;
+  logic [6:0] s_chunk_rd_addr;
+  logic [31:0] s_chunk_rd_data;
 
   assign s_evt_fifo_full   = (r_evt_count == EVT_FIFO_DEPTH);
   assign s_evt_fifo_empty  = (r_evt_count == 0);
@@ -132,10 +146,27 @@ module ssd1306_sdram_uart_bridge_ctrl #(
   assign O_MEM_REQ_VALID = r_mem_req_valid;
   assign O_MEM_REQ_ADDR  = r_mem_req_addr;
   assign O_MEM_REQ_WORDS = r_mem_req_words;
+  assign O_MEM_RAW_RD_READY = 1'b1;
   assign O_CMD_BUSY      =
     r_disp_req_valid || s_disp_busy || r_mem_req_valid || r_refresh_active;
 
   assign s_frame_word_idx = s_frame_byte_idx[FRAME_BYTE_IDX_W-1:2];
+  assign s_frame_byte_valid = r_frame_byte_valid;
+  assign s_frame_byte_data = r_frame_byte_data;
+  assign s_frame_byte_cache_hit =
+    r_chunk_valid &&
+    (s_frame_word_idx >= r_chunk_start_word) &&
+    (s_frame_word_idx < (r_chunk_start_word + r_chunk_word_count));
+  assign s_chunk_wr_en = I_MEM_RAW_RD_VALID && O_MEM_RAW_RD_READY;
+  assign s_chunk_wr_addr = I_MEM_RAW_RD_INDEX[6:0];
+  assign s_chunk_wr_data = I_MEM_RAW_RD_DATA;
+  assign s_chunk_rd_en =
+    s_frame_byte_req &&
+    s_frame_byte_cache_hit &&
+    !r_chunk_error_fill &&
+    !r_frame_byte_pending &&
+    !r_frame_byte_valid;
+  assign s_chunk_rd_addr = s_frame_word_idx - r_chunk_start_word;
 
   function automatic [31:0] fps_to_period_cycles(input logic [7:0] fps);
     logic [31:0] safe_fps;
@@ -238,24 +269,18 @@ module ssd1306_sdram_uart_bridge_ctrl #(
   assign s_req_chunk_start_word = frame_chunk_start_word(s_frame_word_idx);
   assign s_req_chunk_word_count = frame_chunk_word_count(s_req_chunk_start_word);
 
-  // Returns the currently cached SDRAM chunk byte requested by the streaming
-  // display controller. A byte is valid only when the requested index falls
-  // inside the chunk held in `r_chunk_data`.
-  always_comb begin
-    integer byte_offset;
-    byte_offset       = 0;
-    s_frame_byte_valid = 1'b0;
-    s_frame_byte_data  = 8'h00;
-    if (s_frame_byte_req &&
-        r_chunk_valid &&
-        (s_frame_word_idx >= r_chunk_start_word) &&
-        (s_frame_word_idx < (r_chunk_start_word + r_chunk_word_count))) begin
-      byte_offset       =
-        ((s_frame_word_idx - r_chunk_start_word) << 2) + s_frame_byte_idx[1:0];
-      s_frame_byte_valid = 1'b1;
-      s_frame_byte_data  = r_chunk_data[byte_offset*8 +: 8];
-    end
-  end
+  sdram_raw_word_bram #(
+    .ADDR_W (7),
+    .DEPTH  (128)
+  ) u_chunk_bram (
+    .I_CLK     (I_CLK),
+    .I_WR_EN   (s_chunk_wr_en),
+    .I_WR_ADDR (s_chunk_wr_addr),
+    .I_WR_DATA (s_chunk_wr_data),
+    .I_RD_EN   (s_chunk_rd_en),
+    .I_RD_ADDR (s_chunk_rd_addr),
+    .O_RD_DATA (s_chunk_rd_data)
+  );
 
   ssd1306_display_stream_ctrl #(
     .CLK_HZ          (CLK_HZ),
@@ -314,8 +339,12 @@ module ssd1306_sdram_uart_bridge_ctrl #(
       r_mem_req_words          <= 9'd0;
       r_chunk_start_word       <= '0;
       r_chunk_word_count       <= '0;
-      r_chunk_data             <= '0;
       r_chunk_valid            <= 1'b0;
+      r_chunk_error_fill       <= 1'b0;
+      r_frame_byte_valid       <= 1'b0;
+      r_frame_byte_data        <= 8'h00;
+      r_frame_byte_pending     <= 1'b0;
+      r_frame_byte_lane        <= 2'b00;
       r_refresh_active         <= 1'b0;
       r_refresh_report_on_done <= 1'b0;
       r_refresh_error_seen     <= 1'b0;
@@ -329,6 +358,29 @@ module ssd1306_sdram_uart_bridge_ctrl #(
       r_refresh_countdown      <=
         fps_to_period_cycles(DEFAULT_REFRESH_FPS[7:0]);
     end else begin
+      r_frame_byte_valid <= 1'b0;
+
+      if (r_frame_byte_pending) begin
+        unique case (r_frame_byte_lane)
+          2'd0: r_frame_byte_data <= s_chunk_rd_data[7:0];
+          2'd1: r_frame_byte_data <= s_chunk_rd_data[15:8];
+          2'd2: r_frame_byte_data <= s_chunk_rd_data[23:16];
+          default: r_frame_byte_data <= s_chunk_rd_data[31:24];
+        endcase
+        r_frame_byte_valid   <= 1'b1;
+        r_frame_byte_pending <= 1'b0;
+      end else if (s_frame_byte_req &&
+                   s_frame_byte_cache_hit &&
+                   !r_frame_byte_valid) begin
+        if (r_chunk_error_fill) begin
+          r_frame_byte_data  <= 8'h00;
+          r_frame_byte_valid <= 1'b1;
+        end else if (s_chunk_rd_en) begin
+          r_frame_byte_lane    <= s_frame_byte_idx[1:0];
+          r_frame_byte_pending <= 1'b1;
+        end
+      end
+
       if (s_evt_push_fire) begin
         r_evt_push_valid <= 1'b0;
         r_evt_fifo_mem[r_evt_wr_ptr] <= {
@@ -376,17 +428,17 @@ module ssd1306_sdram_uart_bridge_ctrl #(
       end
 
       if (I_MEM_RAW_DONE) begin
-        r_chunk_data       <= I_MEM_RAW_RD_DATA;
         r_chunk_start_word <= r_pending_chunk_start_word;
         r_chunk_word_count <= r_pending_chunk_word_count;
         r_chunk_valid      <= 1'b1;
+        r_chunk_error_fill <= 1'b0;
       end
 
       if (I_MEM_RAW_ERR_VALID) begin
-        r_chunk_data         <= '0;
         r_chunk_start_word   <= r_pending_chunk_start_word;
         r_chunk_word_count   <= r_pending_chunk_word_count;
         r_chunk_valid        <= 1'b1;
+        r_chunk_error_fill   <= 1'b1;
         r_refresh_error_seen <= 1'b1;
         if (!r_refresh_error_seen) begin
           r_refresh_error_code <= I_MEM_RAW_ERR_CODE;
@@ -401,6 +453,7 @@ module ssd1306_sdram_uart_bridge_ctrl #(
         r_pending_chunk_start_word <= s_req_chunk_start_word;
         r_pending_chunk_word_count <= s_req_chunk_word_count;
         r_chunk_valid              <= 1'b0;
+        r_chunk_error_fill         <= 1'b0;
       end
 
       if (I_ENABLE && HOST_EVT_IF.enable && I_CLI_RX_VALID) begin
@@ -435,6 +488,7 @@ module ssd1306_sdram_uart_bridge_ctrl #(
               r_refresh_error_seen     <= 1'b0;
               r_refresh_error_code     <= 32'h0000_0000;
               r_chunk_valid            <= 1'b0;
+              r_chunk_error_fill       <= 1'b0;
               r_disp_req_valid         <= 1'b1;
               r_disp_req_op            <= DISP_OP_FRAME_WRITE;
               r_refresh_countdown      <= r_refresh_period_cycles;
@@ -510,6 +564,7 @@ module ssd1306_sdram_uart_bridge_ctrl #(
         r_refresh_error_seen     <= 1'b0;
         r_refresh_error_code     <= 32'h0000_0000;
         r_chunk_valid            <= 1'b0;
+        r_chunk_error_fill       <= 1'b0;
         r_disp_req_valid         <= 1'b1;
         r_disp_req_op            <= DISP_OP_FRAME_WRITE;
         r_refresh_countdown      <= r_refresh_period_cycles;
@@ -519,6 +574,7 @@ module ssd1306_sdram_uart_bridge_ctrl #(
         if (s_disp_done_op == DISP_OP_FRAME_WRITE) begin
           r_refresh_active <= 1'b0;
           r_chunk_valid    <= 1'b0;
+          r_chunk_error_fill <= 1'b0;
           if (r_refresh_report_on_done) begin
             if (s_disp_done_ok && !r_refresh_error_seen) begin
               arm_event(

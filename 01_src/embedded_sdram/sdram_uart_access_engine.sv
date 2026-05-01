@@ -4,9 +4,8 @@
 // Description  : Native HS SDRAM access engine for UART host commands.
 //                - Single R/W commands keep the legacy one-event response.
 //                - BRT/BWT commands run an RTL-generated burst test.
-//                - Burst writes generate word-index data inside RTL.
-//                - Burst reads capture all returned words before emitting UART
-//                  log events, so UART backpressure cannot disturb SDRAM beats.
+//                - Raw bulk write/read use a word-stream interface backed by
+//                  an inferred BSRAM buffer instead of wide raw data registers.
 //////////////////////////////////////////////////////////////////////////////////
 
 module sdram_uart_access_engine #(
@@ -25,7 +24,14 @@ module sdram_uart_access_engine #(
   input  logic [20:0] I_REQ_ADDR,
   input  logic [31:0] I_REQ_DATA,
   input  logic [8:0]  I_REQ_WORDS,
-  input  logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] I_REQ_RAW_WR_DATA,
+  input  logic        I_RAW_WR_VALID,
+  output logic        O_RAW_WR_READY,
+  input  logic [31:0] I_RAW_WR_DATA,
+  output logic        O_RAW_RD_VALID,
+  input  logic        I_RAW_RD_READY,
+  output logic [8:0]  O_RAW_RD_INDEX,
+  output logic [31:0] O_RAW_RD_DATA,
+  output logic        O_RAW_RD_LAST,
   input  logic        I_SDRC_INIT_DONE,
   input  logic        I_SDRC_READY,
   input  logic        I_SDRC_CMD_ACK,
@@ -48,7 +54,6 @@ module sdram_uart_access_engine #(
   output logic        O_RAW_DONE,
   output logic        O_RAW_ERR_VALID,
   output logic [31:0] O_RAW_ERR_CODE,
-  output logic [(sdram_uart_proto_pkg::MAX_BULK_PAYLOAD_WORDS*32)-1:0] O_RAW_RD_DATA,
   output logic        O_BUSY,
   output logic [31:0] O_DBG_HOST_SUMMARY,
   output logic [31:0] O_DBG_HOST_DETAIL,
@@ -76,20 +81,26 @@ module sdram_uart_access_engine #(
 
   // FSM flow:
   // IDLE accepts one host request.
+  // LOAD_RAW_WRITE stores raw write stream words before opening SDRAM.
   // ACTIVE_REQ/ACTIVE_ACK opens the selected SDRAM row.
+  // WRITE_PREP prefetches raw write word 0 from BSRAM.
   // WRITE_REQ/WRITE_ACK streams write data and waits for command completion.
   // READ_REQ/READ_SAMPLE captures read beats after the configured latency.
-  // PREP/SEND_BURST_DATA drains captured read beats as two-word UART log
-  // events after the RAM read data has been registered.
-  // RESPOND waits until the final event has been accepted.
+  // RAW_READ_PREP/RAW_READ_SEND drains raw read words from BSRAM.
+  // PREP/SEND_BURST_DATA drains burst-test read beats as UART log events.
+  // RESPOND waits until the final event/pulse has been observed.
   typedef enum logic [3:0] {
     IDLE,
+    LOAD_RAW_WRITE,
     ACTIVE_REQ,
     ACTIVE_ACK,
+    WRITE_PREP,
     WRITE_REQ,
     WRITE_ACK,
     READ_REQ,
     READ_SAMPLE,
+    RAW_READ_PREP,
+    RAW_READ_SEND,
     PREP_BURST_DATA,
     SEND_BURST_DATA,
     RESPOND
@@ -103,9 +114,9 @@ module sdram_uart_access_engine #(
   logic        r_req_is_write;
   logic        r_req_is_burst_test;
   logic        r_req_is_raw_bulk;
-  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_req_raw_wr_data;
   logic [8:0]  r_write_word_idx;
   logic [8:0]  r_read_word_idx;
+  logic [8:0]  r_raw_stream_idx;
   logic [7:0]  r_send_packet_id;
   logic [7:0]  r_packet_count;
   logic [TIMEOUT_W-1:0] r_timeout_cnt;
@@ -118,7 +129,6 @@ module sdram_uart_access_engine #(
   logic        r_raw_done;
   logic        r_raw_err_valid;
   logic [31:0] r_raw_err_code;
-  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] r_raw_rd_data;
   logic [31:0] r_dbg_host_summary;
   logic [31:0] r_dbg_host_detail;
   logic [31:0] r_read_capture_lo [0:127];
@@ -132,7 +142,17 @@ module sdram_uart_access_engine #(
   logic       s_in_page_cross;
   logic [8:0] s_req_words_m1;
   logic [8:0] s_send_word_idx;
+  logic [8:0] s_next_write_word_idx;
   logic       s_send_one_word;
+
+  logic        s_raw_ram_wr_en;
+  logic [6:0]  s_raw_ram_wr_addr;
+  logic [31:0] s_raw_ram_wr_data;
+  logic        s_raw_ram_rd_en;
+  logic [6:0]  s_raw_ram_rd_addr;
+  logic [31:0] s_raw_ram_rd_data;
+  logic        s_raw_wr_fire;
+  logic        s_raw_rd_fire;
 
   assign s_in_words      = (I_REQ_IS_BURST_TEST || I_REQ_IS_RAW_BULK) ? I_REQ_WORDS : 9'd1;
   assign s_in_words_m1   = s_in_words - 9'd1;
@@ -140,15 +160,27 @@ module sdram_uart_access_engine #(
   assign s_in_page_cross = sdram_hs_burst_crosses_page(I_REQ_ADDR, s_in_data_len);
   assign s_req_words_m1  = r_req_words - 9'd1;
   assign s_send_word_idx = {1'b0, r_send_packet_id} << 1;
+  assign s_next_write_word_idx = r_write_word_idx + 9'd1;
   assign s_send_one_word = (s_send_word_idx + 9'd1) >= r_req_words;
+  assign s_raw_wr_fire   = I_RAW_WR_VALID && O_RAW_WR_READY;
+  assign s_raw_rd_fire   = O_RAW_RD_VALID && I_RAW_RD_READY;
 
   assign O_REQ_READY = (st_state == IDLE) && !r_evt_valid && !r_raw_done && !r_raw_err_valid;
+  assign O_RAW_WR_READY = (st_state == LOAD_RAW_WRITE) &&
+                          (r_raw_stream_idx < r_req_words);
+  assign O_RAW_RD_VALID = (st_state == RAW_READ_SEND);
+  assign O_RAW_RD_INDEX = r_raw_stream_idx;
+  assign O_RAW_RD_DATA = s_raw_ram_rd_data;
+  assign O_RAW_RD_LAST = (r_raw_stream_idx >= s_req_words_m1);
   assign O_SDRC_ADDR = r_req_addr;
   assign O_SDRC_DATA_LEN = s_req_words_m1[7:0];
   assign O_SDRC_DQM = 4'h0;
   assign O_SDRC_PRECHARGE_CTRL = (st_state == WRITE_REQ) || (st_state == READ_REQ);
-  assign O_SDRC_PAIR_ACTIVE = !(st_state inside {IDLE, RESPOND, PREP_BURST_DATA,
-                                                 SEND_BURST_DATA});
+  assign O_SDRC_PAIR_ACTIVE = !(st_state inside {IDLE, LOAD_RAW_WRITE,
+                                                 RESPOND, PREP_BURST_DATA,
+                                                 SEND_BURST_DATA,
+                                                 RAW_READ_PREP,
+                                                 RAW_READ_SEND});
   assign O_READ_SAMPLE_VALID = (st_state == READ_SAMPLE) && (r_lat_cnt == 0);
   assign O_EVT_VALID = r_evt_valid;
   assign O_EVT_ID = r_evt_id;
@@ -158,15 +190,69 @@ module sdram_uart_access_engine #(
   assign O_RAW_DONE = r_raw_done;
   assign O_RAW_ERR_VALID = r_raw_err_valid;
   assign O_RAW_ERR_CODE = r_raw_err_code;
-  assign O_RAW_RD_DATA = r_raw_rd_data;
-  assign O_BUSY = (st_state != IDLE) || r_evt_valid || r_raw_done || r_raw_err_valid;
+  assign O_BUSY = (st_state != IDLE) || r_evt_valid || r_raw_done ||
+                  r_raw_err_valid || O_RAW_RD_VALID;
   assign O_DBG_HOST_SUMMARY = r_dbg_host_summary;
   assign O_DBG_HOST_DETAIL = r_dbg_host_detail;
 
   always_comb begin
+    s_raw_ram_wr_en   = 1'b0;
+    s_raw_ram_wr_addr = r_raw_stream_idx[6:0];
+    s_raw_ram_wr_data = I_RAW_WR_DATA;
+
+    if (s_raw_wr_fire) begin
+      s_raw_ram_wr_en   = 1'b1;
+      s_raw_ram_wr_addr = r_raw_stream_idx[6:0];
+      s_raw_ram_wr_data = I_RAW_WR_DATA;
+    end else if ((st_state == READ_SAMPLE) &&
+                 (r_lat_cnt == 0) &&
+                 r_req_is_raw_bulk &&
+                 (r_read_word_idx < MAX_BULK_PAYLOAD_WORDS)) begin
+      s_raw_ram_wr_en   = 1'b1;
+      s_raw_ram_wr_addr = r_read_word_idx[6:0];
+      s_raw_ram_wr_data = I_SDRC_RD_DATA;
+    end
+  end
+
+  always_comb begin
+    s_raw_ram_rd_en   = 1'b0;
+    s_raw_ram_rd_addr = 7'h00;
+
+    if (r_req_is_raw_bulk && r_req_is_write && (st_state == WRITE_PREP)) begin
+      s_raw_ram_rd_en   = 1'b1;
+      s_raw_ram_rd_addr = 7'h00;
+    end else if (r_req_is_raw_bulk && r_req_is_write &&
+                 (st_state == WRITE_REQ) && (r_req_words > 9'd1)) begin
+      s_raw_ram_rd_en   = 1'b1;
+      s_raw_ram_rd_addr = 7'h01;
+    end else if (r_req_is_raw_bulk && r_req_is_write &&
+                 (st_state == WRITE_ACK) &&
+                 (r_write_word_idx < s_req_words_m1)) begin
+      s_raw_ram_rd_en   = 1'b1;
+      s_raw_ram_rd_addr = s_next_write_word_idx[6:0];
+    end else if (st_state == RAW_READ_PREP) begin
+      s_raw_ram_rd_en   = 1'b1;
+      s_raw_ram_rd_addr = r_raw_stream_idx[6:0];
+    end
+  end
+
+  sdram_raw_word_bram #(
+    .ADDR_W (7),
+    .DEPTH  (128)
+  ) u_raw_bram (
+    .I_CLK     (I_CLK),
+    .I_WR_EN   (s_raw_ram_wr_en),
+    .I_WR_ADDR (s_raw_ram_wr_addr),
+    .I_WR_DATA (s_raw_ram_wr_data),
+    .I_RD_EN   (s_raw_ram_rd_en),
+    .I_RD_ADDR (s_raw_ram_rd_addr),
+    .O_RD_DATA (s_raw_ram_rd_data)
+  );
+
+  always_comb begin
     O_SDRC_WR_DATA = r_req_data;
     if (r_req_is_raw_bulk && r_req_is_write) begin
-      O_SDRC_WR_DATA = r_req_raw_wr_data[r_write_word_idx*32 +: 32];
+      O_SDRC_WR_DATA = s_raw_ram_rd_data;
     end else if (r_req_is_burst_test && r_req_is_write) begin
       O_SDRC_WR_DATA = {23'h0, r_write_word_idx};
     end
@@ -277,7 +363,7 @@ module sdram_uart_access_engine #(
     end
   endtask
 
-  // Runs one native HS transaction and serializes completion events.
+  // Runs one native HS transaction and serializes completion streams/events.
   always_ff @(posedge I_CLK or negedge I_RST_N) begin
     if (!I_RST_N) begin
       st_state <= IDLE;
@@ -287,9 +373,9 @@ module sdram_uart_access_engine #(
       r_req_is_write <= 1'b0;
       r_req_is_burst_test <= 1'b0;
       r_req_is_raw_bulk <= 1'b0;
-      r_req_raw_wr_data <= '0;
       r_write_word_idx <= '0;
       r_read_word_idx <= '0;
+      r_raw_stream_idx <= '0;
       r_send_packet_id <= '0;
       r_packet_count <= '0;
       r_timeout_cnt <= '0;
@@ -302,7 +388,6 @@ module sdram_uart_access_engine #(
       r_raw_done <= 1'b0;
       r_raw_err_valid <= 1'b0;
       r_raw_err_code <= 32'h0;
-      r_raw_rd_data <= '0;
       r_dbg_host_summary <= '0;
       r_dbg_host_detail <= '0;
       r_send_data0 <= 32'h0;
@@ -315,9 +400,13 @@ module sdram_uart_access_engine #(
         r_evt_valid <= 1'b0;
       end
 
-      if (st_state != IDLE && st_state != RESPOND &&
+      if (st_state != IDLE &&
+          st_state != RESPOND &&
           st_state != PREP_BURST_DATA &&
           st_state != SEND_BURST_DATA &&
+          st_state != LOAD_RAW_WRITE &&
+          st_state != RAW_READ_PREP &&
+          st_state != RAW_READ_SEND &&
           r_timeout_cnt != RESP_TIMEOUT_CYCLES) begin
         r_timeout_cnt <= r_timeout_cnt + 1'b1;
       end
@@ -327,6 +416,7 @@ module sdram_uart_access_engine #(
           r_timeout_cnt <= '0;
           r_lat_cnt <= '0;
           r_send_packet_id <= '0;
+          r_raw_stream_idx <= '0;
           if (I_REQ_VALID && O_REQ_READY) begin
             r_req_addr <= I_REQ_ADDR;
             r_req_data <= I_REQ_DATA;
@@ -334,11 +424,10 @@ module sdram_uart_access_engine #(
             r_req_is_write <= I_REQ_IS_WRITE;
             r_req_is_burst_test <= I_REQ_IS_BURST_TEST;
             r_req_is_raw_bulk <= I_REQ_IS_RAW_BULK;
-            r_req_raw_wr_data <= I_REQ_RAW_WR_DATA;
             r_write_word_idx <= '0;
             r_read_word_idx <= '0;
             r_packet_count <= '0;
-            r_raw_rd_data <= '0;
+            r_raw_stream_idx <= '0;
             if (!I_SDRC_INIT_DONE) begin
               if (I_REQ_IS_RAW_BULK) begin
                 set_raw_error(I_REQ_IS_WRITE ? ERR_SDRAM_WR_TO : ERR_SDRAM_RD_TO);
@@ -395,8 +484,21 @@ module sdram_uart_access_engine #(
                 set_debug(I_REQ_IS_WRITE ? EVT_WRITE_ACK : EVT_READ_RSP, {11'h000, I_REQ_ADDR});
               end
               st_state <= RESPOND;
+            end else if (I_REQ_IS_RAW_BULK && I_REQ_IS_WRITE) begin
+              st_state <= LOAD_RAW_WRITE;
             end else begin
               st_state <= ACTIVE_REQ;
+            end
+          end
+        end
+
+        LOAD_RAW_WRITE: begin
+          if (s_raw_wr_fire) begin
+            if (r_raw_stream_idx + 1'b1 >= r_req_words) begin
+              r_raw_stream_idx <= '0;
+              st_state <= ACTIVE_REQ;
+            end else begin
+              r_raw_stream_idx <= r_raw_stream_idx + 1'b1;
             end
           end
         end
@@ -410,7 +512,9 @@ module sdram_uart_access_engine #(
 
         ACTIVE_ACK: begin
           if (I_SDRC_CMD_ACK) begin
-            st_state <= r_req_is_write ? WRITE_REQ : READ_REQ;
+            st_state <= r_req_is_write ?
+                        (r_req_is_raw_bulk ? WRITE_PREP : WRITE_REQ) :
+                        READ_REQ;
             r_timeout_cnt <= '0;
           end else if (r_timeout_cnt >= RESP_TIMEOUT_CYCLES - 1) begin
             if (r_req_is_raw_bulk) begin
@@ -424,10 +528,18 @@ module sdram_uart_access_engine #(
           end
         end
 
+        WRITE_PREP: begin
+          st_state <= WRITE_REQ;
+        end
+
         WRITE_REQ: begin
           st_state <= WRITE_ACK;
           r_timeout_cnt <= '0;
-          r_write_word_idx <= (r_req_words == 9'd1) ? 9'd0 : 9'd1;
+          if (r_req_is_raw_bulk) begin
+            r_write_word_idx <= (r_req_words == 9'd1) ? 9'd0 : 9'd1;
+          end else begin
+            r_write_word_idx <= (r_req_words == 9'd1) ? 9'd0 : 9'd1;
+          end
         end
 
         WRITE_ACK: begin
@@ -473,19 +585,19 @@ module sdram_uart_access_engine #(
           if (r_lat_cnt != 0) begin
             r_lat_cnt <= r_lat_cnt - 1'b1;
           end else begin
-            if (r_read_word_idx < MAX_BULK_PAYLOAD_WORDS) begin
-              r_raw_rd_data[r_read_word_idx*32 +: 32] <= I_SDRC_RD_DATA;
+            if (r_req_is_burst_test) begin
+              if (r_read_word_idx[0]) begin
+                r_read_capture_hi[r_read_word_idx[8:1]] <= I_SDRC_RD_DATA;
+              end else begin
+                r_read_capture_lo[r_read_word_idx[8:1]] <= I_SDRC_RD_DATA;
+              end
             end
-            if (r_read_word_idx[0]) begin
-              r_read_capture_hi[r_read_word_idx[8:1]] <= I_SDRC_RD_DATA;
-            end else begin
-              r_read_capture_lo[r_read_word_idx[8:1]] <= I_SDRC_RD_DATA;
-            end
+
             if (r_read_word_idx >= s_req_words_m1) begin
               if (r_req_is_raw_bulk) begin
-                r_raw_done <= 1'b1;
+                r_raw_stream_idx <= '0;
                 set_debug(EVT_BULK_DONE, {11'h000, r_req_addr});
-                st_state <= RESPOND;
+                st_state <= RAW_READ_PREP;
               end else if (r_req_is_burst_test) begin
                 r_packet_count <= r_req_words[8:1] + {7'h0, r_req_words[0]};
                 r_send_packet_id <= '0;
@@ -496,6 +608,22 @@ module sdram_uart_access_engine #(
               end
             end else begin
               r_read_word_idx <= r_read_word_idx + 1'b1;
+            end
+          end
+        end
+
+        RAW_READ_PREP: begin
+          st_state <= RAW_READ_SEND;
+        end
+
+        RAW_READ_SEND: begin
+          if (s_raw_rd_fire) begin
+            if (O_RAW_RD_LAST) begin
+              r_raw_done <= 1'b1;
+              st_state <= RESPOND;
+            end else begin
+              r_raw_stream_idx <= r_raw_stream_idx + 1'b1;
+              st_state <= RAW_READ_PREP;
             end
           end
         end

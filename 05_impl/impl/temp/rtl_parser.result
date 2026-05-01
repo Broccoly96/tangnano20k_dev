@@ -48,7 +48,7 @@
     "InstLine" : 260,
     "InstName" : "u_sdram_uart_bulk_rx",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bulk_rx.sv",
-    "ModuleLine" : 7,
+    "ModuleLine" : 10,
     "ModuleName" : "sdram_uart_bulk_rx"
    }
   ]
@@ -63,7 +63,7 @@
   "SubInsts" : [
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 200,
+    "InstLine" : 204,
     "InstName" : "u0_gowin_pll",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_pll/gowin_pll.v",
     "ModuleLine" : 10,
@@ -71,7 +71,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 214,
+    "InstLine" : 218,
     "InstName" : "u0_reset_mng",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/reset_mng.sv",
     "ModuleLine" : 7,
@@ -79,7 +79,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 232,
+    "InstLine" : 236,
     "InstName" : "u_uart_log_cli",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli.sv",
     "ModuleLine" : 18,
@@ -147,7 +147,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 266,
+    "InstLine" : 270,
     "InstName" : "u_eeprom_evt_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv",
     "ModuleLine" : 10,
@@ -155,7 +155,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 275,
+    "InstLine" : 279,
     "InstName" : "u_sdram_test_evt_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv",
     "ModuleLine" : 10,
@@ -163,7 +163,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 284,
+    "InstLine" : 288,
     "InstName" : "u_sdram_host_evt_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv",
     "ModuleLine" : 10,
@@ -171,7 +171,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 293,
+    "InstLine" : 297,
     "InstName" : "u_ssd1306_evt_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_src_async_bridge.sv",
     "ModuleLine" : 10,
@@ -179,7 +179,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 302,
+    "InstLine" : 306,
     "InstName" : "u_cli_rx_bridge",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv",
     "ModuleLine" : 12,
@@ -187,7 +187,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 317,
+    "InstLine" : 321,
     "InstName" : "u_eeprom_uart_bridge_ctrl",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv",
     "ModuleLine" : 11,
@@ -224,14 +224,14 @@
       "InstLine" : 256,
       "InstName" : "u_sdram_uart_bulk_rx",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bulk_rx.sv",
-      "ModuleLine" : 7,
+      "ModuleLine" : 10,
       "ModuleName" : "sdram_uart_bulk_rx"
      }
     ]
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 336,
+    "InstLine" : 340,
     "InstName" : "u_ssd1306_uart_bridge_ctrl",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv",
     "ModuleLine" : 15,
@@ -239,7 +239,15 @@
     "SubInsts" : [
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv",
-      "InstLine" : 264,
+      "InstLine" : 275,
+      "InstName" : "u_chunk_bram",
+      "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/sdram_raw_word_bram.sv",
+      "ModuleLine" : 10,
+      "ModuleName" : "sdram_raw_word_bram"
+     },
+     {
+      "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv",
+      "InstLine" : 289,
       "InstName" : "u_ssd1306_display_stream_ctrl",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv",
       "ModuleLine" : 14,
@@ -259,7 +267,7 @@
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 363,
+    "InstLine" : 371,
     "InstName" : "u_sdram_emb_hostif_ctrl",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
     "ModuleLine" : 12,
@@ -267,7 +275,7 @@
     "SubInsts" : [
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 300,
+      "InstLine" : 310,
       "InstName" : "u_sdram_memtest_ctrl",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_memtest_ctrl.sv",
       "ModuleLine" : 18,
@@ -275,7 +283,7 @@
      },
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 337,
+      "InstLine" : 347,
       "InstName" : "u_sdram_status_reg_map",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_status_reg_map.sv",
       "ModuleLine" : 14,
@@ -283,7 +291,7 @@
      },
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 372,
+      "InstLine" : 382,
       "InstName" : "u_sdram_uart_bridge_ctrl",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
       "ModuleLine" : 12,
@@ -291,7 +299,7 @@
       "SubInsts" : [
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 237,
+        "InstLine" : 236,
         "InstName" : "u_sdram_uart_ascii_ctrl",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv",
         "ModuleLine" : 16,
@@ -299,35 +307,65 @@
        },
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 257,
+        "InstLine" : 256,
         "InstName" : "u_sdram_uart_access_engine",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
-        "ModuleLine" : 12,
-        "ModuleName" : "sdram_uart_access_engine"
+        "ModuleLine" : 11,
+        "ModuleName" : "sdram_uart_access_engine",
+        "SubInsts" : [
+         {
+          "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
+          "InstLine" : 242,
+          "InstName" : "u_raw_bram",
+          "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/sdram_raw_word_bram.sv",
+          "ModuleLine" : 10,
+          "ModuleName" : "sdram_raw_word_bram"
+         }
+        ]
        },
        {
         "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv",
-        "InstLine" : 298,
+        "InstLine" : 305,
         "InstName" : "u_sdram_uart_bulk_rx",
         "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bulk_rx.sv",
-        "ModuleLine" : 7,
-        "ModuleName" : "sdram_uart_bulk_rx"
+        "ModuleLine" : 10,
+        "ModuleName" : "sdram_uart_bulk_rx",
+        "SubInsts" : [
+         {
+          "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_bulk_rx.sv",
+          "InstLine" : 299,
+          "InstName" : "g_bram_payload.u_payload_bram",
+          "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/sdram_raw_word_bram.sv",
+          "ModuleLine" : 10,
+          "ModuleName" : "sdram_raw_word_bram"
+         }
+        ]
        }
       ]
      },
      {
       "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv",
-      "InstLine" : 403,
+      "InstLine" : 413,
       "InstName" : "u_sdram_disp_access_engine",
       "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
-      "ModuleLine" : 12,
-      "ModuleName" : "sdram_uart_access_engine"
+      "ModuleLine" : 11,
+      "ModuleName" : "sdram_uart_access_engine",
+      "SubInsts" : [
+       {
+        "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/embedded_sdram/sdram_uart_access_engine.sv",
+        "InstLine" : 242,
+        "InstName" : "u_raw_bram",
+        "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/sdram_raw_word_bram.sv",
+        "ModuleLine" : 10,
+        "ModuleName" : "sdram_raw_word_bram"
+       }
+      ]
      }
     ]
    },
    {
     "InstFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/01_src/tangnano20k_top.sv",
-    "InstLine" : 421,
+    "InstLine" : 433,
     "InstName" : "u_embedded_sdram_hs",
     "ModuleFile" : "C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/embedded_sdram_hs/embedded_sdram_hs.v",
     "ModuleLine" : 1251,

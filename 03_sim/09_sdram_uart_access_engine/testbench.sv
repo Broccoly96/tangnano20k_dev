@@ -27,7 +27,14 @@ module testbench;
   logic [20:0] tb_req_addr;
   logic [31:0] tb_req_data;
   logic [8:0]  tb_req_words;
-  logic [(MAX_BULK_PAYLOAD_WORDS*32)-1:0] tb_req_raw_wr_data;
+  logic        tb_raw_wr_valid;
+  logic        tb_raw_wr_ready;
+  logic [31:0] tb_raw_wr_data;
+  logic        tb_raw_rd_valid;
+  logic        tb_raw_rd_ready;
+  logic [8:0]  tb_raw_rd_index;
+  logic [31:0] tb_raw_rd_word_data;
+  logic        tb_raw_rd_last;
   logic        tb_sdrc_init_done;
   logic        tb_sdrc_ready;
   logic        tb_sdrc_cmd_ack;
@@ -79,7 +86,10 @@ module testbench;
     tb_req_addr           = '0;
     tb_req_data           = '0;
     tb_req_words          = 9'd1;
-    tb_req_raw_wr_data    = '0;
+    tb_raw_wr_valid       = 1'b0;
+    tb_raw_wr_data        = 32'h0;
+    tb_raw_rd_ready       = 1'b1;
+    tb_raw_rd_data        = '0;
     tb_sdrc_init_done     = 1'b0;
     tb_sdrc_ready         = 1'b1;
     tb_sdrc_cmd_ack       = 1'b0;
@@ -118,7 +128,14 @@ module testbench;
     .I_REQ_ADDR         (tb_req_addr),
     .I_REQ_DATA         (tb_req_data),
     .I_REQ_WORDS        (tb_req_words),
-    .I_REQ_RAW_WR_DATA  (tb_req_raw_wr_data),
+    .I_RAW_WR_VALID     (tb_raw_wr_valid),
+    .O_RAW_WR_READY     (tb_raw_wr_ready),
+    .I_RAW_WR_DATA      (tb_raw_wr_data),
+    .O_RAW_RD_VALID     (tb_raw_rd_valid),
+    .I_RAW_RD_READY     (tb_raw_rd_ready),
+    .O_RAW_RD_INDEX     (tb_raw_rd_index),
+    .O_RAW_RD_DATA      (tb_raw_rd_word_data),
+    .O_RAW_RD_LAST      (tb_raw_rd_last),
     .I_SDRC_INIT_DONE   (tb_sdrc_init_done),
     .I_SDRC_READY       (tb_sdrc_ready),
     .I_SDRC_CMD_ACK     (tb_sdrc_cmd_ack),
@@ -141,12 +158,19 @@ module testbench;
     .O_RAW_DONE         (tb_raw_done),
     .O_RAW_ERR_VALID    (tb_raw_err_valid),
     .O_RAW_ERR_CODE     (tb_raw_err_code),
-    .O_RAW_RD_DATA      (tb_raw_rd_data),
     .O_BUSY             (tb_busy),
     .O_DBG_HOST_SUMMARY (tb_dbg_host_summary),
     .O_DBG_HOST_DETAIL  (tb_dbg_host_detail),
     .O_DBG_HOST_RD_BEATS(tb_dbg_host_rd_beats)
   );
+
+  always_ff @(posedge tb_clk or negedge tb_rst_n) begin
+    if (!tb_rst_n) begin
+      tb_raw_rd_data <= '0;
+    end else if (tb_raw_rd_valid && tb_raw_rd_ready) begin
+      tb_raw_rd_data[tb_raw_rd_index*32 +: 32] <= tb_raw_rd_word_data;
+    end
+  end
 
   always_comb begin
     tb_sdrc_rd_data = 32'h0000_0000;
@@ -254,7 +278,6 @@ module testbench;
       tb_req_addr          <= '0;
       tb_req_data          <= '0;
       tb_req_words         <= 9'd1;
-      tb_req_raw_wr_data   <= '0;
     end
   endtask
 
@@ -274,7 +297,6 @@ module testbench;
       tb_req_addr          <= addr;
       tb_req_data          <= 32'h0;
       tb_req_words         <= words;
-      tb_req_raw_wr_data   <= raw_data;
       @(posedge tb_clk);
       tb_req_valid         <= 1'b0;
       tb_req_is_write      <= 1'b0;
@@ -282,7 +304,18 @@ module testbench;
       tb_req_is_raw_bulk   <= 1'b0;
       tb_req_addr          <= '0;
       tb_req_words         <= 9'd1;
-      tb_req_raw_wr_data   <= '0;
+
+      if (is_write && (words != 0) && (words <= MAX_BULK_PAYLOAD_WORDS)) begin
+        for (int beat = 0; beat < words; beat++) begin
+          tb_raw_wr_data  <= raw_data[beat*32 +: 32];
+          tb_raw_wr_valid <= 1'b1;
+          do begin
+            @(posedge tb_clk);
+          end while (!tb_raw_wr_ready);
+        end
+        tb_raw_wr_valid <= 1'b0;
+        tb_raw_wr_data  <= 32'h0000_0000;
+      end
     end
   endtask
 
