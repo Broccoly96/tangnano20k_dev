@@ -38,6 +38,14 @@
 ..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv
 ..\01_src\embedded_sdram\sdram_uart_access_engine.sv
 ..\01_src\embedded_sdram\sdram_status_reg_map.sv
+..\01_src\char_ocr_dsp\char_ocr_pkg.sv
+..\01_src\char_ocr_dsp\char_ocr_multaddalu18x18_wrapper.sv
+..\01_src\char_ocr_dsp\char_ocr_dsp24_array.sv
+..\01_src\char_ocr_dsp\char_ocr_reg_map.sv
+..\01_src\char_ocr_dsp\char_ocr_preproc_hshrink.sv
+..\01_src\char_ocr_dsp\char_ocr_result_argmax.sv
+..\01_src\char_ocr_dsp\char_ocr_infer_core.sv
+..\01_src\char_ocr_dsp\char_ocr_top.sv
 ..\01_src\embedded_sdram\sdram_memtest_ctrl.sv
 ..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv
 ..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv

@@ -145,9 +145,21 @@ def normalize_vlog_file_for_linux(script_dir: Path) -> Path:
     return dst
 
 
-def prepare_libraries(script_dir: Path) -> None:
+def collect_available_vendor_libraries(script_dir: Path) -> List[str]:
+    simlib_root = script_dir.parent / "04_simlib"
+    available: List[str] = []
+
+    for library_name in ("gw1n", "gw2a"):
+        if (simlib_root / library_name).exists():
+            available.append(library_name)
+
+    return available
+
+
+def prepare_libraries(script_dir: Path) -> List[str]:
     work_lib_dir = script_dir / "work"
     simlib_root = script_dir.parent / "04_simlib"
+    available_vendor_libraries = collect_available_vendor_libraries(script_dir)
 
     if not work_lib_dir.exists():
         run_subprocess(
@@ -162,14 +174,14 @@ def prepare_libraries(script_dir: Path) -> None:
         description="vmap work",
     )
 
-    for library_name in ("gw1n", "gw2a"):
-        lib_path = simlib_root / library_name
-        if lib_path.exists():
-            run_subprocess(
-                ["vmap", library_name, str(lib_path)],
-                cwd=script_dir,
-                description=f"vmap {library_name}",
-            )
+    for library_name in available_vendor_libraries:
+        run_subprocess(
+            ["vmap", library_name, str(simlib_root / library_name)],
+            cwd=script_dir,
+            description=f"vmap {library_name}",
+        )
+
+    return available_vendor_libraries
 
 
 def maybe_recompile_common_sources(script_dir: Path, recompile: bool) -> None:
@@ -246,6 +258,7 @@ def launch_simulation(
     script_dir: Path,
     tb_top: str,
     log_level_value: Optional[int],
+    vendor_libraries: List[str],
     plusargs: List[str],
 ) -> int:
     vsim_plusargs: List[str] = list(plusargs)
@@ -259,11 +272,9 @@ def launch_simulation(
         "7061",
         f"work.{tb_top}",
         "-voptargs=+acc",
-        "-L",
-        "gw1n",
-        "-L",
-        "gw2a",
     ]
+    for library_name in vendor_libraries:
+        command.extend(["-L", library_name])
     command.extend(vsim_plusargs)
     command.extend(["-do", "run -all; quit -code 0", "-l", "sim.log"])
 
@@ -307,11 +318,17 @@ def main(argv: List[str]) -> int:
                 "Required tools not found in PATH: " + ", ".join(missing_tools)
             )
 
-        prepare_libraries(script_dir)
+        vendor_libraries = prepare_libraries(script_dir)
         maybe_recompile_common_sources(script_dir, recompile)
         tb_top = compile_testbench(script_dir, tb_path)
         log_level_value = map_log_level(log_level_text)
-        return launch_simulation(script_dir, tb_top, log_level_value, plusargs)
+        return launch_simulation(
+            script_dir,
+            tb_top,
+            log_level_value,
+            vendor_libraries,
+            plusargs,
+        )
 
     except (ValueError, FileNotFoundError, RuntimeError) as error:
         print(f"[sim_questa_linux.py] ERROR: {error}", file=sys.stderr)
