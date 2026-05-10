@@ -139,6 +139,18 @@ export interface Ssd1306State {
   framebytes: number[];
 }
 
+export interface OcrState {
+  summary: string;
+  lastClass: number | null;
+  lastChar: string | null;
+  lastScore0: number | null;
+  lastScore1: number | null;
+  lastConfGap: number | null;
+  lastCyclesTotal: number | null;
+  lastCyclesL0: number | null;
+  lastCyclesL1: number | null;
+}
+
 export interface WorkbenchSnapshot {
   session: SessionSnapshot;
   stats: StatsSnapshot;
@@ -151,6 +163,7 @@ export interface WorkbenchSnapshot {
   eepromRw: EepromRwState;
   display: DisplayState;
   ssd1306: Ssd1306State;
+  ocr: OcrState;
 }
 
 export interface ConnectPayload {

@@ -4,8 +4,8 @@
     expect_empty(1'b1, "blank image");
     expect_preproc_byte(0, 8'h00, "blank row0 byte0");
     expect_preproc_byte(127, 8'h00, "blank last byte");
-    expect_feature_byte(0, 8'h00, "blank feature 0");
-    expect_feature_byte(1023, 8'h00, "blank feature 1023");
+    expect_feature_bit(0, 1'b0, "blank feature 0");
+    expect_feature_bit(1023, 1'b0, "blank feature 1023");
 
     set_raw_pixel(0, 0);
     set_raw_pixel(15, 0);
@@ -27,12 +27,12 @@
     expect_preproc_byte(28, 8'h20, "row7 byte0 pair position");
     expect_preproc_byte(127, 8'h80, "last byte boundary");
 
-    expect_feature_byte(0, 8'h01, "feature[0]");
-    expect_feature_byte(7, 8'h01, "feature[7]");
-    expect_feature_byte(8, 8'h01, "feature[8]");
-    expect_feature_byte((7 * 32) + 5, 8'h01, "feature row7 col5");
-    expect_feature_byte((31 * 32) + 31, 8'h01, "feature last entry");
-    expect_feature_byte((7 * 32) + 6, 8'h00, "feature clear neighbor");
+    expect_feature_bit(0, 1'b1, "feature[0]");
+    expect_feature_bit(7, 1'b1, "feature[7]");
+    expect_feature_bit(8, 1'b1, "feature[8]");
+    expect_feature_bit((7 * 32) + 5, 1'b1, "feature row7 col5");
+    expect_feature_bit((31 * 32) + 31, 1'b1, "feature last entry");
+    expect_feature_bit((7 * 32) + 6, 1'b0, "feature clear neighbor");
 
     log_info("OCR PREPROC TB", "char_ocr_preproc_hshrink smoke test passed");
     $finish;

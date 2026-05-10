@@ -40,10 +40,20 @@ Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uar
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_src_async_bridge.sv'
 Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tap.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\gowin_multaddalu_18x18\gowin_multaddalu_18x18.v'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_pkg.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_multaddalu18x18_wrapper.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_dsp24_array.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_preproc_hshrink.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_result_argmax.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_reg_map.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_top.sv'
+Analyzing Verilog file 'C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_uart_bridge_ctrl.sv'
 Compiling module 'tangnano20k_top'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":9)
 Compiling module 'gowin_pll'("C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\gowin_pll\gowin_pll.v":10)
 Compiling module 'reset_mng(FPGA_INIT_WAIT=32'b00000000000000000101110111000000,SOFT_RESET_HOLD_CYCLES=32'b00000001011011100011011000000000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\reset_mng.sv":7)
-Compiling module 'uart_log_cli(CLK_HZ=32'b00000001011011100011011000000000,BAUD=32'b00000000000000011100001000000000,NUM_SRC=32'b00000000000000000000000000000100,SRC_ENABLE_MASK=4'b1101,SRC_IF=uart_log_evt_if_consumer)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli.sv":18)
+Compiling module 'uart_log_cli(CLK_HZ=32'b00000001011011100011011000000000,BAUD=32'b00000000000000011100001000000000,NUM_SRC=32'b00000000000000000000000000000101,SRC_ENABLE_MASK=5'b11101,SRC_IF=uart_log_evt_if_consumer)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli.sv":18)
 Compiling module 'uart_rx_stream(C_BAUD_COUNT=32'b00000000000000000000000011010000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_lite\uart_rx_stream.sv":6)
 Compiling module 'uart_tx_stream(C_BAUD_COUNT=32'b00000000000000000000000011010000)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_lite\uart_tx_stream.sv":6)
 Compiling module 'uart_log_tap'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tap.sv":18)
@@ -72,6 +82,43 @@ Compiling module 'sdram_uart_access_engine'("C:\Electronics\GitHubProjects\tangn
 Extracting RAM for identifier 'r_read_capture_lo'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_access_engine.sv":134)
 Extracting RAM for identifier 'r_read_capture_hi'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_access_engine.sv":135)
 Compiling module 'sdram_uart_bulk_rx(USE_BSRAM_BUFFER=1'b1)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_uart_bulk_rx.sv":10)
+Compiling module 'char_ocr_top'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_top.sv":12)
+Compiling module 'char_ocr_preproc_hshrink'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_preproc_hshrink.sv":16)
+Compiling module 'char_ocr_infer_core'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":37)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+WARN  (EX3780) : Using initial value of 'ri' since it is never assigned("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":91)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'w0_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":84)
+Extracting RAM for identifier 'c_w1_rom'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":110)
+Extracting RAM for identifier 'c_bias0'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":120)
+Extracting RAM for identifier 'c_bias1'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":121)
+WARN  (EX2420) : Latch inferred for net 'w1_addr[5]'; We do not recommend the use of latches in FPGA designs, as they may lead to timing problems("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":202)
+WARN  (EX3101) : 'w1_addr' inside always_comb block does not represent combinational logic("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":202)
+Compiling module 'char_ocr_dsp12_accum'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_dsp24_array.sv":32)
+Compiling module 'char_ocr_multaddalu18x18_wrapper'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_multaddalu18x18_wrapper.sv":29)
+WARN  (EX3791) : Expression size 10 truncated to fit in target size 9("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":303)
+WARN  (EX3791) : Expression size 3 truncated to fit in target size 2("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":317)
+WARN  (EX3791) : Expression size 3 truncated to fit in target size 2("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":348)
+WARN  (EX3791) : Expression size 10 truncated to fit in target size 9("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":376)
+WARN  (EX3791) : Expression size 3 truncated to fit in target size 2("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":390)
+WARN  (EX3791) : Expression size 3 truncated to fit in target size 2("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv":418)
+Compiling module 'char_ocr_result_argmax'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_result_argmax.sv":19)
+Compiling module 'char_ocr_reg_map'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_reg_map.sv":15)
+Compiling module 'char_ocr_uart_bridge_ctrl(HOST_EVT_IF=uart_log_evt_if_producer)'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_uart_bridge_ctrl.sv":23)
+Extracting RAM for identifier 'r_evt_fifo_mem'("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_uart_bridge_ctrl.sv":65)
+WARN  (EX3791) : Expression size 4 truncated to fit in target size 3("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_uart_bridge_ctrl.sv":107)
+WARN  (EX3791) : Expression size 32 truncated to fit in target size 3("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_uart_bridge_ctrl.sv":109)
+WARN  (EX3791) : Expression size 3 truncated to fit in target size 2("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_uart_bridge_ctrl.sv":113)
+WARN  (EX3791) : Expression size 3 truncated to fit in target size 2("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_uart_bridge_ctrl.sv":116)
 Compiling module 'embedded_sdram_hs'("C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\embedded_sdram_hs\embedded_sdram_hs.v":1251)
 Compiling module '**'("C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\embedded_sdram_hs\embedded_sdram_hs.v":1250)
 NOTE  (EX0101) : Current top module is "tangnano20k_top"
@@ -125,8 +172,10 @@ Running technical mapping ...
 [75%] Tech-Mapping Phase 2 completed
 [80%] Tech-Mapping Phase 3 completed
 [90%] Tech-Mapping Phase 4 completed
+WARN  (NL0002) : The module "char_ocr_preproc_hshrink" instantiated to "u_char_ocr_preproc_hshrink" is swept in optimizing("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_top.sv":73)
+WARN  (NL0002) : The module "char_ocr_reg_map" instantiated to "u_char_ocr_reg_map" is swept in optimizing("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_top.sv":216)
 WARN  (NL0002) : The module "sdram_status_reg_map" instantiated to "u_sdram_status_reg_map" is swept in optimizing("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv":380)
-WARN  (NL0002) : The module "uart_log_src_async_bridge" instantiated to "u_sdram_test_evt_bridge" is swept in optimizing("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":286)
+WARN  (NL0002) : The module "uart_log_src_async_bridge" instantiated to "u_sdram_test_evt_bridge" is swept in optimizing("C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\tangnano20k_top.sv":298)
 [95%] Generate netlist file "C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\impl\gwsynthesis\tangnano20k.vg" completed
 [100%] Generate report file "C:\Electronics\GitHubProjects\tangnano20k_dev\05_impl\impl\gwsynthesis\tangnano20k_syn.rpt.html" completed
 GowinSynthesis finish

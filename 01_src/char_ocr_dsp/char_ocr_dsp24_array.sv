@@ -1,56 +1,61 @@
 `timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
-// File         : char_ocr_dsp24_array.sv
-// Description  : 24-lane OCR MAC front-end built from 12 Gowin MULTADDALU18X18
-//                compatible wrappers.
-//                - Processes one activation sample against 24 signed int8
-//                  weights per cycle.
-//                - Emits a 24-lane vector of signed products so the outer OCR
-//                  controller can own per-neuron accumulation and scheduling.
+// File         : char_ocr_dsp24_array.sv  (module: char_ocr_dsp12_accum)
+// Description  : 12-lane OCR MAC accumulator built from 12 Gowin
+//                MULTADDALU18X18 wrappers using internal DSP accumulation.
+//
+// Architecture:
+//   Each of the 12 DSP instances accumulates the dot product for ONE neuron.
+//   Two consecutive feature/weight pairs are fed per cycle:
+//     DSP k cycle i: A0=act[2i]*B0=w[k][2i]  +  A1=act[2i+1]*B1=w[k][2i+1]
+//   After FEAT_COUNT/2 = 512 cycles, each DSP holds:
+//     ACCUM[k] = sum_j( act[j] * w[k][j] ) = dot(act, w[k])
+//
+//   Cycle sequence per neuron group:
+//     1. RESET     (1 cycle)  : I_RESET=1 clears all accumulators and pipeline.
+//     2. RUN       (512 or 32): I_RESET=0, valid I_ACT0/I_ACT1/I_WEIGHT_A/B fed.
+//     3. FLUSH     (3 cycles) : zero inputs, pipeline drains into accumulator.
+//     4. READ      (1 cycle)  : controller reads O_ACCUM_VECTOR[k*54+:54].
+//
+// Throughput: 24 MACs/cycle (12 DSPs x 2 multiplications each).
+// Latency (pipeline): 3 cycles (see char_ocr_multaddalu18x18_wrapper).
+//
+// Ports:
+//   I_ACT0[7:0]               : feature[2i]          (broadcast to all 12 DSPs)
+//   I_ACT1[7:0]               : feature[2i+1]        (broadcast to all 12 DSPs)
+//   I_WEIGHT_A[(12*8)-1:0]    : w[k][2i]   for k=0..11 ({w[11][2i], ..., w[0][2i]})
+//   I_WEIGHT_B[(12*8)-1:0]    : w[k][2i+1] for k=0..11
+//   O_ACCUM_VECTOR[(12*54)-1:0]: accumulated dot products for 12 neurons.
+//                               O_ACCUM_VECTOR[k*54 +: 54] = ACCUM[k]
 //////////////////////////////////////////////////////////////////////////////////
 
-module char_ocr_dsp24_array (
-  input  logic                                I_CLK,
-  input  logic                                I_CE,
-  input  logic                                I_RESET,
-  input  logic signed [7:0]                   I_ACTIVATION,
-  input  logic signed [(24*8)-1:0]            I_WEIGHT_VECTOR,
-  output logic signed [(24*32)-1:0]           O_PRODUCT_VECTOR
+module char_ocr_dsp12_accum (
+  input  logic                         I_CLK,
+  input  logic                         I_CE,
+  input  logic                         I_RESET,           // synchronous, clears all 12 DSPs
+  input  logic signed [7:0]            I_ACT0,            // activation feature[2i]
+  input  logic signed [7:0]            I_ACT1,            // activation feature[2i+1]
+  input  logic signed [(12*8)-1:0]     I_WEIGHT_A,        // w[k][2i]   for k=0..11
+  input  logic signed [(12*8)-1:0]     I_WEIGHT_B,        // w[k][2i+1] for k=0..11
+  output logic signed [(12*54)-1:0]    O_ACCUM_VECTOR     // 12 x 54-bit accumulated results
 );
 
-  genvar lane_pair_idx;
+  genvar k;
   generate
-    for (lane_pair_idx = 0; lane_pair_idx < 12; lane_pair_idx++) begin : gen_dsp_pair
-      logic signed [53:0] l_dout;
-      logic signed [17:0] l_act0;
-      logic signed [17:0] l_act1;
-      logic signed [17:0] l_w0;
-      logic signed [17:0] l_w1;
-
-      always_comb begin
-        l_act0 = {{10{I_ACTIVATION[7]}}, I_ACTIVATION};
-        l_act1 = {{10{I_ACTIVATION[7]}}, I_ACTIVATION};
-        l_w0 = {{10{I_WEIGHT_VECTOR[(lane_pair_idx*16)+7]}}, I_WEIGHT_VECTOR[(lane_pair_idx*16) +: 8]};
-        l_w1 = {{10{I_WEIGHT_VECTOR[(lane_pair_idx*16)+15]}}, I_WEIGHT_VECTOR[(lane_pair_idx*16)+8 +: 8]};
-      end
-
+    for (k = 0; k < 12; k++) begin : gen_dsp_lane
+      // Each wrapper accumulates: ACCUM[k] += act0*w_a[k] + act1*w_b[k]
+      // I_A0 = I_ACT0 (broadcast), I_B0 = w[k][2i]   (unique per lane)
+      // I_A1 = I_ACT1 (broadcast), I_B1 = w[k][2i+1] (unique per lane)
       char_ocr_multaddalu18x18_wrapper u_dsp (
-        .I_CLK     (I_CLK),
-        .I_CE      (I_CE),
-        .I_RESET   (I_RESET),
-        .I_ACCLOAD (1'b1),
-        .I_A0      (l_act0),
-        .I_B0      (l_w0),
-        .I_A1      (l_act1),
-        .I_B1      (l_w1),
-        .I_C       ('0),
-        .O_DOUT    (l_dout)
+        .I_CLK   (I_CLK),
+        .I_CE    (I_CE),
+        .I_RESET (I_RESET),
+        .I_A0    (I_ACT0),
+        .I_B0    (I_WEIGHT_A[(k*8) +: 8]),
+        .I_A1    (I_ACT1),
+        .I_B1    (I_WEIGHT_B[(k*8) +: 8]),
+        .O_DOUT  (O_ACCUM_VECTOR[(k*54) +: 54])
       );
-
-      always_comb begin
-        O_PRODUCT_VECTOR[(lane_pair_idx*64) +: 32] = l_act0 * l_w0;
-        O_PRODUCT_VECTOR[(lane_pair_idx*64)+32 +: 32] = l_act1 * l_w1;
-      end
     end
   endgenerate
 

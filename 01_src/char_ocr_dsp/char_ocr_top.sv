@@ -16,10 +16,6 @@ module char_ocr_top (
   input  logic [15:0]                                 I_RD_ADDR,
   input  logic                                        I_NN_MODEL_SELECT,
   input  logic [2047:0]                               I_RAW_IMAGE_BYTES,
-  input  logic signed [(65536*8)-1:0]                 I_WEIGHT0_BYTES,
-  input  logic signed [(2304*8)-1:0]                  I_WEIGHT1_BYTES,
-  input  logic signed [(64*32)-1:0]                   I_BIAS0_WORDS,
-  input  logic signed [(36*32)-1:0]                   I_BIAS1_WORDS,
   output logic [31:0]                                 O_RD_DATA,
   output logic                                        O_OCR_DONE,
   output logic                                        O_EMPTY_IMAGE,
@@ -34,11 +30,11 @@ module char_ocr_top (
 
   logic          l_preproc_empty_image;
   logic [1023:0] l_preproc_bin_bytes;
-  logic [8191:0] l_feature_bytes;
   logic          l_infer_busy;
   logic          l_infer_done;
   logic          l_infer_error_unsupported_model;
   logic signed [(36*32)-1:0] l_score_vector;
+  logic          l_argmax_done;
   logic [31:0]   l_cycles_total;
   logic [31:0]   l_cycles_l0;
   logic [31:0]   l_cycles_l1;
@@ -73,8 +69,7 @@ module char_ocr_top (
   char_ocr_preproc_hshrink u_char_ocr_preproc_hshrink (
     .I_RAW_IMAGE_BYTES   (I_RAW_IMAGE_BYTES),
     .O_EMPTY_IMAGE       (l_preproc_empty_image),
-    .O_PREPROC_BIN_BYTES (l_preproc_bin_bytes),
-    .O_FEATURE_BYTES     (l_feature_bytes)
+    .O_PREPROC_BIN_BYTES (l_preproc_bin_bytes)
   );
 
   char_ocr_infer_core u_char_ocr_infer_core (
@@ -82,11 +77,7 @@ module char_ocr_top (
     .I_RST_N                   (I_RST_N),
     .I_START                   (I_RUN_FULL_OCR && !l_preproc_empty_image),
     .I_MODEL_SELECT            (I_NN_MODEL_SELECT),
-    .I_FEATURE_BYTES           (l_feature_bytes),
-    .I_WEIGHT0_BYTES           (I_WEIGHT0_BYTES),
-    .I_WEIGHT1_BYTES           (I_WEIGHT1_BYTES),
-    .I_BIAS0_WORDS             (I_BIAS0_WORDS),
-    .I_BIAS1_WORDS             (I_BIAS1_WORDS),
+    .I_FEATURE_BITS            (l_preproc_bin_bytes),
     .O_BUSY                    (l_infer_busy),
     .O_DONE                    (l_infer_done),
     .O_ERROR_UNSUPPORTED_MODEL (l_infer_error_unsupported_model),
@@ -98,7 +89,11 @@ module char_ocr_top (
   );
 
   char_ocr_result_argmax u_char_ocr_result_argmax (
+    .I_CLK             (I_CLK),
+    .I_RST_N           (I_RST_N),
+    .I_START           (l_infer_done),
     .I_SCORE_VECTOR    (l_score_vector),
+    .O_DONE            (l_argmax_done),
     .O_RESULT_CLASS    (O_RESULT_CLASS),
     .O_RESULT_CHAR     (O_RESULT_CHAR),
     .O_RESULT_SCORE0   (O_RESULT_SCORE0),
@@ -130,6 +125,9 @@ module char_ocr_top (
         end
         if (l_infer_done) begin
           r_nn_done <= 1'b1;
+          // r_ocr_done is set when argmax finishes (37 cycles later)
+        end
+        if (l_argmax_done) begin
           r_ocr_done <= 1'b1;
           r_run_pending <= 1'b0;
         end

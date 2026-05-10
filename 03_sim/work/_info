@@ -55,6 +55,7 @@ o-quiet -auto_acc_if_foreign -work work -suppress 7061 +acc
 Z3 tCvgOpt 0
 n@_opt
 OL;O;2025.2;82
+R2
 vALU
 Z4 2..\00_ip\embedded_sdram\tb\prim_sim.v|..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v|..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo|..\02_tb\tb_log_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli.sv
 Z5 DXx6 sv_std 3 std 0 22 VYECXdT12H8WgbUP_5Y6:3
@@ -169,215 +170,250 @@ R15
 R16
 R3
 n@b@u@f@s
+vchar_ocr_dsp12_accum
+Z18 2..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo|..\02_tb\tb_log_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\01_src\ssd1306_display\ssd1306_uart_proto_pkg.sv|..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv|..\01_src\ssd1331_display\ssd1331_spi_master.sv|..\01_src\ssd1331_display\ssd1331_display_ctrl.sv|..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\uart_log_cli\uart_log_evt_if.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv|..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv|..\01_src\ssd1306_display\ssd1306_display_ctrl.sv|..\01_src\ssd1306_display\ssd1306_display_stream_ctrl.sv|..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv|..\02_tb\eeprom_i2c\eeprom_i2c_model.sv|..\02_tb\ssd1306_display\ssd1306_i2c_model.sv|..\01_src\sdram_raw_word_bram.sv|..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv|..\01_src\ssd1306_display\ssd1306_uart_bridge_ctrl.sv|..\01_src\ssd1306_display\ssd1306_sdram_uart_bridge_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\char_ocr_dsp\char_ocr_pkg.sv|..\01_src\char_ocr_dsp\char_ocr_multaddalu18x18_wrapper.sv|..\01_src\char_ocr_dsp\char_ocr_dsp24_array.sv|..\01_src\char_ocr_dsp\char_ocr_reg_map.sv|..\01_src\char_ocr_dsp\char_ocr_preproc_hshrink.sv|..\01_src\char_ocr_dsp\char_ocr_result_argmax.sv|..\01_src\char_ocr_dsp\char_ocr_infer_core.sv|..\01_src\char_ocr_dsp\char_ocr_top.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli.sv
+R5
+Z19 !s110 1778117485
+!i10b 1
+!s100 CJz9O2Ok^^A8HYW4JgkI82
+I<n?S@jh4Ydz8:=76:8dPB2
+S1
+R2
+Z20 w1778114164
+8..\01_src\char_ocr_dsp\char_ocr_dsp24_array.sv
+F..\01_src\char_ocr_dsp\char_ocr_dsp24_array.sv
+!i122 662
+L0 32 31
+R10
+R11
+r1
+!s85 0
+31
+Z21 !s108 1778117485.000000
+Z22 !s107 ..\01_src\uart_log_cli\uart_log_cli.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\char_ocr_dsp\char_ocr_top.sv|..\01_src\char_ocr_dsp\char_ocr_infer_core.sv|..\01_src\char_ocr_dsp\char_ocr_result_argmax.sv|..\01_src\char_ocr_dsp\char_ocr_preproc_hshrink.sv|..\01_src\char_ocr_dsp\char_ocr_reg_map.sv|..\01_src\char_ocr_dsp\char_ocr_dsp24_array.sv|..\01_src\char_ocr_dsp\char_ocr_multaddalu18x18_wrapper.sv|..\01_src\char_ocr_dsp\char_ocr_pkg.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv|..\01_src\ssd1306_display\ssd1306_sdram_uart_bridge_ctrl.sv|..\01_src\ssd1306_display\ssd1306_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv|..\01_src\sdram_raw_word_bram.sv|..\02_tb\ssd1306_display\ssd1306_i2c_model.sv|..\02_tb\eeprom_i2c\eeprom_i2c_model.sv|..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv|..\01_src\ssd1306_display\ssd1306_display_stream_ctrl.sv|..\01_src\ssd1306_display\ssd1306_display_ctrl.sv|..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_evt_if.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv|..\01_src\ssd1331_display\ssd1331_display_ctrl.sv|..\01_src\ssd1331_display\ssd1331_spi_master.sv|..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv|..\01_src\ssd1306_display\ssd1306_uart_proto_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\02_tb\tb_log_pkg.sv|..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo|
+R14
+!s101 -O0
+!i113 1
+Z23 o-sv -work work -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact -O0
+Z24 !s92 -sv -work work {+incdir+..\01_src} {+incdir+..\02_tb} +define+SIM +define+DISABLE_TIMING_CHECKS -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact -O0
+R3
 vchar_ocr_dsp24_array
-Z18 2../00_ip/embedded_sdram_hs/embedded_sdram_hs.vo|../02_tb/tb_log_pkg.sv|../02_tb/embedded_sdram/embedded_sdram_tb_pkg.sv|../01_src/ssd1306_display/ssd1306_uart_proto_pkg.sv|../01_src/ssd1331_display/ssd1331_uart_proto_pkg.sv|../01_src/ssd1331_display/ssd1331_spi_master.sv|../01_src/ssd1331_display/ssd1331_display_ctrl.sv|../01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv|../01_src/sync_fifo_ae_af.sv|../01_src/uart_log_cli/uart_log_cli_pkg.sv|../01_src/uart_log_cli/uart_log_evt_if.sv|../01_src/uart_log_cli/uart_log_src_async_bridge.sv|../01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv|../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv|../01_src/embedded_sdram/sdram_hs_cmd_pkg.sv|../01_src/embedded_sdram/sdram_uart_proto_pkg.sv|../01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv|../01_src/eeprom_i2c/eeprom_uart_proto_pkg.sv|../01_src/eeprom_i2c/eeprom_uart_ascii_ctrl.sv|../01_src/eeprom_i2c/eeprom_i2c_byte_ctrl.sv|../01_src/ssd1306_display/ssd1306_display_ctrl.sv|../01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv|../01_src/eeprom_i2c/eeprom_i2c_access_engine.sv|../02_tb/eeprom_i2c/eeprom_i2c_model.sv|../02_tb/ssd1306_display/ssd1306_i2c_model.sv|../01_src/sdram_raw_word_bram.sv|../01_src/embedded_sdram/sdram_uart_bulk_rx.sv|../01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv|../01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv|../01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv|../01_src/embedded_sdram/sdram_uart_access_engine.sv|../01_src/embedded_sdram/sdram_status_reg_map.sv|../01_src/char_ocr_dsp/char_ocr_pkg.sv|../01_src/char_ocr_dsp/char_ocr_multaddalu18x18_wrapper.sv|../01_src/char_ocr_dsp/char_ocr_dsp24_array.sv|../01_src/char_ocr_dsp/char_ocr_reg_map.sv|../01_src/char_ocr_dsp/char_ocr_preproc_hshrink.sv|../01_src/char_ocr_dsp/char_ocr_result_argmax.sv|../01_src/char_ocr_dsp/char_ocr_infer_core.sv|../01_src/char_ocr_dsp/char_ocr_top.sv|../01_src/embedded_sdram/sdram_memtest_ctrl.sv|../01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv|../01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv|../01_src/uart_lite/uart_rx_stream.sv|../01_src/uart_lite/uart_tx_stream.sv|../01_src/uart_log_cli/uart_log_tap.sv|../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv|../01_src/uart_log_cli/uart_log_testsrc1.sv|../01_src/uart_log_cli/uart_log_cli.sv
-Z19 DXx6 sv_std 3 std 0 22 @5XbY]_OacJl=`ToSm<M^0
-Z20 !s110 1777675319
+2../00_ip/embedded_sdram_hs/embedded_sdram_hs.vo|../02_tb/tb_log_pkg.sv|../02_tb/embedded_sdram/embedded_sdram_tb_pkg.sv|../01_src/ssd1306_display/ssd1306_uart_proto_pkg.sv|../01_src/ssd1331_display/ssd1331_uart_proto_pkg.sv|../01_src/ssd1331_display/ssd1331_spi_master.sv|../01_src/ssd1331_display/ssd1331_display_ctrl.sv|../01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv|../01_src/sync_fifo_ae_af.sv|../01_src/uart_log_cli/uart_log_cli_pkg.sv|../01_src/uart_log_cli/uart_log_evt_if.sv|../01_src/uart_log_cli/uart_log_src_async_bridge.sv|../01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv|../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv|../01_src/embedded_sdram/sdram_hs_cmd_pkg.sv|../01_src/embedded_sdram/sdram_uart_proto_pkg.sv|../01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv|../01_src/eeprom_i2c/eeprom_uart_proto_pkg.sv|../01_src/eeprom_i2c/eeprom_uart_ascii_ctrl.sv|../01_src/eeprom_i2c/eeprom_i2c_byte_ctrl.sv|../01_src/ssd1306_display/ssd1306_display_ctrl.sv|../01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv|../01_src/eeprom_i2c/eeprom_i2c_access_engine.sv|../02_tb/eeprom_i2c/eeprom_i2c_model.sv|../02_tb/ssd1306_display/ssd1306_i2c_model.sv|../01_src/sdram_raw_word_bram.sv|../01_src/embedded_sdram/sdram_uart_bulk_rx.sv|../01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv|../01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv|../01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv|../01_src/embedded_sdram/sdram_uart_access_engine.sv|../01_src/embedded_sdram/sdram_status_reg_map.sv|../01_src/char_ocr_dsp/char_ocr_pkg.sv|../01_src/char_ocr_dsp/char_ocr_multaddalu18x18_wrapper.sv|../01_src/char_ocr_dsp/char_ocr_dsp24_array.sv|../01_src/char_ocr_dsp/char_ocr_reg_map.sv|../01_src/char_ocr_dsp/char_ocr_preproc_hshrink.sv|../01_src/char_ocr_dsp/char_ocr_result_argmax.sv|../01_src/char_ocr_dsp/char_ocr_infer_core.sv|../01_src/char_ocr_dsp/char_ocr_top.sv|../01_src/embedded_sdram/sdram_memtest_ctrl.sv|../01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv|../01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv|../01_src/uart_lite/uart_rx_stream.sv|../01_src/uart_lite/uart_tx_stream.sv|../01_src/uart_log_cli/uart_log_tap.sv|../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv|../01_src/uart_log_cli/uart_log_testsrc1.sv|../01_src/uart_log_cli/uart_log_cli.sv
+DXx6 sv_std 3 std 0 22 @5XbY]_OacJl=`ToSm<M^0
+!s110 1777675319
 !i10b 1
 !s100 fTLS@^[O404^BVC?=93@g2
 IEODJbAC0g?zIT41SGoN>V2
 S1
-Z21 d/home/kenji/git/tangnano20k_dev/03_sim
-Z22 w1777675017
+d/home/kenji/git/tangnano20k_dev/03_sim
+w1777675017
 8../01_src/char_ocr_dsp/char_ocr_dsp24_array.sv
 F../01_src/char_ocr_dsp/char_ocr_dsp24_array.sv
 !i122 640
 L0 12 46
 R10
-Z23 OL;L;2025.2;82
+OL;L;2025.2;82
 r1
 !s85 0
 31
-Z24 !s108 1777675319.000000
-Z25 !s107 ../01_src/uart_log_cli/uart_log_cli.sv|../01_src/uart_log_cli/uart_log_testsrc1.sv|../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv|../01_src/uart_log_cli/uart_log_tap.sv|../01_src/uart_lite/uart_tx_stream.sv|../01_src/uart_lite/uart_rx_stream.sv|../01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv|../01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv|../01_src/embedded_sdram/sdram_memtest_ctrl.sv|../01_src/char_ocr_dsp/char_ocr_top.sv|../01_src/char_ocr_dsp/char_ocr_infer_core.sv|../01_src/char_ocr_dsp/char_ocr_result_argmax.sv|../01_src/char_ocr_dsp/char_ocr_preproc_hshrink.sv|../01_src/char_ocr_dsp/char_ocr_reg_map.sv|../01_src/char_ocr_dsp/char_ocr_dsp24_array.sv|../01_src/char_ocr_dsp/char_ocr_multaddalu18x18_wrapper.sv|../01_src/char_ocr_dsp/char_ocr_pkg.sv|../01_src/embedded_sdram/sdram_status_reg_map.sv|../01_src/embedded_sdram/sdram_uart_access_engine.sv|../01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv|../01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv|../01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv|../01_src/embedded_sdram/sdram_uart_bulk_rx.sv|../01_src/sdram_raw_word_bram.sv|../02_tb/ssd1306_display/ssd1306_i2c_model.sv|../02_tb/eeprom_i2c/eeprom_i2c_model.sv|../01_src/eeprom_i2c/eeprom_i2c_access_engine.sv|../01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv|../01_src/ssd1306_display/ssd1306_display_ctrl.sv|../01_src/eeprom_i2c/eeprom_i2c_byte_ctrl.sv|../01_src/eeprom_i2c/eeprom_uart_ascii_ctrl.sv|../01_src/eeprom_i2c/eeprom_uart_proto_pkg.sv|../01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv|../01_src/embedded_sdram/sdram_uart_proto_pkg.sv|../01_src/embedded_sdram/sdram_hs_cmd_pkg.sv|../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv|../01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv|../01_src/uart_log_cli/uart_log_src_async_bridge.sv|../01_src/uart_log_cli/uart_log_evt_if.sv|../01_src/uart_log_cli/uart_log_cli_pkg.sv|../01_src/sync_fifo_ae_af.sv|../01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv|../01_src/ssd1331_display/ssd1331_display_ctrl.sv|../01_src/ssd1331_display/ssd1331_spi_master.sv|../01_src/ssd1331_display/ssd1331_uart_proto_pkg.sv|../01_src/ssd1306_display/ssd1306_uart_proto_pkg.sv|../02_tb/embedded_sdram/embedded_sdram_tb_pkg.sv|../02_tb/tb_log_pkg.sv|../00_ip/embedded_sdram_hs/embedded_sdram_hs.vo|
-Z26 !s90 -sv|-work|work|-f|/home/kenji/git/tangnano20k_dev/03_sim/.vlog_linux.f|-l|compile.log|
+!s108 1777675319.000000
+!s107 ../01_src/uart_log_cli/uart_log_cli.sv|../01_src/uart_log_cli/uart_log_testsrc1.sv|../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv|../01_src/uart_log_cli/uart_log_tap.sv|../01_src/uart_lite/uart_tx_stream.sv|../01_src/uart_lite/uart_rx_stream.sv|../01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv|../01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv|../01_src/embedded_sdram/sdram_memtest_ctrl.sv|../01_src/char_ocr_dsp/char_ocr_top.sv|../01_src/char_ocr_dsp/char_ocr_infer_core.sv|../01_src/char_ocr_dsp/char_ocr_result_argmax.sv|../01_src/char_ocr_dsp/char_ocr_preproc_hshrink.sv|../01_src/char_ocr_dsp/char_ocr_reg_map.sv|../01_src/char_ocr_dsp/char_ocr_dsp24_array.sv|../01_src/char_ocr_dsp/char_ocr_multaddalu18x18_wrapper.sv|../01_src/char_ocr_dsp/char_ocr_pkg.sv|../01_src/embedded_sdram/sdram_status_reg_map.sv|../01_src/embedded_sdram/sdram_uart_access_engine.sv|../01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv|../01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv|../01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv|../01_src/embedded_sdram/sdram_uart_bulk_rx.sv|../01_src/sdram_raw_word_bram.sv|../02_tb/ssd1306_display/ssd1306_i2c_model.sv|../02_tb/eeprom_i2c/eeprom_i2c_model.sv|../01_src/eeprom_i2c/eeprom_i2c_access_engine.sv|../01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv|../01_src/ssd1306_display/ssd1306_display_ctrl.sv|../01_src/eeprom_i2c/eeprom_i2c_byte_ctrl.sv|../01_src/eeprom_i2c/eeprom_uart_ascii_ctrl.sv|../01_src/eeprom_i2c/eeprom_uart_proto_pkg.sv|../01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv|../01_src/embedded_sdram/sdram_uart_proto_pkg.sv|../01_src/embedded_sdram/sdram_hs_cmd_pkg.sv|../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv|../01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv|../01_src/uart_log_cli/uart_log_src_async_bridge.sv|../01_src/uart_log_cli/uart_log_evt_if.sv|../01_src/uart_log_cli/uart_log_cli_pkg.sv|../01_src/sync_fifo_ae_af.sv|../01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv|../01_src/ssd1331_display/ssd1331_display_ctrl.sv|../01_src/ssd1331_display/ssd1331_spi_master.sv|../01_src/ssd1331_display/ssd1331_uart_proto_pkg.sv|../01_src/ssd1306_display/ssd1306_uart_proto_pkg.sv|../02_tb/embedded_sdram/embedded_sdram_tb_pkg.sv|../02_tb/tb_log_pkg.sv|../00_ip/embedded_sdram_hs/embedded_sdram_hs.vo|
+!s90 -sv|-work|work|-f|/home/kenji/git/tangnano20k_dev/03_sim/.vlog_linux.f|-l|compile.log|
 !i113 0
-Z27 o-sv -work work -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
-Z28 !s92 -sv -work work +incdir+../01_src +incdir+../02_tb +define+SIM +define+DISABLE_TIMING_CHECKS -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+o-sv -work work -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+!s92 -sv -work work +incdir+../01_src +incdir+../02_tb +define+SIM +define+DISABLE_TIMING_CHECKS -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
 R3
 vchar_ocr_infer_core
 R18
+R5
+Z25 DXx4 work 12 char_ocr_pkg 0 22 ZegOee2=JDd2d9jQ1fI[b1
 R19
-Z29 DXx4 work 12 char_ocr_pkg 0 22 `Rh;PX?AIihFok=ASAg4Q0
-R20
 !i10b 1
-!s100 CN>fa3F7]T2k9YJ9ik_oI2
-I<lmZ@WDX<k[:_@lNfb[H>2
+!s100 DBIeRPCZ5S3W^aTK]k;K`0
+IMS=5NI7=>]C_=zhDa0d^00
 S1
-R21
-w1777675131
-8../01_src/char_ocr_dsp/char_ocr_infer_core.sv
-F../01_src/char_ocr_dsp/char_ocr_infer_core.sv
-!i122 640
-L0 12 285
+R2
+Z26 w1778116706
+8..\01_src\char_ocr_dsp\char_ocr_infer_core.sv
+F..\01_src\char_ocr_dsp\char_ocr_infer_core.sv
+!i122 662
+L0 37 406
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vchar_ocr_multaddalu18x18_wrapper
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 `ZkPS_c7j1O;``PNMWK8@1
-IKJ8?7NC5EMPQnS0FohNQ10
+!s100 J5eHBG=0PHYnMBA7ARaIA1
+IZkgLle@MBc^mzH3:HmnEH0
 S1
-R21
-R22
-8../01_src/char_ocr_dsp/char_ocr_multaddalu18x18_wrapper.sv
-F../01_src/char_ocr_dsp/char_ocr_multaddalu18x18_wrapper.sv
-!i122 640
-L0 11 72
+R2
+R20
+8..\01_src\char_ocr_dsp\char_ocr_multaddalu18x18_wrapper.sv
+F..\01_src\char_ocr_dsp\char_ocr_multaddalu18x18_wrapper.sv
+!i122 662
+L0 29 83
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Xchar_ocr_pkg
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 n6Nc3b`<NN8><g8k:CKLd1
-I`Rh;PX?AIihFok=ASAg4Q0
+!s100 ^_?DlR8:MLUHZl4JTMLNb0
+IZegOee2=JDd2d9jQ1fI[b1
 S1
-R21
-R22
-8../01_src/char_ocr_dsp/char_ocr_pkg.sv
-F../01_src/char_ocr_dsp/char_ocr_pkg.sv
-!i122 640
+R2
+w1778115545
+8..\01_src\char_ocr_dsp\char_ocr_pkg.sv
+F..\01_src\char_ocr_dsp\char_ocr_pkg.sv
+!i122 662
 L0 12 0
-V`Rh;PX?AIihFok=ASAg4Q0
-R23
+VZegOee2=JDd2d9jQ1fI[b1
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vchar_ocr_preproc_hshrink
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 eB1z]G2L3z1gj:mh;>Lm20
-I3QEY;=>I0::R]6XYhTYeP1
+!s100 @@9L4UjgIH`Rhh=9nSm<n1
+IZ`E:`aRi[2L<Vm@gU?d`a0
 S1
-R21
-w1777631705
-8../01_src/char_ocr_dsp/char_ocr_preproc_hshrink.sv
-F../01_src/char_ocr_dsp/char_ocr_preproc_hshrink.sv
-!i122 640
-L0 16 58
+R2
+R26
+8..\01_src\char_ocr_dsp\char_ocr_preproc_hshrink.sv
+F..\01_src\char_ocr_dsp\char_ocr_preproc_hshrink.sv
+!i122 662
+L0 16 55
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vchar_ocr_reg_map
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 bMXcWU7[GngR@>D0h4Mbl2
-I=J@lP:jP=Qognfe>m:E`n0
+!s100 Hz6OI6heW]FodeFNR0<aD3
+IzQd00i[PHlol8[L667k:W2
 S1
-R21
-w1777631547
-8../01_src/char_ocr_dsp/char_ocr_reg_map.sv
-F../01_src/char_ocr_dsp/char_ocr_reg_map.sv
-!i122 640
+R2
+w1778108675
+8..\01_src\char_ocr_dsp\char_ocr_reg_map.sv
+F..\01_src\char_ocr_dsp\char_ocr_reg_map.sv
+!i122 662
 L0 15 141
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vchar_ocr_result_argmax
 R18
+R5
+R25
 R19
-R20
 !i10b 1
-!s100 XOVd<o`z4]QZg8>AY@@=L0
-IhT>XYWc9dC^o]BQBI0Tz<3
+!s100 ??azEL8b8TeS1;k8a`0hK2
+I=LMUJ5HcOMiOD`?[X3o:g3
 S1
-R21
-w1777631782
-8../01_src/char_ocr_dsp/char_ocr_result_argmax.sv
-F../01_src/char_ocr_dsp/char_ocr_result_argmax.sv
-!i122 640
-L0 14 53
+R2
+w1778117475
+8..\01_src\char_ocr_dsp\char_ocr_result_argmax.sv
+F..\01_src\char_ocr_dsp\char_ocr_result_argmax.sv
+!i122 662
+L0 19 115
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vchar_ocr_top
 R18
+R5
+R25
 R19
-R29
-R20
 !i10b 1
-!s100 3mV8bUYYB6[0^7Ja;:;3:3
-IgK<z6bAnldDgWHncbmB6<3
+!s100 IFhAM^=[_OYK:m]hfM4_62
+I?g`D[;?b^gm9CgZ2RH3Z[3
 S1
-R21
-w1777675280
-8../01_src/char_ocr_dsp/char_ocr_top.sv
-F../01_src/char_ocr_dsp/char_ocr_top.sv
-!i122 640
-L0 12 209
+R2
+w1778117347
+8..\01_src\char_ocr_dsp\char_ocr_top.sv
+F..\01_src\char_ocr_dsp\char_ocr_top.sv
+!i122 662
+L0 12 207
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vCLKDIV
 R4
@@ -1585,163 +1621,169 @@ R3
 n@d@q@s
 veeprom_i2c_access_engine
 R18
+R5
+Z27 DXx4 work 21 eeprom_uart_proto_pkg 0 22 KhaH<N;NO9b[[V@=aH24J3
 R19
-Z30 DXx4 work 21 eeprom_uart_proto_pkg 0 22 E;7f`5_OBP2h7_T`fzD=z1
-R20
 !i10b 1
-!s100 [k_Xfe`MbGl_^FcL0mke43
-Ig5d8L1878A:d6mU8H;l9]3
+!s100 EiMLF1U=3R>d=8?8:RI[<0
+IL1@;ReK;8af00?c<I]@bX2
 S1
-R21
-Z31 w1777449488
-8../01_src/eeprom_i2c/eeprom_i2c_access_engine.sv
-F../01_src/eeprom_i2c/eeprom_i2c_access_engine.sv
-!i122 640
+R2
+Z28 w1777120953
+8..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv
+F..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv
+!i122 662
 L0 11 559
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 veeprom_i2c_byte_ctrl
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 4_b1OQHk;ETT]<be^bgC70
-I0ILPoOjmlcOkifE1>5G]g1
+IaQoIh@UzDVD^iYb[]lg[F1
 S1
-R21
-Z32 w1777624270
-8../01_src/eeprom_i2c/eeprom_i2c_byte_ctrl.sv
-F../01_src/eeprom_i2c/eeprom_i2c_byte_ctrl.sv
-!i122 640
+R2
+Z29 w1777456689
+8..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv
+F..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv
+!i122 662
 L0 10 250
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 veeprom_i2c_model
 R18
+R5
+R27
 R19
-R30
-R20
 !i10b 1
 !s100 RGBlH_d^U_831oZfJc`F[1
-IJRRIm^]QSW2gjAYcD^5O60
+IM9[`alA=dDj257aj^cTX81
 S1
-R21
-R31
-8../02_tb/eeprom_i2c/eeprom_i2c_model.sv
-F../02_tb/eeprom_i2c/eeprom_i2c_model.sv
-!i122 640
+R2
+R28
+8..\02_tb\eeprom_i2c\eeprom_i2c_model.sv
+F..\02_tb\eeprom_i2c\eeprom_i2c_model.sv
+!i122 662
 L0 9 240
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 veeprom_uart_ascii_ctrl
 R18
+R5
+R27
 R19
-R30
-R20
 !i10b 1
-!s100 0M^T8mLZik`4<LX6KI0[_2
-IL2g=75M0Wg1LPFY>YW>ik2
+!s100 l_UMoRTK^JLTRb5VAAgm^2
+IKfFG95K=@OZ:0B4?aWJhR3
 S1
-R21
-R31
-8../01_src/eeprom_i2c/eeprom_uart_ascii_ctrl.sv
-F../01_src/eeprom_i2c/eeprom_uart_ascii_ctrl.sv
-!i122 640
+R2
+R28
+8..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv
+F..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv
+!i122 662
 L0 13 317
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 veeprom_uart_bridge_ctrl
 R18
+R5
+R27
 R19
-R30
-R20
 !i10b 1
-!s100 4PFhGXD>D7JX<]l:XGQ;>3
-IHRdWVnk[WZbn@gjACT_`m0
+!s100 UWa>ORWYdn0GD]^N>Q4=G1
+I<ITlcY5>i9Yf4YMkZ3GCi2
 S1
-R21
-R31
-8../01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv
-F../01_src/eeprom_i2c/eeprom_uart_bridge_ctrl.sv
-!i122 640
+R2
+R28
+8..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv
+F..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv
+!i122 662
 L0 11 675
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Xeeprom_uart_proto_pkg
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 fD=8G0XozinU>ocCAakze1
-IE;7f`5_OBP2h7_T`fzD=z1
+!s100 E]737PPm`DlHYmI`ZP[fH3
+IKhaH<N;NO9b[[V@=aH24J3
 S1
-R21
-R31
-8../01_src/eeprom_i2c/eeprom_uart_proto_pkg.sv
-F../01_src/eeprom_i2c/eeprom_uart_proto_pkg.sv
-!i122 640
-Z33 L0 9 0
-VE;7f`5_OBP2h7_T`fzD=z1
-R23
+R2
+R28
+8..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv
+F..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv
+!i122 662
+Z30 L0 9 0
+VKhaH<N;NO9b[[V@=aH24J3
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vELVDS_IBUF
 R4
@@ -1858,10 +1900,10 @@ R16
 R3
 n@e@l@v@d@s_@t@b@u@f
 vembedded_sdram
-Z34 2..\00_ip\embedded_sdram\tb\prim_sim.v|..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v|..\00_ip\embedded_sdram\embedded_sdram.vo|..\02_tb\tb_log_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_selftest.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge.sv|..\01_src\embedded_sdram\sdram_emb_hostif.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli.sv
+Z31 2..\00_ip\embedded_sdram\tb\prim_sim.v|..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v|..\00_ip\embedded_sdram\embedded_sdram.vo|..\02_tb\tb_log_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_selftest.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge.sv|..\01_src\embedded_sdram\sdram_emb_hostif.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli.sv
 R5
 R17
-Z35 !s110 1776595766
+Z32 !s110 1776595766
 !i10b 1
 !s100 0@fBKT7JHdh89mfU6cAJH1
 I<JM:;3>kmBmPPgePECf8R2
@@ -1877,8 +1919,8 @@ R11
 r1
 !s85 0
 31
-Z36 !s108 1776595766.000000
-Z37 !s107 ..\01_src\uart_log_cli\uart_log_cli.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\embedded_sdram\sdram_emb_hostif.sv|..\01_src\embedded_sdram\sdram_uart_bridge.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_selftest.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\02_tb\tb_log_pkg.sv|..\00_ip\embedded_sdram\embedded_sdram.vo|..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v|..\00_ip\embedded_sdram\tb\prim_sim.v|
+Z33 !s108 1776595766.000000
+Z34 !s107 ..\01_src\uart_log_cli\uart_log_cli.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\embedded_sdram\sdram_emb_hostif.sv|..\01_src\embedded_sdram\sdram_uart_bridge.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_selftest.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\02_tb\tb_log_pkg.sv|..\00_ip\embedded_sdram\embedded_sdram.vo|..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v|..\00_ip\embedded_sdram\tb\prim_sim.v|
 R14
 !s101 -O0
 !i113 1
@@ -1887,56 +1929,59 @@ R16
 R3
 vembedded_sdram_hs
 R18
+R5
+R17
 R19
-R20
 !i10b 1
 !s100 Acc:<`aZ`8TEF<:abjdT63
-IKH9l>Z=<Nm61:imhgk2Qb1
+IhJXDbckI1SR[UkRKGj^HD0
 S1
-R21
-R31
-8../00_ip/embedded_sdram_hs/embedded_sdram_hs.vo
-F../00_ip/embedded_sdram_hs/embedded_sdram_hs.vo
-!i122 640
+R2
+Z35 w1777080567
+8..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo
+F..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo
+!i122 662
 L0 8 3649
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Xembedded_sdram_tb_pkg
 R18
+R5
+Z36 DXx4 work 10 tb_log_pkg 0 22 91gNJ@h?Ja0I>aiFfFzE72
 R19
-Z38 DXx4 work 10 tb_log_pkg 0 22 WETQmk2H@jh=e1;fTH9GC3
-R20
 !i10b 1
-!s100 kE5c8U3bcKg;VaXz;CBkh3
-Iad[;:T3e^l0<TC_T_`zza1
+!s100 J6oFBbJmWjnZ6Y0]gS@e62
+IYggz1mWbil:9:Ml26_Y;C0
 S1
-R21
-R31
-8../02_tb/embedded_sdram/embedded_sdram_tb_pkg.sv
-F../02_tb/embedded_sdram/embedded_sdram_tb_pkg.sv
-!i122 640
-Z39 L0 13 0
-Vad[;:T3e^l0<TC_T_`zza1
-R23
+R2
+R35
+8..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv
+F..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv
+!i122 662
+Z37 L0 13 0
+VYggz1mWbil:9:Ml26_Y;C0
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vGND
 R4
@@ -1967,15 +2012,15 @@ R16
 R3
 n@g@n@d
 vgowin_pll
-Z40 2..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo|..\02_tb\tb_log_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv|..\01_src\ssd1331_display\ssd1331_spi_master.sv|..\01_src\ssd1331_display\ssd1331_display_ctrl.sv|..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\uart_log_cli\uart_log_evt_if.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv|..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv|..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv|..\02_tb\eeprom_i2c\eeprom_i2c_model.sv|..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv|..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli.sv|..\01_src\reset_mng.sv|..\00_ip\gowin_pll\gowin_pll.v|..\01_src\tangnano20k_top.sv
+Z38 2..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo|..\02_tb\tb_log_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv|..\01_src\ssd1331_display\ssd1331_spi_master.sv|..\01_src\ssd1331_display\ssd1331_display_ctrl.sv|..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\uart_log_cli\uart_log_evt_if.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv|..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv|..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv|..\02_tb\eeprom_i2c\eeprom_i2c_model.sv|..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv|..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli.sv|..\01_src\reset_mng.sv|..\00_ip\gowin_pll\gowin_pll.v|..\01_src\tangnano20k_top.sv
 R5
-Z41 !s110 1777107162
+Z39 !s110 1777107162
 !i10b 1
 !s100 Z6h=R>;:EP4P:ff[4KUTN0
 IFIORGfRIAGdgejiR6lHnG1
 S1
 R2
-Z42 w1777080567
+R35
 8..\00_ip\gowin_pll\gowin_pll.v
 F..\00_ip\gowin_pll\gowin_pll.v
 !i122 444
@@ -1985,9 +2030,9 @@ R11
 r1
 !s85 0
 31
-Z43 !s108 1777107162.000000
-Z44 !s107 ..\01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv|..\01_src/uart_log_cli/uart_log_src_async_bridge.sv|..\01_src/uart_log_cli/uart_log_evt_if.sv|..\01_src\tangnano20k_top.sv|..\00_ip\gowin_pll\gowin_pll.v|..\01_src\reset_mng.sv|..\01_src\uart_log_cli\uart_log_cli.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv|..\02_tb\eeprom_i2c\eeprom_i2c_model.sv|..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv|..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_evt_if.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv|..\01_src\ssd1331_display\ssd1331_display_ctrl.sv|..\01_src\ssd1331_display\ssd1331_spi_master.sv|..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\02_tb\tb_log_pkg.sv|..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo|
-Z45 !s90 -sv|-work|work|-f|.\vlog.f|..\01_src\reset_mng.sv|..\00_ip\gowin_pll\gowin_pll.v|..\01_src\tangnano20k_top.sv|
+Z40 !s108 1777107162.000000
+Z41 !s107 ..\01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv|..\01_src/uart_log_cli/uart_log_src_async_bridge.sv|..\01_src/uart_log_cli/uart_log_evt_if.sv|..\01_src\tangnano20k_top.sv|..\00_ip\gowin_pll\gowin_pll.v|..\01_src\reset_mng.sv|..\01_src\uart_log_cli\uart_log_cli.sv|..\01_src\uart_log_cli\uart_log_testsrc1.sv|..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv|..\01_src\uart_log_cli\uart_log_tap.sv|..\01_src\uart_lite\uart_tx_stream.sv|..\01_src\uart_lite\uart_rx_stream.sv|..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_memtest_ctrl.sv|..\01_src\embedded_sdram\sdram_status_reg_map.sv|..\01_src\embedded_sdram\sdram_uart_access_engine.sv|..\01_src\eeprom_i2c\eeprom_uart_bridge_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv|..\02_tb\eeprom_i2c\eeprom_i2c_model.sv|..\01_src\eeprom_i2c\eeprom_i2c_access_engine.sv|..\01_src\eeprom_i2c\eeprom_i2c_byte_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_ascii_ctrl.sv|..\01_src\eeprom_i2c\eeprom_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv|..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv|..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv|..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv|..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv|..\01_src\uart_log_cli\uart_log_src_async_bridge.sv|..\01_src\uart_log_cli\uart_log_evt_if.sv|..\01_src\uart_log_cli\uart_log_cli_pkg.sv|..\01_src\sync_fifo_ae_af.sv|..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv|..\01_src\ssd1331_display\ssd1331_display_ctrl.sv|..\01_src\ssd1331_display\ssd1331_spi_master.sv|..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv|..\02_tb\embedded_sdram\embedded_sdram_tb_pkg.sv|..\02_tb\tb_log_pkg.sv|..\00_ip\embedded_sdram_hs\embedded_sdram_hs.vo|
+Z42 !s90 -sv|-work|work|-f|.\vlog.f|..\01_src\reset_mng.sv|..\00_ip\gowin_pll\gowin_pll.v|..\01_src\tangnano20k_top.sv|
 !s101 -O0
 !i113 1
 R15
@@ -2656,7 +2701,7 @@ R6
 I3M8:;T75P;TXMz4E24JSJ3
 S1
 R2
-Z46 w1775364009
+Z43 w1775364009
 8..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v
 F..\00_ip\embedded_sdram\model\sdram_sim_model_64Mb_16bit.v
 !i122 265
@@ -2872,33 +2917,6 @@ R15
 R16
 R3
 n@m@u@x16
-Umux2
-R4
-R17
-R6
-!i10b 1
-!s100 7Z<nzS<b?SZK8nEiGNTaM3
-INdnWf4`a^JNBV8G<mMSF31
-S1
-R2
-R7
-R8
-R9
-!i122 265
-L0 20 0
-R10
-R11
-r1
-!s85 0
-31
-R12
-R13
-R14
-!s101 -O0
-!i113 1
-R15
-R16
-R3
 vMUX2
 R4
 R5
@@ -2928,6 +2946,33 @@ R15
 R16
 R3
 n@m@u@x2
+Umux2
+R4
+R17
+R6
+!i10b 1
+!s100 7Z<nzS<b?SZK8nEiGNTaM3
+INdnWf4`a^JNBV8G<mMSF31
+S1
+R2
+R7
+R8
+R9
+!i122 265
+L0 20 0
+R10
+R11
+r1
+!s85 0
+31
+R12
+R13
+R14
+!s101 -O0
+!i113 1
+R15
+R16
+R3
 vMUX2_LUT5
 R4
 R5
@@ -3836,15 +3881,15 @@ R16
 R3
 n@r@a@m16@s@d@p4
 vreset_mng
-R40
+R38
 R5
-R41
+R39
 !i10b 1
 !s100 ]H2CaRF<:M[55_G?ii8_80
 IoL;=A8F;?ZEb_nJ:NIb8z3
 S1
 R2
-R42
+R35
 8..\01_src\reset_mng.sv
 F..\01_src\reset_mng.sv
 !i122 444
@@ -3854,9 +3899,9 @@ R11
 r1
 !s85 0
 31
-R43
-R44
-R45
+R40
+R41
+R42
 !s101 -O0
 !i113 1
 R15
@@ -4171,9 +4216,9 @@ R16
 R3
 n@s@d@p@x9@b
 vsdram_emb_hostif
-R34
+R31
 R5
-R35
+R32
 !i10b 1
 !s100 bak^?RK9?:VmWKKF9kWGC1
 Iz0H39@S4XC?_RMDE5nJe40
@@ -4189,8 +4234,8 @@ R11
 r1
 !s85 0
 31
-R36
-R37
+R33
+R34
 R14
 !s101 -O0
 !i113 1
@@ -4199,35 +4244,36 @@ R16
 R3
 vsdram_emb_hostif_ctrl
 R18
-R19
-Z47 DXx4 work 16 sdram_hs_cmd_pkg 0 22 @W]JM[jPF7449`PF0P6JY0
-R20
+R5
+Z44 DXx4 work 16 sdram_hs_cmd_pkg 0 22 @YWoc5e>W?ib]3TLAIMgj2
+Z45 !s110 1778117486
 !i10b 1
-!s100 TXB2I116lKSAHelojCiCC1
-IV>kLgDl0VnMb2G45^>A:B2
+!s100 lATJAjh;l[?B42Za?3PE;1
+I>GJl8lYm6@1LcRBXmJkMK2
 S1
-R21
-R32
-8../01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv
-F../01_src/embedded_sdram/sdram_emb_hostif_ctrl.sv
-!i122 640
+R2
+Z46 w1777594555
+8..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv
+F..\01_src\embedded_sdram\sdram_emb_hostif_ctrl.sv
+!i122 662
 L0 12 449
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsdram_emb_selftest
-R34
+R31
 R5
-R35
+R32
 !i10b 1
 !s100 :Imc==PcWEO<jV8i3PQ@V1
 I5_N2YXR1F?2W2gcjo@:i^1
@@ -4243,8 +4289,8 @@ R11
 r1
 !s85 0
 31
-R36
-R37
+R33
+R34
 R14
 !s101 -O0
 !i113 1
@@ -4253,175 +4299,181 @@ R16
 R3
 Xsdram_hs_cmd_pkg
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 b?e4AXh[]hbjcF91ElUgO3
-I@W]JM[jPF7449`PF0P6JY0
+I@YWoc5e>W?ib]3TLAIMgj2
 S1
-R21
-R31
-8../01_src/embedded_sdram/sdram_hs_cmd_pkg.sv
-F../01_src/embedded_sdram/sdram_hs_cmd_pkg.sv
-!i122 640
-R33
-V@W]JM[jPF7449`PF0P6JY0
-R23
+R2
+R35
+8..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv
+F..\01_src\embedded_sdram\sdram_hs_cmd_pkg.sv
+!i122 662
+R30
+V@YWoc5e>W?ib]3TLAIMgj2
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsdram_memtest_ctrl
 R18
+R5
+R44
 R19
-R47
-R20
 !i10b 1
-!s100 i3TAXncJOiP^=A:R<[MSm0
-IR:0]TFA4]bfV@3YiZh;Y81
+!s100 6gl;SoJVMicR2lf8KdilE0
+I5MdK8e8C1PVb;56`aQC9A3
 S1
-R21
-R31
-8../01_src/embedded_sdram/sdram_memtest_ctrl.sv
-F../01_src/embedded_sdram/sdram_memtest_ctrl.sv
-!i122 640
+R2
+R35
+8..\01_src\embedded_sdram\sdram_memtest_ctrl.sv
+F..\01_src\embedded_sdram\sdram_memtest_ctrl.sv
+!i122 662
 L0 18 664
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsdram_raw_word_bram
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 emz]>LHm[^P?F@PgmCDh]3
-IiSzJA;YDTfdanAeTZgE:23
+IS[gN4IG2S:2^j96j<M27H2
 S1
-R21
-R32
-8../01_src/sdram_raw_word_bram.sv
-F../01_src/sdram_raw_word_bram.sv
-!i122 640
+R2
+R46
+8..\01_src\sdram_raw_word_bram.sv
+F..\01_src\sdram_raw_word_bram.sv
+!i122 662
 L0 10 30
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsdram_status_reg_map
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 >A_`glI^YkQec9PVf<o]R3
-IjVg8WF:kmG7@MHF72[>l10
+!s100 Vj>BQlAXzPCLg_DQ<[8Q90
+IHG2P16z3g:;BQ[A@PU6B<3
 S1
-R21
-R31
-8../01_src/embedded_sdram/sdram_status_reg_map.sv
-F../01_src/embedded_sdram/sdram_status_reg_map.sv
-!i122 640
+R2
+R35
+8..\01_src\embedded_sdram\sdram_status_reg_map.sv
+F..\01_src\embedded_sdram\sdram_status_reg_map.sv
+!i122 662
 L0 14 114
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsdram_uart_access_engine
 R18
+R5
+R44
+Z47 DXx4 work 20 sdram_uart_proto_pkg 0 22 L=C4G<maEYUHgC;aTNYn[3
 R19
-R47
-Z48 DXx4 work 20 sdram_uart_proto_pkg 0 22 dAU6U2Sk8^?FQcKmWb5Yc1
-R20
 !i10b 1
-!s100 =1;=aMSMMQgzeI37LXD=P3
-IJa7G;3;UlATIfK0Bmz^e]3
+!s100 ReIPNidWJk_V0iSTceh4:1
+IX3lIRA6m4nQXb:3_i9A9O3
 S1
-R21
-R32
-8../01_src/embedded_sdram/sdram_uart_access_engine.sv
-F../01_src/embedded_sdram/sdram_uart_access_engine.sv
-!i122 640
+R2
+R46
+8..\01_src\embedded_sdram\sdram_uart_access_engine.sv
+F..\01_src\embedded_sdram\sdram_uart_access_engine.sv
+!i122 662
 L0 11 672
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsdram_uart_ascii_ctrl
 R18
+R5
+R47
 R19
-R48
-R20
 !i10b 1
-!s100 ME0mD<P7bZJzYJ@Z6[4UY2
-IPi@WDG:?W5::k4[iz^Y^W3
+!s100 PiXb<dEIofIIUBl>;PgM`0
+I1mg]4[;JS94Q3<cC=5_A11
 S1
-R21
-R31
-8../01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv
-F../01_src/embedded_sdram/sdram_uart_ascii_ctrl.sv
-!i122 640
+R2
+R35
+8..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv
+F..\01_src\embedded_sdram\sdram_uart_ascii_ctrl.sv
+!i122 662
 L0 16 524
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsdram_uart_bridge
-R34
+R31
 R5
 DXx4 work 10 tb_log_pkg 0 22 `Wzj`7KYP0^0;ND1Qmf6H2
-R35
+R32
 !i10b 1
 !s100 M@LfYaU397aSLS1B_D^]C3
 I9ElDPaNM<S3k3N`h7:fI`3
 S1
 R2
-R46
+R43
 8..\01_src\embedded_sdram\sdram_uart_bridge.sv
 F..\01_src\embedded_sdram\sdram_uart_bridge.sv
 !i122 253
@@ -4431,8 +4483,8 @@ R11
 r1
 !s85 0
 31
-R36
-R37
+R33
+R34
 R14
 !s101 -O0
 !i113 1
@@ -4441,83 +4493,86 @@ R16
 R3
 vsdram_uart_bridge_ctrl
 R18
-R19
-R48
-R20
+R5
+R47
+R45
 !i10b 1
-!s100 [T[82QW59SKHbkmD]OVlW1
-I_hJ`il9HU0[GCBmfzTPPW0
+!s100 <;fKUY0UzCK9lI15g^;8X0
+IQj]MJ59?cD9FS>;@_K8IU1
 S1
-R21
-R32
-8../01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv
-F../01_src/embedded_sdram/sdram_uart_bridge_ctrl.sv
-!i122 640
+R2
+R46
+8..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv
+F..\01_src\embedded_sdram\sdram_uart_bridge_ctrl.sv
+!i122 662
 L0 12 869
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsdram_uart_bulk_rx
 R18
+R5
+R47
 R19
-R48
-R20
 !i10b 1
 !s100 6Z`lijP83Z=1NdF2k@OSa0
-Ia2TeadZZ8gJJb2mQ[dZbW2
+Idb58ol=]c?]ozKINz6mG[0
 S1
-R21
-R32
-8../01_src/embedded_sdram/sdram_uart_bulk_rx.sv
-F../01_src/embedded_sdram/sdram_uart_bulk_rx.sv
-!i122 640
+R2
+R46
+8..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv
+F..\01_src\embedded_sdram\sdram_uart_bulk_rx.sv
+!i122 662
 L0 10 480
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Xsdram_uart_proto_pkg
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 N4;KI:8h`QUHeMP6YMJE;0
-IdAU6U2Sk8^?FQcKmWb5Yc1
+!s100 5H;?Pk@kgmD6RBN9GjVV_1
+IL=C4G<maEYUHgC;aTNYn[3
 S1
-R21
-R31
-8../01_src/embedded_sdram/sdram_uart_proto_pkg.sv
-F../01_src/embedded_sdram/sdram_uart_proto_pkg.sv
-!i122 640
-R33
-VdAU6U2Sk8^?FQcKmWb5Yc1
-R23
+R2
+R35
+8..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv
+F..\01_src\embedded_sdram\sdram_uart_proto_pkg.sv
+!i122 662
+R30
+VL=C4G<maEYUHgC;aTNYn[3
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vSP
 R4
@@ -4577,302 +4632,313 @@ R3
 n@s@p@x9
 vssd1306_display_ctrl
 R18
+R5
+Z48 DXx4 work 22 ssd1306_uart_proto_pkg 0 22 g4X3KIXH]F]_0WP`bcP@E1
 R19
-Z49 DXx4 work 22 ssd1306_uart_proto_pkg 0 22 Y18EiDFe7[cJDMnYEG4o^2
-R20
 !i10b 1
-!s100 nH6hg[N7RM:n[ll@E:Q<`3
-I>T4L[ZabF5feT9;:5aD^T2
+!s100 3[E58_Io7mRL73fkamW@<3
+IHS1?OcWS;BBCVZjcjcdb^0
 S1
-R21
-R32
-8../01_src/ssd1306_display/ssd1306_display_ctrl.sv
-F../01_src/ssd1306_display/ssd1306_display_ctrl.sv
-!i122 640
+R2
+R29
+8..\01_src\ssd1306_display\ssd1306_display_ctrl.sv
+F..\01_src\ssd1306_display\ssd1306_display_ctrl.sv
+!i122 662
 L0 14 376
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vssd1306_display_stream_ctrl
 R18
+R5
+R48
 R19
-R49
-R20
 !i10b 1
-!s100 `75Gfj0e9bnW4TA3DlSnY2
-IJDk3FVLH>zK=0VYTB8Add2
+!s100 n_U^lMYnUaOHjXnn713<K1
+IRI:M>i?=dnzQD]F>3^`G91
 S1
-R21
-R32
-8../01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv
-F../01_src/ssd1306_display/ssd1306_display_stream_ctrl.sv
-!i122 640
+R2
+R29
+8..\01_src\ssd1306_display\ssd1306_display_stream_ctrl.sv
+F..\01_src\ssd1306_display\ssd1306_display_stream_ctrl.sv
+!i122 662
 L0 14 462
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vssd1306_i2c_model
 R18
+R5
+R48
 R19
-R49
-R20
 !i10b 1
 !s100 6aOGTAEQm6c@m?^OHRO7n1
-IbaF>C3:<U@m6:iYZM2QFM3
+IaX0MI5n1ebVZ@c5ggRjH02
 S1
-R21
-R32
-8../02_tb/ssd1306_display/ssd1306_i2c_model.sv
-F../02_tb/ssd1306_display/ssd1306_i2c_model.sv
-!i122 640
+R2
+R29
+8..\02_tb\ssd1306_display\ssd1306_i2c_model.sv
+F..\02_tb\ssd1306_display\ssd1306_i2c_model.sv
+!i122 662
 L0 10 307
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vssd1306_sdram_uart_bridge_ctrl
 R18
-R19
-R49
+R5
 R48
-R20
+R47
+R19
 !i10b 1
-!s100 7OgIj_1QGcn[5eM?ngJ`I3
-IRXGZFg[gF26JF[_ZD]Q@j1
+!s100 [2c;zbAmDe48YOY4mZOB20
+IHLk:COAHAMa8P:n;cl>Wl2
 S1
-R21
-R32
-8../01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv
-F../01_src/ssd1306_display/ssd1306_sdram_uart_bridge_ctrl.sv
-!i122 640
-L0 15 608
+R2
+R20
+8..\01_src\ssd1306_display\ssd1306_sdram_uart_bridge_ctrl.sv
+F..\01_src\ssd1306_display\ssd1306_sdram_uart_bridge_ctrl.sv
+!i122 662
+L0 15 709
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vssd1306_uart_bridge_ctrl
 R18
+R5
+R48
 R19
-R49
-R20
 !i10b 1
-!s100 lb0;6lj_8B0Mf2;NN^ifz3
-IP[B0z9]VRc;ha_PIjMNI;0
+!s100 _2n27F1[ieZ59k<XaG2Ih1
+INXJ`D^?Y<f2I>PI<I:OKz0
 S1
-R21
-R32
-8../01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv
-F../01_src/ssd1306_display/ssd1306_uart_bridge_ctrl.sv
-!i122 640
+R2
+R29
+8..\01_src\ssd1306_display\ssd1306_uart_bridge_ctrl.sv
+F..\01_src\ssd1306_display\ssd1306_uart_bridge_ctrl.sv
+!i122 662
 L0 14 491
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Xssd1306_uart_proto_pkg
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 ?MCaX9QYgjdcjObKnKD043
-IY18EiDFe7[cJDMnYEG4o^2
+!s100 GKZba]LAkbITfj:f<E8>T3
+Ig4X3KIXH]F]_0WP`bcP@E1
 S1
-R21
-R32
-8../01_src/ssd1306_display/ssd1306_uart_proto_pkg.sv
-F../01_src/ssd1306_display/ssd1306_uart_proto_pkg.sv
-!i122 640
-R33
-VY18EiDFe7[cJDMnYEG4o^2
-R23
+R2
+R29
+8..\01_src\ssd1306_display\ssd1306_uart_proto_pkg.sv
+F..\01_src\ssd1306_display\ssd1306_uart_proto_pkg.sv
+!i122 662
+R30
+Vg4X3KIXH]F]_0WP`bcP@E1
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vssd1331_display_ctrl
 R18
+R5
+Z49 DXx4 work 22 ssd1331_uart_proto_pkg 0 22 ;]?_nzNU59KVz@6iXUIRT1
 R19
-Z50 DXx4 work 22 ssd1331_uart_proto_pkg 0 22 mmY2B5N:m3Pk57ATjmoL_1
-R20
 !i10b 1
 !s100 DV[z3>H69O]IAgOH[76<j0
-IRBU]aVg:4A`H>0NejOIDE3
+IJNBaMf4U>HEBO>6^JgP@R1
 S1
-R21
-R32
-8../01_src/ssd1331_display/ssd1331_display_ctrl.sv
-F../01_src/ssd1331_display/ssd1331_display_ctrl.sv
-!i122 640
+R2
+R29
+8..\01_src\ssd1331_display\ssd1331_display_ctrl.sv
+F..\01_src\ssd1331_display\ssd1331_display_ctrl.sv
+!i122 662
 L0 14 391
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vssd1331_spi_master
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 0;>A6F4OADmV]akBbYNaC2
-IY1EnP[z?m]L?6oKR3R:PU1
+I231G:5cj:LW0nz8<6EgH;3
 S1
-R21
-R32
-8../01_src/ssd1331_display/ssd1331_spi_master.sv
-F../01_src/ssd1331_display/ssd1331_spi_master.sv
-!i122 640
+R2
+R29
+8..\01_src\ssd1331_display\ssd1331_spi_master.sv
+F..\01_src\ssd1331_display\ssd1331_spi_master.sv
+!i122 662
 L0 10 166
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vssd1331_uart_bridge_ctrl
 R18
+R5
+R49
 R19
-R50
-R20
 !i10b 1
-!s100 UBL60KFj20@UAiC4DUdzS2
-IWU2[IK8JHdY=dK0GNGBSI0
+!s100 WcYbF]C;B4;OUQ7om^GV81
+I9>=U8QMAeSZXXJj70Z`Zh1
 S1
-R21
-R32
-8../01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv
-F../01_src/ssd1331_display/ssd1331_uart_bridge_ctrl.sv
-!i122 640
+R2
+R29
+8..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv
+F..\01_src\ssd1331_display\ssd1331_uart_bridge_ctrl.sv
+!i122 662
 L0 15 379
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Xssd1331_uart_proto_pkg
 R18
+R5
 R19
-R20
 !i10b 1
-!s100 ISn6HAI_0<d_Ta5PnTlO@0
-ImmY2B5N:m3Pk57ATjmoL_1
+!s100 8WL82c@TeK6ej3jmjC4iL3
+I;]?_nzNU59KVz@6iXUIRT1
 S1
-R21
-R32
-8../01_src/ssd1331_display/ssd1331_uart_proto_pkg.sv
-F../01_src/ssd1331_display/ssd1331_uart_proto_pkg.sv
-!i122 640
+R2
+R29
+8..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv
+F..\01_src\ssd1331_display\ssd1331_uart_proto_pkg.sv
+!i122 662
 L0 7 0
-VmmY2B5N:m3Pk57ATjmoL_1
-R23
+V;]?_nzNU59KVz@6iXUIRT1
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vsync_fifo_ae_af
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 F4UNYko<4eURXXLPb1XYB1
-I<:`K<cU291@aGlSMKh@ge1
+IkRABAc1]G4<`[OEAFOV>n2
 S1
-R21
-R31
-8../01_src/sync_fifo_ae_af.sv
-F../01_src/sync_fifo_ae_af.sv
-!i122 640
+R2
+w1777120997
+8..\01_src\sync_fifo_ae_af.sv
+F..\01_src\sync_fifo_ae_af.sv
+!i122 662
 L0 8 72
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vtangnano20k_top
-R40
+R38
 R5
-R41
+R39
 !i10b 1
 !s100 U`aXaiCCMz2d@0VWd]eeI0
 IMHUFNnYN]`]kMdcQPE07A1
@@ -4890,9 +4956,9 @@ R11
 r1
 !s85 0
 31
-R43
-R44
-R45
+R40
+R41
+R42
 !s101 -O0
 !i113 1
 R15
@@ -4900,29 +4966,30 @@ R16
 R3
 Xtb_log_pkg
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 3JR]Lj?Om>1zm[]934T3d1
-IWETQmk2H@jh=e1;fTH9GC3
+I91gNJ@h?Ja0I>aiFfFzE72
 S1
-R21
-R31
-8../02_tb/tb_log_pkg.sv
-F../02_tb/tb_log_pkg.sv
-!i122 640
+R2
+R35
+8..\02_tb\tb_log_pkg.sv
+F..\02_tb\tb_log_pkg.sv
+!i122 662
 L0 23 0
-VWETQmk2H@jh=e1;fTH9GC3
-R23
+V91gNJ@h?Ja0I>aiFfFzE72
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vTBUF
 R4
@@ -4954,32 +5021,33 @@ R16
 R3
 n@t@b@u@f
 vtestbench
-2/home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top/testbench.sv
-R19
-R38
-R20
+2C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\35_char_ocr_top\testbench.sv
+R5
+R36
+R45
 !i10b 1
-!s100 06bA_X0dMi:UV<=8NKnzL2
-IgXI0oS;]Jm`ZL=CMEES383
+!s100 oaHB0bm>DOo1G05MZC2Q63
+IZ0RgmWonn=_:g[GTUH[0K1
 S1
-R21
-w1777675301
-8/home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top/testbench.sv
-F/home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top/testbench.sv
-F/home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top/testcase_smoke.svh
-!i122 641
-L0 3 199
+R2
+w1778116189
+8C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\35_char_ocr_top\testbench.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\35_char_ocr_top\testbench.sv
+FC:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\35_char_ocr_top/testcase_smoke.svh
+!i122 663
+L0 3 183
 R10
-R23
+R11
 r1
 !s85 0
 31
-R24
-!s107 /home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top/testcase_smoke.svh|/home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top/testbench.sv|
-!s90 -sv|+define+SIM|+incdir+/home/kenji/git/tangnano20k_dev/02_tb|+incdir+/home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top|-work|work|/home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top/testbench.sv|
-!i113 0
-R27
-!s92 -sv +define+SIM +incdir+/home/kenji/git/tangnano20k_dev/02_tb +incdir+/home/kenji/git/tangnano20k_dev/03_sim/35_char_ocr_top -work work -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact
+!s108 1778117486.000000
+!s107 C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\35_char_ocr_top/testcase_smoke.svh|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\35_char_ocr_top\testbench.sv|
+!s90 -sv|+define+SIM|-work|work|C:\Electronics\GitHubProjects\tangnano20k_dev\03_sim\35_char_ocr_top\testbench.sv|
+!s101 -O0
+!i113 1
+R23
+!s92 -sv +define+SIM -work work -L mtiAvm -L mtiRnm -L mtiOvm -L mtiUvm -L mtiUPF -L infact -O0
 R3
 vTLVDS_IBUF
 R4
@@ -5097,292 +5165,304 @@ R3
 n@t@l@v@d@s_@t@b@u@f
 vuart_log_cli
 R18
-R19
-Z51 DXx4 work 16 uart_log_cli_pkg 0 22 <FhKiJCUDfXUeXeEz6BE[2
-R20
+R5
+Z50 DXx4 work 16 uart_log_cli_pkg 0 22 _VDkI9RW`66gal>6i>3MR0
+R45
 !i10b 1
 !s100 ]3On^O[31W@KhYW;PoKWR0
-IeEfHVmP[g^0aB>kbm@D3F1
+I[nR1JNi=Q;gb1bzUTBEnA1
 S1
-R21
-R31
-8../01_src/uart_log_cli/uart_log_cli.sv
-F../01_src/uart_log_cli/uart_log_cli.sv
-!i122 640
+R2
+R35
+8..\01_src\uart_log_cli\uart_log_cli.sv
+F..\01_src\uart_log_cli\uart_log_cli.sv
+!i122 662
 L0 18 641
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vuart_log_cli_byte_async_bridge
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 o=G0FBH?F6fWAXknAi4AE0
-I?g:7zz3oVQm`He]`mT62A1
+IPij>V4SU_BJdLo`bi2dhW1
 S1
-R21
-R31
-8../01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv
-F../01_src/uart_log_cli/uart_log_cli_byte_async_bridge.sv
-!i122 640
+R2
+R35
+8..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv
+F..\01_src\uart_log_cli\uart_log_cli_byte_async_bridge.sv
+!i122 662
 L0 12 81
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vuart_log_cli_evt_fifo
 R18
-R19
-R20
+R5
+R17
+R45
 !i10b 1
 !s100 Bc7@_33?_X]4nleVhI1Df2
-I4cR_R=F?6?g12?N7c:Fc21
+I28eZ29Ci1@KCSIR1=I9[^0
 S1
-R21
-R31
-8../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv
-F../01_src/uart_log_cli/uart_log_cli_evt_fifo.sv
-!i122 640
+R2
+w1775304886
+8..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv
+F..\01_src\uart_log_cli\uart_log_cli_evt_fifo.sv
+!i122 662
 L0 17 43
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Xuart_log_cli_pkg
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 kR<;1iBn_?BMn2@<4^:g>0
-I<FhKiJCUDfXUeXeEz6BE[2
+I_VDkI9RW`66gal>6i>3MR0
 S1
-R21
-R31
-8../01_src/uart_log_cli/uart_log_cli_pkg.sv
-F../01_src/uart_log_cli/uart_log_cli_pkg.sv
-!i122 640
+R2
+R35
+8..\01_src\uart_log_cli\uart_log_cli_pkg.sv
+F..\01_src\uart_log_cli\uart_log_cli_pkg.sv
+!i122 662
 L0 17 0
-V<FhKiJCUDfXUeXeEz6BE[2
-R23
+V_VDkI9RW`66gal>6i>3MR0
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Xuart_log_cli_tb_pkg
 R18
+R5
+R50
+R36
 R19
-R51
-R38
-R20
 !i10b 1
 !s100 _`5?T14PLoXb@=YeQ=D0C2
-I7[ek<ebGU_8VdY<n4KeNo2
+IQclmoB2dMUYCei;DR_emR2
 S1
-R21
-R31
-8../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv
-F../02_tb/uart_log_cli/uart_log_cli_tb_pkg.sv
-!i122 640
+R2
+R35
+8..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv
+F..\02_tb\uart_log_cli\uart_log_cli_tb_pkg.sv
+!i122 662
 L0 16 0
-V7[ek<ebGU_8VdY<n4KeNo2
-R23
+VQclmoB2dMUYCei;DR_emR2
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 Yuart_log_evt_if
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 H0j_YbWc=zc]h2QkZ<1Jh2
-Id;21hY]A1VFE56CV<2@@K1
+IEHNS?O;d=<K:@06mN:ARj1
 S1
-R21
-R31
-8../01_src/uart_log_cli/uart_log_evt_if.sv
-F../01_src/uart_log_cli/uart_log_evt_if.sv
-!i122 640
-R39
+R2
+R35
+8..\01_src\uart_log_cli\uart_log_evt_if.sv
+F..\01_src\uart_log_cli\uart_log_evt_if.sv
+!i122 662
+R37
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vuart_log_src_async_bridge
 R18
+R5
 R19
-R20
 !i10b 1
 !s100 H3TTcf:`jGj0L>b?HT:[l1
-I4kM;Ia2bP1PFF^Qb[Q67=2
+Inf;O9HYZ_A8M]nU5?Id>Z0
 S1
-R21
-R31
-8../01_src/uart_log_cli/uart_log_src_async_bridge.sv
-F../01_src/uart_log_cli/uart_log_src_async_bridge.sv
-!i122 640
+R2
+R35
+8..\01_src\uart_log_cli\uart_log_src_async_bridge.sv
+F..\01_src\uart_log_cli\uart_log_src_async_bridge.sv
+!i122 662
 L0 10 122
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vuart_log_tap
 R18
-R19
-R20
+R5
+R45
 !i10b 1
 !s100 RV0AMbSJOBFVUUHXGg:KA1
-I=W]5X@Eld>K9F=KkMDF7Z3
+IU=ihGY4:iM<W:UGJghSWl2
 S1
-R21
-R32
-8../01_src/uart_log_cli/uart_log_tap.sv
-F../01_src/uart_log_cli/uart_log_tap.sv
-!i122 640
+R2
+R29
+8..\01_src\uart_log_cli\uart_log_tap.sv
+F..\01_src\uart_log_cli\uart_log_tap.sv
+!i122 662
 L0 18 80
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vuart_log_testsrc1
 R18
-R19
-R20
+R5
+R45
 !i10b 1
-!s100 FeCbi[oNjBQDi]IoAiTaN1
-IEa0Bi7Hc?<aIlR[D_=cKT0
+!s100 ;JoTFm=ZhIDVzRK<i_eIX3
+I4FkBRUJMY?oQMHhiTTXAn3
 S1
-R21
-R31
-8../01_src/uart_log_cli/uart_log_testsrc1.sv
-F../01_src/uart_log_cli/uart_log_testsrc1.sv
-!i122 640
+R2
+w1775304547
+8..\01_src\uart_log_cli\uart_log_testsrc1.sv
+F..\01_src\uart_log_cli\uart_log_testsrc1.sv
+!i122 662
 L0 15 60
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vuart_rx_stream
 R18
-R19
-R20
+R5
+R45
 !i10b 1
 !s100 6:WmM@hY5jmoX7[Tl`kk02
-IS4d;K@KOIYP^hQEe:nTzo3
+IW5TG@7PVoOeZz@PNUic6e0
 S1
-R21
-R31
-8../01_src/uart_lite/uart_rx_stream.sv
-F../01_src/uart_lite/uart_rx_stream.sv
-!i122 640
+R2
+Z51 w1771665726
+8..\01_src\uart_lite\uart_rx_stream.sv
+F..\01_src\uart_lite\uart_rx_stream.sv
+!i122 662
 L0 6 161
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vuart_tx_stream
 R18
-R19
-R20
+R5
+R45
 !i10b 1
 !s100 0fYKjEd^7aFL5R2_FdSj13
-I^82ziFRhlLOodSn;7iMMH2
+IhWCmikS7McXb=^:j6UKO13
 S1
-R21
-R31
-8../01_src/uart_lite/uart_tx_stream.sv
-F../01_src/uart_lite/uart_tx_stream.sv
-!i122 640
+R2
+R51
+8..\01_src\uart_lite\uart_tx_stream.sv
+F..\01_src\uart_lite\uart_tx_stream.sv
+!i122 662
 L0 6 149
 R10
-R23
+R11
 r1
 !s85 0
 31
+R21
+R22
+R14
+!s101 -O0
+!i113 1
+R23
 R24
-R25
-R26
-!i113 0
-R27
-R28
 R3
 vVCC
 R4

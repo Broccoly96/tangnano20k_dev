@@ -168,14 +168,115 @@ module ssd1306_sdram_uart_bridge_ctrl #(
     !r_frame_byte_valid;
   assign s_chunk_rd_addr = s_frame_word_idx - r_chunk_start_word;
 
+  // Lookup-table version of fps_to_period_cycles.
+  // All case items are compile-time constant expressions (CLK_HZ / literal),
+  // so synthesis generates a pure mux tree instead of a hardware divider.
+  // This eliminates the ~88 ns combinational path from r_line to
+  // r_refresh_period_cycles that caused CLK_SDRAM_48M timing violations.
   function automatic [31:0] fps_to_period_cycles(input logic [7:0] fps);
-    logic [31:0] safe_fps;
     begin
-      safe_fps = (fps < 8'd1) ? 32'd1 : fps;
-      fps_to_period_cycles = CLK_HZ / safe_fps;
-      if (fps_to_period_cycles == 0) begin
-        fps_to_period_cycles = 32'd1;
-      end
+      case (fps)
+        8'd1:   fps_to_period_cycles = CLK_HZ / 1;
+        8'd2:   fps_to_period_cycles = CLK_HZ / 2;
+        8'd3:   fps_to_period_cycles = CLK_HZ / 3;
+        8'd4:   fps_to_period_cycles = CLK_HZ / 4;
+        8'd5:   fps_to_period_cycles = CLK_HZ / 5;
+        8'd6:   fps_to_period_cycles = CLK_HZ / 6;
+        8'd7:   fps_to_period_cycles = CLK_HZ / 7;
+        8'd8:   fps_to_period_cycles = CLK_HZ / 8;
+        8'd9:   fps_to_period_cycles = CLK_HZ / 9;
+        8'd10:  fps_to_period_cycles = CLK_HZ / 10;
+        8'd11:  fps_to_period_cycles = CLK_HZ / 11;
+        8'd12:  fps_to_period_cycles = CLK_HZ / 12;
+        8'd13:  fps_to_period_cycles = CLK_HZ / 13;
+        8'd14:  fps_to_period_cycles = CLK_HZ / 14;
+        8'd15:  fps_to_period_cycles = CLK_HZ / 15;
+        8'd16:  fps_to_period_cycles = CLK_HZ / 16;
+        8'd17:  fps_to_period_cycles = CLK_HZ / 17;
+        8'd18:  fps_to_period_cycles = CLK_HZ / 18;
+        8'd19:  fps_to_period_cycles = CLK_HZ / 19;
+        8'd20:  fps_to_period_cycles = CLK_HZ / 20;
+        8'd21:  fps_to_period_cycles = CLK_HZ / 21;
+        8'd22:  fps_to_period_cycles = CLK_HZ / 22;
+        8'd23:  fps_to_period_cycles = CLK_HZ / 23;
+        8'd24:  fps_to_period_cycles = CLK_HZ / 24;
+        8'd25:  fps_to_period_cycles = CLK_HZ / 25;
+        8'd26:  fps_to_period_cycles = CLK_HZ / 26;
+        8'd27:  fps_to_period_cycles = CLK_HZ / 27;
+        8'd28:  fps_to_period_cycles = CLK_HZ / 28;
+        8'd29:  fps_to_period_cycles = CLK_HZ / 29;
+        8'd30:  fps_to_period_cycles = CLK_HZ / 30;
+        8'd31:  fps_to_period_cycles = CLK_HZ / 31;
+        8'd32:  fps_to_period_cycles = CLK_HZ / 32;
+        8'd33:  fps_to_period_cycles = CLK_HZ / 33;
+        8'd34:  fps_to_period_cycles = CLK_HZ / 34;
+        8'd35:  fps_to_period_cycles = CLK_HZ / 35;
+        8'd36:  fps_to_period_cycles = CLK_HZ / 36;
+        8'd37:  fps_to_period_cycles = CLK_HZ / 37;
+        8'd38:  fps_to_period_cycles = CLK_HZ / 38;
+        8'd39:  fps_to_period_cycles = CLK_HZ / 39;
+        8'd40:  fps_to_period_cycles = CLK_HZ / 40;
+        8'd41:  fps_to_period_cycles = CLK_HZ / 41;
+        8'd42:  fps_to_period_cycles = CLK_HZ / 42;
+        8'd43:  fps_to_period_cycles = CLK_HZ / 43;
+        8'd44:  fps_to_period_cycles = CLK_HZ / 44;
+        8'd45:  fps_to_period_cycles = CLK_HZ / 45;
+        8'd46:  fps_to_period_cycles = CLK_HZ / 46;
+        8'd47:  fps_to_period_cycles = CLK_HZ / 47;
+        8'd48:  fps_to_period_cycles = CLK_HZ / 48;
+        8'd49:  fps_to_period_cycles = CLK_HZ / 49;
+        8'd50:  fps_to_period_cycles = CLK_HZ / 50;
+        8'd51:  fps_to_period_cycles = CLK_HZ / 51;
+        8'd52:  fps_to_period_cycles = CLK_HZ / 52;
+        8'd53:  fps_to_period_cycles = CLK_HZ / 53;
+        8'd54:  fps_to_period_cycles = CLK_HZ / 54;
+        8'd55:  fps_to_period_cycles = CLK_HZ / 55;
+        8'd56:  fps_to_period_cycles = CLK_HZ / 56;
+        8'd57:  fps_to_period_cycles = CLK_HZ / 57;
+        8'd58:  fps_to_period_cycles = CLK_HZ / 58;
+        8'd59:  fps_to_period_cycles = CLK_HZ / 59;
+        8'd60:  fps_to_period_cycles = CLK_HZ / 60;
+        8'd61:  fps_to_period_cycles = CLK_HZ / 61;
+        8'd62:  fps_to_period_cycles = CLK_HZ / 62;
+        8'd63:  fps_to_period_cycles = CLK_HZ / 63;
+        8'd64:  fps_to_period_cycles = CLK_HZ / 64;
+        8'd65:  fps_to_period_cycles = CLK_HZ / 65;
+        8'd66:  fps_to_period_cycles = CLK_HZ / 66;
+        8'd67:  fps_to_period_cycles = CLK_HZ / 67;
+        8'd68:  fps_to_period_cycles = CLK_HZ / 68;
+        8'd69:  fps_to_period_cycles = CLK_HZ / 69;
+        8'd70:  fps_to_period_cycles = CLK_HZ / 70;
+        8'd71:  fps_to_period_cycles = CLK_HZ / 71;
+        8'd72:  fps_to_period_cycles = CLK_HZ / 72;
+        8'd73:  fps_to_period_cycles = CLK_HZ / 73;
+        8'd74:  fps_to_period_cycles = CLK_HZ / 74;
+        8'd75:  fps_to_period_cycles = CLK_HZ / 75;
+        8'd76:  fps_to_period_cycles = CLK_HZ / 76;
+        8'd77:  fps_to_period_cycles = CLK_HZ / 77;
+        8'd78:  fps_to_period_cycles = CLK_HZ / 78;
+        8'd79:  fps_to_period_cycles = CLK_HZ / 79;
+        8'd80:  fps_to_period_cycles = CLK_HZ / 80;
+        8'd81:  fps_to_period_cycles = CLK_HZ / 81;
+        8'd82:  fps_to_period_cycles = CLK_HZ / 82;
+        8'd83:  fps_to_period_cycles = CLK_HZ / 83;
+        8'd84:  fps_to_period_cycles = CLK_HZ / 84;
+        8'd85:  fps_to_period_cycles = CLK_HZ / 85;
+        8'd86:  fps_to_period_cycles = CLK_HZ / 86;
+        8'd87:  fps_to_period_cycles = CLK_HZ / 87;
+        8'd88:  fps_to_period_cycles = CLK_HZ / 88;
+        8'd89:  fps_to_period_cycles = CLK_HZ / 89;
+        8'd90:  fps_to_period_cycles = CLK_HZ / 90;
+        8'd91:  fps_to_period_cycles = CLK_HZ / 91;
+        8'd92:  fps_to_period_cycles = CLK_HZ / 92;
+        8'd93:  fps_to_period_cycles = CLK_HZ / 93;
+        8'd94:  fps_to_period_cycles = CLK_HZ / 94;
+        8'd95:  fps_to_period_cycles = CLK_HZ / 95;
+        8'd96:  fps_to_period_cycles = CLK_HZ / 96;
+        8'd97:  fps_to_period_cycles = CLK_HZ / 97;
+        8'd98:  fps_to_period_cycles = CLK_HZ / 98;
+        8'd99:  fps_to_period_cycles = CLK_HZ / 99;
+        default: fps_to_period_cycles = CLK_HZ / 30; // 30 fps fallback
+      endcase
     end
   endfunction
 

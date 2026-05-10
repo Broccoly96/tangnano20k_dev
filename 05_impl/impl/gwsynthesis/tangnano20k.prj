@@ -38,6 +38,16 @@
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_cli_pkg.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_src_async_bridge.sv" type="verilog"/>
         <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\uart_log_cli\uart_log_tap.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\00_ip\gowin_multaddalu_18x18\gowin_multaddalu_18x18.v" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_pkg.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_multaddalu18x18_wrapper.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_dsp24_array.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_infer_core.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_preproc_hshrink.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_result_argmax.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_reg_map.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_top.sv" type="verilog"/>
+        <File path="C:\Electronics\GitHubProjects\tangnano20k_dev\01_src\char_ocr_dsp\char_ocr_uart_bridge_ctrl.sv" type="verilog"/>
     </FileList>
     <OptionList>
         <Option type="disable_insert_pad" value="0"/>

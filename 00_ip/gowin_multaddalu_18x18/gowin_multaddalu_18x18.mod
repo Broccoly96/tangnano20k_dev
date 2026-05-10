@@ -1,0 +1,35 @@
+-series GW2AR
+-device GW2AR-18
+-device_version C
+-package QFN88
+-part_number GW2AR-LV18QN88C8/I7
+
+
+-mod_name gowin_multaddalu_18x18
+-file_name gowin_multaddalu_18x18
+-path C:/Electronics/GitHubProjects/tangnano20k_dev/00_ip/gowin_multaddalu_18x18/
+-type MULTADDALU
+-file_type vlg
+-multaddalu_mode 0
+-en_shiftout_a false
+-en_shiftout_b false
+-width_a0 8
+-width_b0 8
+-width_a1 8
+-width_b1 8
+-source_a0 parallel
+-source_a1 parallel
+-source_b0 parallel
+-source_b1 parallel
+-data_type_a0 signed
+-data_type_a1 signed
+-data_type_b0 signed
+-data_type_b1 signed
+-reset_mode sync
+-ina0_reg registered
+-inb0_reg registered
+-ina1_reg registered
+-inb1_reg registered
+-pipe0_reg registered
+-pipe1_reg registered
+-out_reg registered

@@ -139,3 +139,23 @@ default:
   level: ERROR
   title: SSD1331_CMD_ERR
   message: "SSD1331 command error reason=0x{arg0_hex} detail=0x{arg1_hex}"
+
+"0x05:0x30":
+  level: INFO
+  title: OCR_ACK
+  message: "OCR inference started"
+
+"0x05:0x31":
+  level: WARN
+  title: OCR_BUSY
+  message: "OCR engine busy — request dropped"
+
+"0x05:0x40":
+  level: INFO
+  title: OCR_RESULT
+  message: "OCR result class={arg0_b2_u6} char=0x{arg0_b1:02X} score0={arg1_i32} score1={arg2_i32}"
+
+"0x05:0x41":
+  level: DEBUG
+  title: OCR_CYCLES
+  message: "OCR cycles total={arg0_u32} L0={arg1_u32} L1={arg2_u32}"

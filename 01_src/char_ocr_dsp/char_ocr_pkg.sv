@@ -20,20 +20,52 @@ package char_ocr_pkg;
   localparam int unsigned CHAR_OCR_PREPROC_BIN_BYTES   = 128;
   localparam int unsigned CHAR_OCR_FEATURE_COUNT       = 1024;
   localparam int unsigned CHAR_OCR_CLASS_COUNT         = 36;
-  localparam int unsigned CHAR_OCR_HIDDEN0_COUNT       = 64;
+  // HIDDEN0_COUNT = 24 (2 groups of 12 DSP lanes) to fit L0 weight ROMs in
+  // remaining BSRAM18 blocks. Each lane uses one BSRAM18 (1024 x 16-bit).
+  // 12 lanes x 1 BSRAM18 = 12 BSRAM18 for L0; L1 uses LUT-ROM (small).
+  localparam int unsigned CHAR_OCR_HIDDEN0_COUNT       = 24;
   localparam int unsigned CHAR_OCR_SCORE_VECTOR_WIDTH  = CHAR_OCR_CLASS_COUNT * 32;
   localparam int unsigned CHAR_OCR_FEATURE_VECTOR_WIDTH = CHAR_OCR_FEATURE_COUNT * 8;
   localparam int unsigned CHAR_OCR_WEIGHT0_COUNT       = CHAR_OCR_FEATURE_COUNT * CHAR_OCR_HIDDEN0_COUNT;
   localparam int unsigned CHAR_OCR_WEIGHT1_COUNT       = CHAR_OCR_HIDDEN0_COUNT * CHAR_OCR_CLASS_COUNT;
   localparam int unsigned CHAR_OCR_BIAS0_COUNT         = CHAR_OCR_HIDDEN0_COUNT;
   localparam int unsigned CHAR_OCR_BIAS1_COUNT         = CHAR_OCR_CLASS_COUNT;
-  localparam int unsigned CHAR_OCR_LANE_COUNT          = 24;
+  // DSP array: 12 MULTADDALU18X18 units, each accumulates one neuron.
+  // Two MACs per DSP per cycle (A0*B0 + A1*B1), processing two consecutive
+  // features of the same neuron per clock.
+  localparam int unsigned CHAR_OCR_LANE_COUNT          = 12;
   localparam int unsigned CHAR_OCR_DSP_COUNT           = 12;
+  // Pipeline latency of gowin_multaddalu_18x18:
+  //   Stage 1: A/B input registers
+  //   Stage 2: Multiply pipe registers (PIPE0_REG, PIPE1_REG)
+  //   Stage 3: OUT_REG (accumulator register)
+  // After the last valid input, 3 extra zero-input cycles flush the pipeline.
+  localparam int unsigned CHAR_OCR_PIPE_LATENCY        = 3;
+  // Feature and hidden-activation pair counts (2 per cycle)
+  localparam int unsigned CHAR_OCR_FEAT_PAIRS    = CHAR_OCR_FEATURE_COUNT / 2;   // 512
+  localparam int unsigned CHAR_OCR_HIDDEN_PAIRS  = CHAR_OCR_HIDDEN0_COUNT / 2;   // 32
+  // Layer group counts: how many groups of LANE_COUNT neurons are needed
+  localparam int unsigned CHAR_OCR_L0_GROUPS =
+    (CHAR_OCR_HIDDEN0_COUNT + CHAR_OCR_LANE_COUNT - 1) / CHAR_OCR_LANE_COUNT;  // 6
+  localparam int unsigned CHAR_OCR_L1_GROUPS =
+    (CHAR_OCR_CLASS_COUNT + CHAR_OCR_LANE_COUNT - 1) / CHAR_OCR_LANE_COUNT;    // 3
 
-  typedef enum logic [1:0] {
+  // Inference state machine.
+  // Each layer group cycles through: RESET -> RUN -> FLUSH -> READ.
+  // RESET  : one cycle, DSP accumulators and pipeline cleared.
+  // RUN    : FEAT_PAIRS (512) or HIDDEN_PAIRS (32) cycles, valid data fed.
+  // FLUSH  : PIPE_LATENCY (3) cycles, zero inputs flush the pipeline.
+  // READ   : one cycle, accumulated result captured and bias+ReLU applied.
+  typedef enum logic [3:0] {
     ST_IDLE,
-    ST_RUN_LAYER0,
-    ST_RUN_LAYER1,
+    ST_L0_RESET,
+    ST_L0_RUN,
+    ST_L0_FLUSH,
+    ST_L0_READ,
+    ST_L1_RESET,
+    ST_L1_RUN,
+    ST_L1_FLUSH,
+    ST_L1_READ,
     ST_DONE
   } char_ocr_state_t;
 

@@ -90,21 +90,17 @@ module tangnano20k_top(
 
   localparam int unsigned UART_LOG_CLK_HZ           = 24_000_000;
   localparam int unsigned UART_LOG_BAUD             = 115_200;
-  localparam int unsigned UART_LOG_NUM_SRC          = 4;
+  localparam int unsigned UART_LOG_NUM_SRC          = 5;
   // Source index assignment:
   //   0 -> EEPROM host bridge
-  //   1 -> SDRAM self-test event stream
+  //   1 -> SDRAM self-test event stream (disabled)
   //   2 -> SDRAM host bridge used by uart_log_tool STS/RW/Map
   //   3 -> SSD1306 control/status bridge
+  //   4 -> char_ocr_dsp inference result bridge
   //
-  // The GW2AR-18 build does not currently close PnR with every tap enabled.
-  // Keep the functional host-facing bridges enabled:
-  //   - EEPROM host control
-  //   - SDRAM host control
-  //   - SSD1306 control
-  // The standalone SDRAM self-test event stream remains disabled because the
-  // tool features fixed in this change use the status-map on source index 2.
-  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 4'b1101;
+  // Enabled sources: 0 (EEPROM), 2 (SDRAM host), 3 (SSD1306), 4 (OCR).
+  // Source 1 (SDRAM self-test) remains disabled (not useful in host-bridge mode).
+  localparam logic [UART_LOG_NUM_SRC-1:0] UART_LOG_SRC_ENABLE_MASK = 5'b11101;
 
   localparam int unsigned SOFT_RESET_HOLD_CYCLES    = UART_LOG_CLK_HZ;
   localparam int unsigned EEPROM_I2C_BIT_RATE_HZ    = 1_000_000;
@@ -121,6 +117,7 @@ module tangnano20k_top(
   uart_log_evt_if  l_sdram_test_evt_if ();
   uart_log_evt_if  l_sdram_host_evt_if ();
   uart_log_evt_if  l_ssd1306_evt_if ();
+  uart_log_evt_if  l_ocr_evt_if ();
 
   // PLL
   wire        clk_24m_sys;
@@ -188,6 +185,21 @@ module tangnano20k_top(
   logic [8:0]   l_ssd1306_mem_raw_rd_index;
   logic [31:0]  l_ssd1306_mem_raw_rd_data;
   logic         l_ssd1306_mem_raw_rd_last;
+
+  // OCR inference signals (48 MHz domain)
+  // Hardcoded 64x32 test image: upper 16 rows fully lit (bytes 0..127 = 0xFF),
+  // lower 16 rows dark (bytes 128..255 = 0x00). Non-empty, gives class=0 with zero weights.
+  localparam logic [2047:0] OCR_TEST_IMAGE = {{128{8'h00}}, {128{8'hFF}}};
+  logic         l_ocr_run_req;
+  logic         l_ocr_busy;
+  logic         l_ocr_done;
+  logic [5:0]   l_ocr_result_class;
+  logic [7:0]   l_ocr_result_char;
+  logic [31:0]  l_ocr_result_score0;
+  logic [31:0]  l_ocr_result_score1;
+  logic [31:0]  l_ocr_cycles_total;
+  logic [31:0]  l_ocr_cycles_l0;
+  logic [31:0]  l_ocr_cycles_l1;
 
   //---------------------------------------------------------------------------------------------
   // System Onboard LED
@@ -303,6 +315,15 @@ module tangnano20k_top(
     .DST_IF           (l_uart_src_if[3])
   );
 
+  uart_log_src_async_bridge u_ocr_evt_bridge (
+    .I_SRC_CLK        (clk_48m_sdram),
+    .I_SRC_RST_N      (rst_fpga_48m_n),
+    .I_DST_CLK        (clk_24m_sys),
+    .I_DST_RST_N      (rst_fpga_24m_n),
+    .SRC_IF           (l_ocr_evt_if),
+    .DST_IF           (l_uart_src_if[4])
+  );
+
   uart_log_cli_byte_async_bridge u_cli_rx_bridge (
     .I_SRC_CLK        (clk_24m_sys),
     .I_SRC_RST_N      (rst_fpga_24m_n),
@@ -409,6 +430,64 @@ module tangnano20k_top(
     .HOST_EVT_IF              (l_sdram_host_evt_if)
   );
 
+  //---------------------------------------------------------------------------------------------
+  // char_ocr_dsp: OCR inference subsystem
+  //---------------------------------------------------------------------------------------------
+  char_ocr_top u_char_ocr_top (
+    .I_CLK              (clk_48m_sdram),
+    .I_RST_N            (rst_fpga_48m_n),
+    .I_RUN_FULL_OCR     (l_ocr_run_req),
+    .I_RD_ADDR          (16'h0000),
+    .I_NN_MODEL_SELECT  (1'b0),
+    .I_RAW_IMAGE_BYTES  (OCR_TEST_IMAGE),
+    .O_RD_DATA          (),
+    .O_OCR_DONE         (l_ocr_done),
+    .O_EMPTY_IMAGE      (),
+    .O_RESULT_CLASS     (l_ocr_result_class),
+    .O_RESULT_CHAR      (l_ocr_result_char),
+    .O_RESULT_SCORE0    (l_ocr_result_score0),
+    .O_RESULT_SCORE1    (l_ocr_result_score1),
+    .O_RESULT_CONF_GAP  ()
+  );
+
+  // char_ocr_top does not expose O_BUSY; proxy via single-cycle busy flag
+  // (O_OCR_DONE marks end of operation; bridge polls busy state directly).
+  // We derive l_ocr_busy as a level signal held between run_req and done.
+  always_ff @(posedge clk_48m_sdram or negedge rst_fpga_48m_n) begin
+    if (!rst_fpga_48m_n)
+      l_ocr_busy <= 1'b0;
+    else if (l_ocr_run_req)
+      l_ocr_busy <= 1'b1;
+    else if (l_ocr_done)
+      l_ocr_busy <= 1'b0;
+  end
+
+  char_ocr_uart_bridge_ctrl u_ocr_uart_bridge_ctrl (
+    .I_CLK              (clk_48m_sdram),
+    .I_RST_N            (rst_fpga_48m_n),
+    .I_ENABLE           (1'b1),
+    .I_CLI_RX_VALID     (l_cli_rx_valid_48m),
+    .I_CLI_RX_DATA      (l_cli_rx_data_48m),
+    .O_RUN_OCR          (l_ocr_run_req),
+    .I_OCR_BUSY         (l_ocr_busy),
+    .I_OCR_DONE         (l_ocr_done),
+    .I_RESULT_CLASS     (l_ocr_result_class),
+    .I_RESULT_CHAR      (l_ocr_result_char),
+    .I_RESULT_SCORE0    (l_ocr_result_score0),
+    .I_RESULT_SCORE1    (l_ocr_result_score1),
+    .I_CYCLES_TOTAL     (l_ocr_cycles_total),
+    .I_CYCLES_L0        (l_ocr_cycles_l0),
+    .I_CYCLES_L1        (l_ocr_cycles_l1),
+    .HOST_EVT_IF        (l_ocr_evt_if)
+  );
+
+  // char_ocr_top does not expose cycle counters as output ports.
+  // For bring-up, hardwire cycle counts to zero; the OCR result event
+  // will carry 0 for all cycle fields. Promote cycle count ports to
+  // char_ocr_top outputs if diagnostic data is needed later.
+  assign l_ocr_cycles_total = 32'h0;
+  assign l_ocr_cycles_l0    = 32'h0;
+  assign l_ocr_cycles_l1    = 32'h0;
 
 
   //---------------------------------------------------------------------------------------------

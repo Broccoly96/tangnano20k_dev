@@ -1,13 +1,13 @@
 "use client";
 
 import React, { startTransition, useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
-import { AlertCircle, Database, HardDrive, MonitorSmartphone, RefreshCcw, Router } from "lucide-react";
+import { AlertCircle, Database, HardDrive, MonitorSmartphone, RefreshCcw, Router, ScanLine } from "lucide-react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PortInfo, TransportMode, WorkbenchSnapshot } from "@/lib/workbench/types";
 
-type ScreenKey = "log" | "sdram" | "sdram-status" | "eeprom" | "ssd1306";
+type ScreenKey = "log" | "sdram" | "sdram-status" | "eeprom" | "ssd1306" | "ocr";
 
 const navItems: Array<{ key: ScreenKey; label: string; icon: typeof Router }> = [
   { key: "log",          label: "Log",       icon: Router },
@@ -15,6 +15,7 @@ const navItems: Array<{ key: ScreenKey; label: string; icon: typeof Router }> = 
   { key: "sdram-status", label: "SDRAM STS", icon: RefreshCcw },
   { key: "eeprom",       label: "EEPROM",    icon: Database },
   { key: "ssd1306",      label: "SSD1306",   icon: MonitorSmartphone },
+  { key: "ocr",          label: "OCR",        icon: ScanLine },
 ];
 
 const emptySnapshot: WorkbenchSnapshot = {
@@ -57,6 +58,17 @@ const emptySnapshot: WorkbenchSnapshot = {
   eepromRw: { summary: "idle", singleReadResult: "-", singleWriteResult: "-", fileWriteResult: "-" },
   display: { summary: "idle" },
   ssd1306: { summary: "idle", framebytes: new Array(512).fill(0) as number[] },
+  ocr: {
+    summary: "idle",
+    lastClass: null,
+    lastChar: null,
+    lastScore0: null,
+    lastScore1: null,
+    lastConfGap: null,
+    lastCyclesTotal: null,
+    lastCyclesL0: null,
+    lastCyclesL1: null,
+  },
 };
 
 export function WorkbenchClient() {
@@ -787,6 +799,37 @@ export function WorkbenchClient() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              </DkPanel>
+            </div>
+          ) : null}
+
+          {activeScreen === "ocr" ? (
+            <div className="space-y-4">
+              <DkPanel label="OCR Inference" subtitle={snapshot.ocr.summary}>
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <CtrlButton
+                    onClick={() => void runAction("runOcr")}
+                    disabled={isLoading}
+                    primary
+                  >
+                    Run OCR (Z)
+                  </CtrlButton>
+                </div>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-[13px] font-mono">
+                  <MiniStat k="Class index" v={snapshot.ocr.lastClass !== null ? `${snapshot.ocr.lastClass}` : "-"} />
+                  <MiniStat k="Character" v={snapshot.ocr.lastChar !== null ? `'${snapshot.ocr.lastChar}'` : "-"} />
+                  <MiniStat k="Score 0 (top)" v={snapshot.ocr.lastScore0 !== null ? `${snapshot.ocr.lastScore0}` : "-"} />
+                  <MiniStat k="Score 1 (2nd)" v={snapshot.ocr.lastScore1 !== null ? `${snapshot.ocr.lastScore1}` : "-"} />
+                  <MiniStat k="Confidence gap" v={snapshot.ocr.lastConfGap !== null ? `${snapshot.ocr.lastConfGap}` : "-"} warn={(snapshot.ocr.lastConfGap ?? 1) < 0} />
+                </div>
+              </DkPanel>
+
+              <DkPanel label="OCR Cycle Counts" subtitle="reported by EVT_OCR_CYCLES">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 text-[13px] font-mono">
+                  <MiniStat k="Total cycles" v={snapshot.ocr.lastCyclesTotal !== null ? `${snapshot.ocr.lastCyclesTotal}` : "-"} />
+                  <MiniStat k="Layer 0 cycles" v={snapshot.ocr.lastCyclesL0 !== null ? `${snapshot.ocr.lastCyclesL0}` : "-"} />
+                  <MiniStat k="Layer 1 cycles" v={snapshot.ocr.lastCyclesL1 !== null ? `${snapshot.ocr.lastCyclesL1}` : "-"} />
                 </div>
               </DkPanel>
             </div>

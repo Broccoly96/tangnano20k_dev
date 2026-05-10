@@ -12,27 +12,27 @@
   <Part Number>: GW2AR-LV18QN88C8/I7
   <Device>: GW2AR-18
   <Device Version>: C
-  <Created Time>:Wed Apr 29 21:02:44 2026
+  <Created Time>:Thu May  7 10:33:36 2026
 
 
 2. PnR Details
 
   Running placement:
-    Placement Phase 0: CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
-    Placement Phase 1: CPU time = 0h 0m 0.326s, Elapsed time = 0h 0m 0.326s
-    Placement Phase 2: CPU time = 0h 0m 6s, Elapsed time = 0h 0m 6s
+    Placement Phase 0: CPU time = 0h 0m 3s, Elapsed time = 0h 0m 3s
+    Placement Phase 1: CPU time = 0h 0m 0.525s, Elapsed time = 0h 0m 0.525s
+    Placement Phase 2: CPU time = 0h 0m 8s, Elapsed time = 0h 0m 8s
     Placement Phase 3: CPU time = 0h 0m 11s, Elapsed time = 0h 0m 11s
-    Total Placement: CPU time = 0h 0m 19s, Elapsed time = 0h 0m 19s
+    Total Placement: CPU time = 0h 0m 23s, Elapsed time = 0h 0m 23s
  Running routing:
-    Routing Phase 0: CPU time = 0h 0m 0.006s, Elapsed time = 0h 0m 0.005s
-    Routing Phase 1: CPU time = 0h 0m 0.252s, Elapsed time = 0h 0m 0.252s
-    Routing Phase 2: CPU time = 0h 0m 5s, Elapsed time = 0h 0m 5s
+    Routing Phase 0: CPU time = 0h 0m 0.007s, Elapsed time = 0h 0m 0.007s
+    Routing Phase 1: CPU time = 0h 0m 0.368s, Elapsed time = 0h 0m 0.368s
+    Routing Phase 2: CPU time = 0h 0m 28s, Elapsed time = 0h 0m 28s
     Routing Phase 3: CPU time = 0h 0m 0s, Elapsed time = 0h 0m 0s
-    Total Routing: CPU time = 0h 0m 6s, Elapsed time = 0h 0m 6s
+    Total Routing: CPU time = 0h 0m 28s, Elapsed time = 0h 0m 28s
  Generate output files:
     CPU time = 0h 0m 2s, Elapsed time = 0h 0m 2s
 
- Total Time and Memory Usage: CPU time = 0h 0m 26s, Elapsed time = 0h 0m 26s, Peak memory usage = 723MB
+ Total Time and Memory Usage: CPU time = 0h 0m 53s, Elapsed time = 0h 0m 53s, Peak memory usage = 672MB
 
 
 3. Resource Usage Summary
@@ -40,15 +40,15 @@
   --------------------------------------------------------------------------------
   Resources                   | Usage                               | Utilization
   --------------------------------------------------------------------------------
-  Logic                       | 12313/20736                         |  60%
-    --LUT,ALU,ROM16           | 11551(10944 LUT, 607 ALU, 0 ROM16)  | -
-    --SSRAM(RAM16)            | 127                                 | -
-  Register                    | 6694/15915                          |  43%
+  Logic                       | 15248/20736                         |  74%
+    --LUT,ALU,ROM16           | 14198(13587 LUT, 611 ALU, 0 ROM16)  | -
+    --SSRAM(RAM16)            | 175                                 | -
+  Register                    | 8540/15915                          |  54%
     --Logic Register as Latch | 0/15552                             |  0%
-    --Logic Register as FF    | 6623/15552                          |  43%
+    --Logic Register as FF    | 8469/15552                          |  55%
     --I/O Register as Latch   | 0/363                               |  0%
     --I/O Register as FF      | 71/363                              |  20%
-  CLS                         | 8623/10368                          |  84%
+  CLS                         | 8928/10368                          |  87%
   I/O Port                    | 53/66                               |  81%
   I/O Buf                     | 19                                  | -
     --Input Buf               | 2                                   | -
@@ -56,9 +56,12 @@
     --Inout Buf               | 4                                   | -
   IOLOGIC                     | 1/121                               | <1%
     --ODDR                    | 1
-  BSRAM                       | 21/46                               | 46%
+  BSRAM                       | 22/46                               | 48%
     --SDPB                    | 6
     --SDPX9B                  | 15
+    --pROM                    | 1
+  DSP                         | 12/24                               | 50%
+    --MULTADDALU18X18         | 12
   ================================================================================
 
 
@@ -99,8 +102,8 @@
   PIN04_IOL07A_LPLL1_d| PRIMARY        |  BL
   clk_48m_sdram  | PRIMARY        |  TR TL BR BL
   clk_24m_sys    | PRIMARY        |  TR TL BR BL
-  u_uart_log_cli/g_log_tap[3].g_enabled_tap.u_tap/n1330_3| PRIMARY        |  BL
-  u_uart_log_cli/g_log_tap[3].g_enabled_tap.u_tap/n1457_3| PRIMARY        |  BL
+  u_uart_log_cli/g_log_tap[3].g_enabled_tap.u_tap/n1330_3| PRIMARY        |  TR TL BR BL
+  u_uart_log_cli/g_log_tap[3].g_enabled_tap.u_tap/n1457_3| PRIMARY        |  BR
   r_sys_q_mem[0]_ER_init| LW             |  -
   r_evt_fifo_mem[0]_ER_init| LW             |  -
   l_hostif_sdrc_rst_n| LW             |  -

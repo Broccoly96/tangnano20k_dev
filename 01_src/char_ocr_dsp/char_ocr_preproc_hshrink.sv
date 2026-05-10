@@ -16,8 +16,7 @@
 module char_ocr_preproc_hshrink (
   input  logic [2047:0] I_RAW_IMAGE_BYTES,
   output logic          O_EMPTY_IMAGE,
-  output logic [1023:0] O_PREPROC_BIN_BYTES,
-  output logic [8191:0] O_FEATURE_BYTES
+  output logic [1023:0] O_PREPROC_BIN_BYTES
 );
 
   function automatic logic get_raw_pixel(
@@ -43,10 +42,9 @@ module char_ocr_preproc_hshrink (
     logic preproc_pixel;
     int unsigned out_byte_idx;
     int unsigned out_bit_idx;
-    int unsigned feature_idx;
+    int unsigned feature_idx; // kept for loop variable (unused in output)
 
     O_PREPROC_BIN_BYTES = '0;
-    O_FEATURE_BYTES = '0;
     any_raw_pixel_set = 1'b0;
 
     for (int unsigned pixel_y = 0; pixel_y < 32; pixel_y++) begin
@@ -63,7 +61,6 @@ module char_ocr_preproc_hshrink (
         O_PREPROC_BIN_BYTES[(out_byte_idx * 8) + out_bit_idx] = preproc_pixel;
 
         feature_idx = (pixel_y * 32) + pixel_x;
-        O_FEATURE_BYTES[(feature_idx * 8) +: 8] = {7'd0, preproc_pixel};
       end
     end
 

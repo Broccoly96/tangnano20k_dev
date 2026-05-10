@@ -16,7 +16,7 @@ export const FRAME_PAYLOAD_BYTES = 16;
 export const FRAME_TOTAL_BYTES = 19;
 
 export const HOST_SRC_INDEX = 2;
-export const UART_LOG_NUM_SRC = 4;
+export const UART_LOG_NUM_SRC = 5;
 export const SYS_SRC_ID = 0x00;
 export const SYS_EVT_MODE_CHANGE = 0x01;
 export const SDRAM_HOST_SRC_ID = 0x03;
@@ -54,6 +54,14 @@ export const DISPLAY_FRAMEBUFFER_BASE_ADDR = 0x10000;
 export const CMD_NEXT_SRC = 0x06;
 export const CMD_LITERAL_NEXT = 0x10;
 export const CMD_SOFT_RESET = 0x12;
+
+export const OCR_HOST_SRC_ID = 0x05;   // SRC_IF[4] → src_id = 4+1 = 5
+export const OCR_SRC_INDEX = 4;         // 0-based index sent via CMD_NEXT_SRC
+export const EVT_OCR_ACK = 0x30;
+export const EVT_OCR_BUSY = 0x31;
+export const EVT_OCR_RESULT = 0x40;
+export const EVT_OCR_CYCLES = 0x41;
+export const CMD_RUN_OCR = 0x5a;        // 'Z'
 
 export const MAP_ROWS = 16;
 export const MAP_WORDS_PER_ROW = 16;

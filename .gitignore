@@ -29,6 +29,7 @@ logs
 impl/gwsynthesis
 impl/temp
 run_all*
+04_simlib
 
 # Prompts
 *.prompt*

@@ -7,7 +7,6 @@ module testbench;
   logic [2047:0] tb_raw_image_bytes;
   logic          tb_empty_image;
   logic [1023:0] tb_preproc_bin_bytes;
-  logic [8191:0] tb_feature_bytes;
 
   initial begin
     configure_logging(LOG_DEBUG);
@@ -16,8 +15,7 @@ module testbench;
   char_ocr_preproc_hshrink u_dut (
     .I_RAW_IMAGE_BYTES   (tb_raw_image_bytes),
     .O_EMPTY_IMAGE       (tb_empty_image),
-    .O_PREPROC_BIN_BYTES (tb_preproc_bin_bytes),
-    .O_FEATURE_BYTES     (tb_feature_bytes)
+    .O_PREPROC_BIN_BYTES (tb_preproc_bin_bytes)
   );
 
   task automatic clear_raw_image();
@@ -60,11 +58,11 @@ module testbench;
     end
   endfunction
 
-  function automatic logic [7:0] get_feature_byte(
+  function automatic logic get_feature_bit(
     input int unsigned feature_idx
   );
     begin
-      get_feature_byte = tb_feature_bytes[(feature_idx * 8) +: 8];
+      get_feature_bit = tb_preproc_bin_bytes[feature_idx];
     end
   endfunction
 
@@ -144,29 +142,29 @@ module testbench;
     end
   endtask
 
-  task automatic expect_feature_byte(
+  task automatic expect_feature_bit(
     input int unsigned feature_idx,
-    input logic [7:0]  exp_byte,
+    input logic        exp_bit,
     input string       label
   );
-    logic [7:0] act_byte;
+    logic act_bit;
     begin
       #1ns;
-      act_byte = get_feature_byte(feature_idx);
-      if (act_byte !== exp_byte) begin
+      act_bit = get_feature_bit(feature_idx);
+      if (act_bit !== exp_bit) begin
         log_fatal(
           1,
           "OCR PREPROC TB",
           $sformatf(
-            "feature mismatch %s idx=%0d act=0x%02h exp=0x%02h",
+            "feature bit mismatch %s idx=%0d act=%0b exp=%0b",
             label,
             feature_idx,
-            act_byte,
-            exp_byte
+            act_bit,
+            exp_bit
           )
         );
       end
-      log_info("OCR PREPROC TB", {"feature ok: ", label});
+      log_info("OCR PREPROC TB", {"feature bit ok: ", label});
     end
   endtask
 

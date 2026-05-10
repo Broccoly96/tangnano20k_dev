@@ -40,6 +40,13 @@ import {
   DISPLAY_FRAMEBUFFER_BASE_ADDR,
   DISPLAY_HOST_SRC_ID,
   DISPLAY_SRC_INDEX,
+  OCR_HOST_SRC_ID,
+  OCR_SRC_INDEX,
+  EVT_OCR_ACK,
+  EVT_OCR_BUSY,
+  EVT_OCR_RESULT,
+  EVT_OCR_CYCLES,
+  CMD_RUN_OCR,
   DISP_OP_AUTO_OFF,
   DISP_OP_AUTO_ON,
   DISP_OP_CLEAR,
@@ -95,6 +102,7 @@ import {
 import type {
   ConnectPayload,
   EepromRwState,
+  OcrState,
   PortInfo,
   ReplayRecord,
   RwState,
@@ -178,6 +186,18 @@ export class WorkbenchService {
   };
 
   private displaySummary = "idle";
+
+  private ocrState: OcrState = {
+    summary: "idle",
+    lastClass: null,
+    lastChar: null,
+    lastScore0: null,
+    lastScore1: null,
+    lastConfGap: null,
+    lastCyclesTotal: null,
+    lastCyclesL0: null,
+    lastCyclesL1: null,
+  };
 
   private ssd1306Framebytes = new Uint8Array(SSD1306_FRAME_BYTES);
   private ssd1306Summary = "idle";
@@ -332,6 +352,7 @@ export class WorkbenchService {
         summary: this.ssd1306Summary,
         framebytes: Array.from(this.ssd1306Framebytes),
       },
+      ocr: { ...this.ocrState },
     };
   }
 
@@ -750,6 +771,32 @@ export class WorkbenchService {
     });
   }
 
+  async runOcr() {
+    return this.runExclusive(async () => {
+      await this.selectSource(OCR_SRC_INDEX);
+      this.dropPendingFrames(
+        (frame) => frame.event.srcId === OCR_HOST_SRC_ID &&
+          [EVT_OCR_ACK, EVT_OCR_BUSY, EVT_OCR_RESULT, EVT_OCR_CYCLES].includes(frame.event.eventId),
+      );
+      this.ocrState.summary = "sending OCR request...";
+      await this.sendBytes(Buffer.from([CMD_RUN_OCR]));
+      const ackFrame = await this.waitForFrame(
+        (frame) => frame.event.srcId === OCR_HOST_SRC_ID &&
+          [EVT_OCR_ACK, EVT_OCR_BUSY].includes(frame.event.eventId),
+        1000,
+      );
+      if (ackFrame.event.eventId === EVT_OCR_BUSY) {
+        this.ocrState.summary = "engine busy — retry later";
+        return;
+      }
+      // Wait for result (inference takes ~40 cycles at 48 MHz, well under 1 s)
+      await this.waitForFrame(
+        (frame) => frame.event.srcId === OCR_HOST_SRC_ID && frame.event.eventId === EVT_OCR_RESULT,
+        2000,
+      );
+    });
+  }
+
   async displaySetFps(fps: number) {
     return this.runExclusive(async () => {
       await this.selectSource(DISPLAY_SRC_INDEX);
@@ -828,6 +875,8 @@ export class WorkbenchService {
         return this.ssd1306ReadFrame();
       case "ssd1306WriteFrame":
         return this.ssd1306WriteFrame(payload.framebytes as number[]);
+      case "runOcr":
+        return this.runOcr();
       default:
         throw new Error(`unsupported action: ${action}`);
     }
@@ -910,12 +959,40 @@ export class WorkbenchService {
     if (frame.event.srcId === SYS_SRC_ID && frame.event.eventId === SYS_EVT_MODE_CHANGE) {
       this.selectedSrcIdx = frame.event.arg1 & 0xff;
     }
+    if (frame.event.srcId === OCR_HOST_SRC_ID) {
+      this.handleOcrFrame(frame);
+    }
     this.appendRow({
       hostTime: formatHostTime(),
       seq: frame.seq,
       event: frame.event,
       lostCount: frame.lostCount,
     });
+  }
+
+  private handleOcrFrame(frame: UartFrame) {
+    const { eventId, arg0, arg1, arg2 } = frame.event;
+    if (eventId === EVT_OCR_ACK) {
+      this.ocrState.summary = "inference started";
+    } else if (eventId === EVT_OCR_BUSY) {
+      this.ocrState.summary = "engine busy";
+    } else if (eventId === EVT_OCR_RESULT) {
+      const classIdx = (arg0 >>> 18) & 0x3f;
+      const charCode = (arg0 >>> 8) & 0xff;
+      const score0 = arg1 | 0;   // interpret as int32
+      const score1 = arg2 | 0;
+      const confGap = score0 - score1;
+      this.ocrState.lastClass = classIdx;
+      this.ocrState.lastChar = charCode >= 0x20 ? String.fromCharCode(charCode) : `\\x${charCode.toString(16).toUpperCase().padStart(2, "0")}`;
+      this.ocrState.lastScore0 = score0;
+      this.ocrState.lastScore1 = score1;
+      this.ocrState.lastConfGap = confGap;
+      this.ocrState.summary = `result: class=${classIdx} char='${this.ocrState.lastChar}'`;
+    } else if (eventId === EVT_OCR_CYCLES) {
+      this.ocrState.lastCyclesTotal = arg0 >>> 0;
+      this.ocrState.lastCyclesL0 = arg1 >>> 0;
+      this.ocrState.lastCyclesL1 = arg2 >>> 0;
+    }
   }
 
   private appendRow(row: StoredEvent) {
